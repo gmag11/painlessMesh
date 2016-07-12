@@ -38,6 +38,9 @@ void webSocketConnectCb(void *arg) {
 
   //  Serial.printf("\n\nmeshWebSocket received connection !!!\n");
 
+    // set time out for this connection in seconds
+    espconn_regist_time( connection, 120, 1);
+    
   //find an empty slot
   uint8_t slotId = 0;
   while (wsConnections[slotId].connection != NULL && wsConnections[slotId].status != STATUS_CLOSED && slotId < WS_MAXCONN) {
@@ -319,11 +322,11 @@ void webSocketDisconCb(void *arg) {
   WSConnection *wsConn = getWsConnection( esp_connection);
   if ( wsConn != NULL ) {
     wsConn->status = STATUS_CLOSED;
-//    Serial.printf("Leaving webSocket_server_discon_cb found\n");
+    Serial.printf("Leaving webSocket_server_discon_cb found\n");
     return;
   }
 
-//  Serial.printf("Leaving webSocket_server_discon_cb  didn't find\n");
+  Serial.printf("Leaving webSocket_server_discon_cb  didn't find\n");
   return;
 }
 

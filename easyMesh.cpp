@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <SimpleList.h>
 
 extern "C" {
 #include "ets_sys.h"
@@ -26,27 +27,32 @@ uint16_t  count = 0;
 
 //***********************************************************************
 void easyMesh::init( void ) {
-  // shut everything down, start with a blank slate.
-  staticThis = this;
-
-  wifi_station_set_auto_connect( false );
-  wifi_station_disconnect();
-  wifi_softap_dhcps_stop();
-
-  // start configuration
-  Serial.printf("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
-  wifi_set_event_handler_cb( wifiEventCb );
-
-  _chipId = system_get_chip_id();
-  _mySSID = String( MESH_PREFIX ) + String( _chipId );
-
-  // setup AP
-  apInit();
+    // shut everything down, start with a blank slate.
+    staticThis = this;
+    
+    wifi_station_set_auto_connect( false );
+    wifi_station_disconnect();
+    wifi_softap_dhcps_stop();
+    
+    // start configuration
+    Serial.printf("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
+    wifi_set_event_handler_cb( wifiEventCb );
+    
+    _chipId = system_get_chip_id();
+    _mySSID = String( MESH_PREFIX ) + String( _chipId );
+    
+    apInit();       // setup AP
+    stationInit();  // setup station
 }
 
 //***********************************************************************
 void easyMesh::update( void ) {
   manageStation();
+}
+
+//***********************************************************************
+void easyMesh::setWSockRecvCallback( WSOnMessage onMessage ){
+    webSocketSetReceiveCallback( onMessage );
 }
 
 //***********************************************************************
@@ -98,36 +104,69 @@ void easyMesh::apInit( void  ) {
     SPIFFS.begin(); // start file system for webserver
 }
 
+//***********************************************************************
+void easyMesh::stationInit( void ) {
+    startStationScan();
+    return;
+}
 
 //***********************************************************************
-bool easyMesh::findBestAP( char *buffer ) {
-  if ( staticThis->_meshAPs.empty() ) {           // we need a new scan
-    if ( staticThis->scanStatus == SCANNING ) {   // scan in progress, wait until it finishes
-      return false;
+void easyMesh::startStationScan( void ) {
+    if ( scanStatus != IDLE ) {
+        return;
     }
-
-    // else start scan
-    Serial.printf("-->scan started @ %d<--\n", system_get_time());
+    
     if ( !wifi_station_scan(NULL, stationScanCb) ) {
-      Serial.printf("wifi_station_scan() failed!?\n");
-      return false;
+        Serial.printf("wifi_station_scan() failed!?\n");
+        return;
     }
-    staticThis->scanStatus = SCANNING;
-    return false;
-  }
+    scanStatus = SCANNING;
+    Serial.printf("-->scan started @ %d<--\n", system_get_time());
+    return;
+}
 
-  // if we are here, then we have a list of at least 1 meshAPs. find strongest signal of remaining meshAPs
-  SimpleList<bss_info>::iterator bestAP = staticThis->_meshAPs.begin();
-  SimpleList<bss_info>::iterator i = staticThis->_meshAPs.begin();
-  while ( i != staticThis->_meshAPs.end() ) {
-    if ( i->rssi > bestAP->rssi ) {
-      bestAP = i;
+//***********************************************************************
+void easyMesh::scanTimerCallback( void *arg ) {
+    staticThis->startStationScan();
+}
+
+//***********************************************************************
+bool easyMesh::connectToBestAP( void ) {
+    if ( staticThis->_meshAPs.empty() ) {  // no meshNodes left in most recent scan
+        Serial.printf("connectToBestAP(): no nodes left in list\n");
+        // wait 5 seconds and rescan;
+        os_timer_setfn( &_scanTimer, scanTimerCallback, NULL );
+        os_timer_arm( &_scanTimer, 5000, 0 );
+        return false;
     }
-    ++i;
-  }
-  strcpy( buffer, (char*)bestAP->ssid );
-  Serial.printf("Best AP is %s<---\n", buffer );
-  return true;
+    
+    uint8 statusCode = wifi_station_get_connect_status();
+    if ( statusCode != STATION_IDLE ) {
+        Serial.printf("connectToBestAP(): station not idle.  code=%d\n", statusCode);
+        return false;
+    }
+    
+    // if we are here, then we have a list of at least 1 meshAPs. find strongest signal of remaining meshAPs
+    SimpleList<bss_info>::iterator bestAP = staticThis->_meshAPs.begin();
+    SimpleList<bss_info>::iterator i = staticThis->_meshAPs.begin();
+    while ( i != staticThis->_meshAPs.end() ) {
+        if ( i->rssi > bestAP->rssi ) {
+            bestAP = i;
+        }
+        ++i;
+    }
+
+    // connect to bestAP
+    Serial.printf("connectToBestAP(): Best AP is %s<---\n", (char*)bestAP->ssid );
+    struct station_config stationConf;
+    stationConf.bssid_set = 0;
+    memcpy(&stationConf.ssid, bestAP, 32);
+    memcpy(&stationConf.password, MESH_PASSWORD, 64);
+    wifi_station_set_config(&stationConf);
+    wifi_station_connect();
+    
+    _meshAPs.erase( bestAP );    // drop bestAP from mesh list, so if doesn't work out, we can try the next one
+    return true;
 }
 
 //***********************************************************************
@@ -139,16 +178,6 @@ void easyMesh::manageStation( void ) {
     return;
 
   if ( stationStatus == STATION_IDLE ) {
-    if (findBestAP( bestAP ) ) {
-      // connect to bestAP
-      struct station_config stationConf;
-      stationConf.bssid_set = 0;
-      memcpy(&stationConf.ssid, bestAP, 32);
-      memcpy(&stationConf.password, MESH_PASSWORD, 64);
-      wifi_station_set_config(&stationConf);
-      wifi_station_connect();
-      return;
-    }
   }
 
   if ( stationStatus == 2 || stationStatus == 3 || stationStatus == 4 ) {
@@ -156,29 +185,29 @@ void easyMesh::manageStation( void ) {
   }
 }
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::stationScanCb(void *arg, STATUS status) {
-  char ssid[32];
-  bss_info *bssInfo = (bss_info *)arg;
-  Serial.printf("-- > scan finished @ % d < --\n", system_get_time());
-
-  staticThis->_meshAPs.clear();
-  while (bssInfo != NULL) {
-    Serial.printf("found : % s, % ddBm", (char*)bssInfo->ssid, (int16_t) bssInfo->rssi );
-    if ( strncmp( (char*)bssInfo->ssid, MESH_PREFIX, strlen(MESH_PREFIX) ) == 0 ) {
-      Serial.printf(" < -- -");
-      staticThis->_meshAPs.push_back( *bssInfo );
+    char ssid[32];
+    bss_info *bssInfo = (bss_info *)arg;
+    Serial.printf("-- > scan finished @ % d < --\n", system_get_time());
+    staticThis->scanStatus = IDLE;
+    
+    staticThis->_meshAPs.clear();
+    while (bssInfo != NULL) {
+        Serial.printf("found : % s, % ddBm", (char*)bssInfo->ssid, (int16_t) bssInfo->rssi );
+        if ( strncmp( (char*)bssInfo->ssid, MESH_PREFIX, strlen(MESH_PREFIX) ) == 0 ) {
+            Serial.printf(" < ---");
+            staticThis->_meshAPs.push_back( *bssInfo );
+        }
+        Serial.printf("\n");
+        bssInfo = STAILQ_NEXT(bssInfo, next);
     }
-    Serial.printf("\n");
-    bssInfo = STAILQ_NEXT(bssInfo, next);
-  }
-  Serial.printf("Found % d nodes with MESH_PREFIX = \"%s\"\n", staticThis->_meshAPs.size(), MESH_PREFIX );
-
-  staticThis->scanStatus = IDLE;
+    Serial.printf("Found % d nodes with MESH_PREFIX = \"%s\"\n", staticThis->_meshAPs.size(), MESH_PREFIX );
+    
+    staticThis->connectToBestAP();
 }
 
-
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::tcpConnect( void ) {
   struct ip_info ipconfig;
   wifi_get_ip_info(STATION_IF, &ipconfig);
@@ -223,7 +252,7 @@ void easyMesh::tcpConnect( void ) {
   Serial.printf("leaving tcpConnect()\n");
 }
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::tcpServerInit(espconn & serverConn, esp_tcp & serverTcp, espconn_connect_callback connectCb, uint32 port) {
   serverConn.type = ESPCONN_TCP;
   serverConn.state = ESPCONN_NONE;
@@ -239,6 +268,7 @@ void easyMesh::tcpServerInit(espconn & serverConn, esp_tcp & serverTcp, espconn_
   return;
 }
 
+//***********************************************************************
 String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, String & msg ) {
   Serial.printf("In buildMeshPackage()\n");
 
@@ -256,7 +286,7 @@ String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, S
   return String( sendBuffer );
 }
 
-/***********************************************************************/
+//***********************************************************************
 bool easyMesh::sendMessage( uint32_t finalDestId, String & msg ) {
   Serial.printf("In sendMessage()\n");
 
@@ -265,7 +295,7 @@ bool easyMesh::sendMessage( uint32_t finalDestId, String & msg ) {
   return sendPackage( findConnection( finalDestId ), package );
 }
 
-/***********************************************************************/
+//***********************************************************************
 bool easyMesh::sendHandshake( meshConnection_t *connection ) {
   Serial.printf("In sendHandshake()\n");
   
@@ -275,8 +305,7 @@ bool easyMesh::sendHandshake( meshConnection_t *connection ) {
   return sendPackage( connection, package );
 }
 
-
-/***********************************************************************/
+//***********************************************************************
 bool easyMesh::sendPackage( meshConnection_t *connection, String & package ) {
   Serial.printf("Sending package=%s<--\n", package.c_str() );
 
@@ -289,19 +318,32 @@ bool easyMesh::sendPackage( meshConnection_t *connection, String & package ) {
     return false;
   }
 }
-/***********************************************************************/
 
+//***********************************************************************
 meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
-  Serial.printf("In findConnection()\n");
+  Serial.printf("In findConnection(chipId)\n");
   
   SimpleList<meshConnection_t>::iterator connection = _connections.begin();
   while ( connection != _connections.end() ) {
-    if ( connection->chipId != chipId )
+    if ( connection->chipId == chipId )
       return connection;
   }
   return NULL;
 }
-/***********************************************************************/
+
+//***********************************************************************
+meshConnection_t* easyMesh::findConnection( espconn *conn ) {
+    Serial.printf("In findConnection(esp_conn)\n");
+    
+    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    while ( connection != _connections.end() ) {
+        if ( connection->esp_conn == conn )
+            return connection;
+    }
+    return NULL;
+}
+
+//***********************************************************************
 void easyMesh::meshConnectedCb(void *arg) {
   Serial.printf("new meshConnection !!!\n");
   meshConnection_t newConn;
@@ -319,13 +361,13 @@ void easyMesh::meshConnectedCb(void *arg) {
   staticThis->sendHandshake( &newConn );
 }
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::meshRecvCb(void *arg, char *packageData, unsigned short length) {
   Serial.printf("In meshRecvCb recvd-->%s<--", packageData);
   struct espconn *receiveConn = (espconn *)arg;
 } 
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::meshSentCb(void *arg) {
   //data sent successfully
   Serial.printf("In meshSentCb\r\n");
@@ -333,17 +375,31 @@ void easyMesh::meshSentCb(void *arg) {
   //  espconn_disconnect( requestconn );
 }
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::meshDisconCb(void *arg) {
-  Serial.printf("In meshDisconCb\n");
+    Serial.printf("meshDisconCb: ");
+
+    //test to see if this connection is on the STATION interface by checking the local port
+    struct espconn *disConn = (espconn *)arg;
+    if ( disConn->proto.tcp->local_port != MESH_PORT ) {
+        Serial.printf("Station Connection! local_port=%d\n", disConn->proto.tcp->local_port);
+        wifi_station_disconnect();
+        staticThis->connectToBestAP();
+    }
+    else {
+        Serial.printf("AP connection do nothing! local_port=%d\n", disConn->proto.tcp->local_port);
+    }
+    
+    staticThis->_connections.erase( staticThis->findConnection( disConn ) );
+    return;
 }
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::meshReconCb(void *arg, sint8 err) {
   Serial.printf("In meshReconCb err=%d\n", err );
 }
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::wifiEventCb(System_Event_t *event) {
   switch (event->event) {
     case EVENT_STAMODE_CONNECTED:
