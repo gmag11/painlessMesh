@@ -40,11 +40,23 @@ class easyMesh {
   public:
     void init( void );
     void update( void );
+    void manageStation( void );
+    
     bool sendMessage( uint32_t finalDestId, String &msg );  //must be accessable from callback
     bool sendHandshake( meshConnection_t *connection );  //must be accessable from callback
     void tcpConnect( void );  //must be accessable from callback
-    void manageStation( void );
-        
+
+    uint8_t     scanStatus = IDLE;
+    SimpleList<bss_info>            _meshAPs;
+
+  protected:
+    void apInit( void );
+    void tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
+
+    bool findBestAP( char *buffer );
+    bool stationConnect( void );
+    bool stationScan( void );
+
     // callbacks
     static void wifiEventCb(System_Event_t *event);
     static void meshConnectedCb(void *arg);
@@ -53,18 +65,6 @@ class easyMesh {
     static void meshDisconCb(void *arg);
     static void meshReconCb(void *arg, sint8 err);
     static void stationScanCb(void *arg, STATUS status);
-
-    static bool findBestAP( char *buffer );
-
-    uint8_t     scanStatus = IDLE;
-    SimpleList<bss_info>            _meshAPs;
-
-  protected:
-    void apInit( void );
-    void tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
-    bool stationConnect( void );
-    bool stationScan( void );
-
 
     meshConnection_t* findConnection( uint32_t chipId );
     String buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, String &msg );

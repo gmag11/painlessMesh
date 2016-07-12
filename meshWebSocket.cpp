@@ -147,7 +147,7 @@ void webSocketRecvCb(void *arg, char *data, unsigned short len) {
       return;
     }
 
-    Serial.printf("frame.payloadData-->%s<--\n", frame.payloadData);
+//    Serial.printf("frame.payloadData-->%s<--\n", frame.payloadData);
 
     if (frame.opcode == OPCODE_PING) {
       //      Serial.printf("frame.opcode=OPCODE_PING\n");
@@ -213,7 +213,7 @@ static void ICACHE_FLASH_ATTR parseWsFrame(char *data, WSFrame *frame) {
 
 //***********************************************************************
 WSConnection *ICACHE_FLASH_ATTR getWsConnection(struct espconn *connection) {
-  Serial.printf("In getWsConnecition\n");
+//  Serial.printf("In getWsConnecition\n");
   for (int slotId = 0; slotId < WS_MAXCONN; slotId++) {
 //    Serial.printf("slotId=%d, ws.conn*=%x, espconn*=%x<--  ", slotId, wsConnections[slotId].connection, connection);
 

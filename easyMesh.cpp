@@ -15,6 +15,7 @@ extern "C" {
 #include "mem.h"
 }
 
+#include "FS.h"
 #include "easyMesh.h"
 #include "meshWebServer.h"
 #include "meshWebSocket.h"
@@ -44,13 +45,11 @@ void easyMesh::init( void ) {
 }
 
 //***********************************************************************
-
 void easyMesh::update( void ) {
- // manageStation();
+  manageStation();
 }
 
 //***********************************************************************
-
 void easyMesh::apInit( void  ) {
   String password( MESH_PASSWORD );
 
@@ -95,10 +94,12 @@ void easyMesh::apInit( void  ) {
   tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, MESH_PORT );
   tcpServerInit( _webServerConn, _webServerTcp, webServerConnectCb, WEB_PORT );
   tcpServerInit( _webSocketConn, _webSocketTcp, webSocketConnectCb, WEB_SOCKET_PORT );
+    
+    SPIFFS.begin(); // start file system for webserver
 }
 
 
-/***********************************************************************/
+//***********************************************************************
 bool easyMesh::findBestAP( char *buffer ) {
   if ( staticThis->_meshAPs.empty() ) {           // we need a new scan
     if ( staticThis->scanStatus == SCANNING ) {   // scan in progress, wait until it finishes
@@ -129,7 +130,7 @@ bool easyMesh::findBestAP( char *buffer ) {
   return true;
 }
 
-/***********************************************************************/
+//***********************************************************************
 void easyMesh::manageStation( void ) {
   char bestAP[32];
   uint8 stationStatus = wifi_station_get_connect_status();
