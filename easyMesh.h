@@ -19,6 +19,7 @@ extern "C" {
 }
 
 #include "meshWebServer.h"
+#include "meshWebSocket.h"
 
 #define MESH_PREFIX       "mesh"
 #define MESH_PASSWORD     "bootyboo"
