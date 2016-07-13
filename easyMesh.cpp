@@ -27,21 +27,22 @@ uint16_t  count = 0;
 
 //***********************************************************************
 void easyMesh::init( void ) {
+    staticThis = this;  // provides a way for static callback methods to access "this" object;
+
+    wifi_set_event_handler_cb( wifiEventCb );
+
     // shut everything down, start with a blank slate.
-    staticThis = this;
-    
-    wifi_station_set_auto_connect( false );
+    wifi_station_set_auto_connect( 0 );
     wifi_station_disconnect();
     wifi_softap_dhcps_stop();
     
     // start configuration
     Serial.printf("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
-    wifi_set_event_handler_cb( wifiEventCb );
     
     _chipId = system_get_chip_id();
     _mySSID = String( MESH_PREFIX ) + String( _chipId );
     
-    apInit();       // setup AP
+//    apInit();       // setup AP
     stationInit();  // setup station
 }
 
@@ -160,7 +161,7 @@ bool easyMesh::connectToBestAP( void ) {
     Serial.printf("connectToBestAP(): Best AP is %s<---\n", (char*)bestAP->ssid );
     struct station_config stationConf;
     stationConf.bssid_set = 0;
-    memcpy(&stationConf.ssid, bestAP, 32);
+    memcpy(&stationConf.ssid, bestAP->ssid, 32);
     memcpy(&stationConf.password, MESH_PASSWORD, 64);
     wifi_station_set_config(&stationConf);
     wifi_station_connect();
@@ -213,35 +214,32 @@ void easyMesh::tcpConnect( void ) {
   wifi_get_ip_info(STATION_IF, &ipconfig);
 
   if ( wifi_station_get_connect_status() == STATION_GOT_IP && ipconfig.ip.addr != 0 ) {
-    Serial.printf("\nGot local IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.ip) );
+    Serial.printf("Got local IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.ip) );
     Serial.printf("Dest IP=%d.%d.%d.%d\n", IP2STR( &ipconfig.gw ) );
 
-    espconn conn;
-    esp_tcp tcp;
-
-    conn.type = ESPCONN_TCP;
-    conn.state = ESPCONN_NONE;
-    conn.proto.tcp = &tcp;
-    conn.proto.tcp->local_port = espconn_port();
-    conn.proto.tcp->remote_port = 80;
-    os_memcpy(conn.proto.tcp->local_ip, &ipconfig.ip, 4);
-    os_memcpy(conn.proto.tcp->remote_ip, &ipconfig.gw, 4);
+    _stationConn.type = ESPCONN_TCP;
+    _stationConn.state = ESPCONN_NONE;
+    _stationConn.proto.tcp = &_stationTcp;
+    _stationConn.proto.tcp->local_port = espconn_port();
+    _stationConn.proto.tcp->remote_port = 80;
+    os_memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
+    os_memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
 
     Serial.printf("conn Print type=%d, state=%d, local_ip=%d.%d.%d.%d, local_port=%d, remote_ip=%d.%d.%d.%d remote_port=%d\n",
-                  conn.type,
-                  conn.state,
-                  IP2STR(conn.proto.tcp->local_ip),
-                  conn.proto.tcp->local_port,
-                  IP2STR(conn.proto.tcp->remote_ip),
-                  conn.proto.tcp->remote_port );
+                  _stationConn.type,
+                  _stationConn.state,
+                  IP2STR(_stationConn.proto.tcp->local_ip),
+                  _stationConn.proto.tcp->local_port,
+                  IP2STR(_stationConn.proto.tcp->remote_ip),
+                  _stationConn.proto.tcp->remote_port );
 
-        espconn_regist_connectcb(&conn, meshConnectedCb);
-        espconn_regist_recvcb(&conn, meshRecvCb);
-        espconn_regist_sentcb(&conn, meshSentCb);
-        espconn_regist_reconcb(&conn, meshReconCb);
-        espconn_regist_disconcb(&conn, meshDisconCb);
+        espconn_regist_connectcb(&_stationConn, meshConnectedCb);
+        espconn_regist_recvcb(&_stationConn, meshRecvCb);
+        espconn_regist_sentcb(&_stationConn, meshSentCb);
+        espconn_regist_reconcb(&_stationConn, meshReconCb);
+        espconn_regist_disconcb(&_stationConn, meshDisconCb);
     
-    sint8  errCode = espconn_connect(&conn);
+    sint8  errCode = espconn_connect(&_stationConn);
     if ( errCode != 0 ) {
       Serial.printf("espconn_connect() falied=%d\n", errCode );
     }
@@ -350,8 +348,6 @@ void easyMesh::meshConnectedCb(void *arg) {
   newConn.esp_conn = (espconn *)arg;
   //  struct espconn *newConn = (espconn *)arg;
   staticThis->_connections.push_back( newConn );
-
-  Serial.printf("new meshConnection !!!\n");
 
   espconn_regist_recvcb(newConn.esp_conn, meshRecvCb);
   espconn_regist_sentcb(newConn.esp_conn, meshSentCb);

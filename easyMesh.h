@@ -91,6 +91,9 @@ class easyMesh {
     espconn     _webSocketConn;
     esp_tcp     _webSocketTcp;
 
+    espconn     _stationConn;
+    esp_tcp     _stationTcp;
+    
     SimpleList<meshConnection_t>    _connections;
 };
 
