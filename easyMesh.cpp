@@ -45,8 +45,27 @@ void easyMesh::init( void ) {
     _chipId = system_get_chip_id();
     _mySSID = String( MESH_PREFIX ) + String( _chipId );
     
-//    apInit();       // setup AP
+    apInit();       // setup AP
     stationInit();  // setup station
+    
+    os_timer_setfn( &_timeSyncTimer, timeSyncCallback, NULL );
+    os_timer_arm( &_timeSyncTimer, TIMESYNC_INTERVAL, 1 );
+}
+
+//***********************************************************************
+void easyMesh::timeSyncCallback( void *arg ) {
+    if ( wifi_station_get_connect_status() == STATION_GOT_IP ) {
+        // we are connected as a station find station connection
+        SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+        while ( connection != _connections.end() ) {
+            if ( connection->esp_conn->proto.tcp->local_port != MESH_PORT ) {
+                // found station connection.  Initiate timeSync
+                staticThis->sendMessage( connection->chipId, TIMESYNC, )
+                break;
+            }
+            connection++;
+        }
+    }
 }
 
 //***********************************************************************
@@ -191,22 +210,24 @@ void easyMesh::stationScanCb(void *arg, STATUS status) {
 //***********************************************************************
 bool easyMesh::connectToBestAP( void ) {
     
-    SimpleList<bss_info>::iterator ap = _meshAPs.begin();
-    while( ap != _meshAPs.end() ) {
-        String apChipId = (char*)ap->ssid + strlen( MESH_PREFIX);
-        Serial.printf("sort in connectToBestAP: ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
+    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    while ( connection != _connections.end() ) {
+        SimpleList<bss_info>::iterator ap = _meshAPs.begin();
+        while( ap != _meshAPs.end() ) {
+            String apChipId = (char*)ap->ssid + strlen( MESH_PREFIX);
+            Serial.printf("connectToBestAP: sort - ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
         
-        SimpleList<meshConnection_t>::iterator connection = _connections.begin();
-        while ( connection != _connections.end() ) {
+        
             if ( apChipId.toInt() == connection->chipId ) {
-                _meshAPs.erase( ap );
-                Serial.printf("<--gone");
-                break;
+                ap = _meshAPs.erase( ap );
+                Serial.printf("<--already connected\n");
             }
-            connection++;
+            else {
+                ap++;
+                Serial.print("\n");
+            }
         }
-        Serial.print("\n");
-        ap++;
+        connection++;
     }
 
     uint8 statusCode = wifi_station_get_connect_status();
@@ -219,7 +240,7 @@ bool easyMesh::connectToBestAP( void ) {
         Serial.printf("connectToBestAP(): no nodes left in list\n");
         // wait 5 seconds and rescan;
         os_timer_setfn( &_scanTimer, scanTimerCallback, NULL );
-        os_timer_arm( &_scanTimer, 5000, 0 );
+        os_timer_arm( &_scanTimer, SCAN_INTERVAL, 0 );
         return false;
     }
     
@@ -290,63 +311,67 @@ void easyMesh::tcpConnect( void ) {
 }
 
 //***********************************************************************
-String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, String &msg ) {
-  Serial.printf("In buildMeshPackage()\n");
-
-  StaticJsonBuffer<200> jsonBuffer;
-  char sendBuffer[200];
-
-  JsonObject& root = jsonBuffer.createObject();
-  root["from"] = _chipId;
-  root["localDest"] = localDestId;
-  root["finalDest"] = finalDestId;
-  root["msg"] = msg;
-
-  root.printTo( sendBuffer, sizeof( sendBuffer ) );
-
-  return String( sendBuffer );
-}
-
-//***********************************************************************
-String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, const char *msg ) {
-    String strMsg(msg);
-    return buildMeshPackage( localDestId, finalDestId, strMsg);
-}
-
-//***********************************************************************
-bool easyMesh::sendMessage( uint32_t finalDestId, String & msg ) {
+bool easyMesh::sendMessage( uint32_t finalDestId, meshPackageType type, String &msg ) {
   Serial.printf("In sendMessage()\n");
 
-  String package = buildMeshPackage( finalDestId, finalDestId, msg );
+  String package = buildMeshPackage( finalDestId, finalDestId, type, msg );
 
   return sendPackage( findConnection( finalDestId ), package );
 }
 
 //***********************************************************************
+bool easyMesh::sendMessage( uint32_t finalDestId, meshPackageType type, const char *msg ) {
+    String strMsg(msg);
+    return sendMessage( finalDestId, type, strMsg );
+}
+
+//***********************************************************************
+String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, meshPackageType type, String &msg ) {
+    Serial.printf("In buildMeshPackage()\n");
+    
+    StaticJsonBuffer<200> jsonBuffer;
+    char sendBuffer[200];
+    
+    JsonObject& root = jsonBuffer.createObject();
+    root["from"] = _chipId;
+    root["localDest"] = localDestId;
+    root["finalDest"] = finalDestId;
+    root["type"] = (uint8_t)type;
+    root["msg"] = msg;
+    
+    root.printTo( sendBuffer, sizeof( sendBuffer ) );
+    
+    return String( sendBuffer );
+}
+
+//***********************************************************************
 bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
-  Serial.printf("Sending package-->%s<--\n", package.c_str() );
-
-  sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
-
-  if ( errCode == 0 )
-    return true;
-  else {
-    Serial.printf("espconn_send Failed err=%d\n", errCode );
-    return false;
-  }
+    Serial.printf("Sending package-->%s<--\n", package.c_str() );
+    
+    sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
+    
+    if ( errCode == 0 ) {
+        Serial.printf("espconn_send Suceeded\n");
+        return true;
+    }
+    else {
+        Serial.printf("espconn_send Failed err=%d\n", errCode );
+        return false;
+    }
 }
 
 //***********************************************************************
 meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
-  Serial.printf("In findConnection(chipId)\n");
-  
-  SimpleList<meshConnection_t>::iterator connection = _connections.begin();
-  while ( connection != _connections.end() ) {
-    if ( connection->chipId == chipId )
-      return connection;
-      connection++;
-  }
-  return NULL;
+    Serial.printf("In findConnection(chipId)\n");
+    
+    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    while ( connection != _connections.end() ) {
+        if ( connection->chipId == chipId )
+            return connection;
+        connection++;
+    }
+    Serial.printf("findConnection(%d) Failed", chipId );
+    return NULL;
 }
 
 //***********************************************************************
@@ -362,6 +387,8 @@ meshConnection_t* easyMesh::findConnection( espconn *conn ) {
         }
         connection++;
     }
+    
+    Serial.printf("findConnection(espconn) Failed");
     return NULL;
 }
 
@@ -403,8 +430,9 @@ void easyMesh::meshConnectedCb(void *arg) {
     espconn_regist_disconcb(newConn.esp_conn, meshDisconCb);
     
     if( newConn.esp_conn->proto.tcp->local_port != MESH_PORT ) { // we are the station, send station handshake
-        String package = staticThis->buildMeshPackage( 0, 0, "Station Handshake Msg" );
-        staticThis->sendPackage( &newConn, package );
+     //   String package = staticThis->buildMeshPackage( 0, 0, HANDSHAKE, "Station Handshake Msg" );
+     //   staticThis->sendPackage( &newConn, package );
+        staticThis->sendMessage( 0, HANDSHAKE, "Station Handshake");
     }
 }
 
@@ -420,42 +448,65 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
         return;
     }
     
+//    meshPackageType type = (meshPackageType)(int)root["type"];
+    switch( (meshPackageType)(int)root["type"] ) {
+        case HANDSHAKE:
+            staticThis->handleHandShake( receiveConn, root );
+            break;
+        case TIMESYNC:
+            staticThis->handleTimeSync( receiveConn, root );
+            break;
+        case CONTROL:
+            staticThis->handleControl( receiveConn, root );
+            break;
+    }
+    return;
+}
+
+//***********************************************************************
+void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
     String msg = root["msg"];
     uint32_t remoteChipId = (uint32_t)root["from"];
     
-    if ( msg == "Station Handshake Msg") {
-        Serial.printf("meshRecvCb: recieved station handshake\n");
+    if ( msg == "Station Handshake") {
+        Serial.printf("handleHandShake: recieved station handshake\n");
         
         // check to make sure we are not already connected
         if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
-            Serial.printf("We are already connected to this node as Station.  Drop new connection");
-            espconn_disconnect( receiveConn->esp_conn );
+            Serial.printf("We are already connected to this node as Station.  Drop new connection\n");
+            espconn_disconnect( conn->esp_conn );
             return;
         }
-
         //else
+        conn->chipId = remoteChipId;
         Serial.printf("sending AP handshake\n");
-
-        receiveConn->chipId = remoteChipId;
-        
-        String package = staticThis->buildMeshPackage( remoteChipId, remoteChipId, "AP Handshake Msg" );
-        staticThis->sendPackage( receiveConn, package );
-        return;
+        staticThis->sendMessage( remoteChipId, HANDSHAKE, "AP Handshake");
     }
-    
-    if ( msg == "AP Handshake Msg") {  // add AP chipId to connection
-        Serial.printf("Got AP Handshake\n");
+    else if ( msg == "AP Handshake") {  // add AP chipId to connection
+        Serial.printf("handleHandShake: Got AP Handshake\n");
 
         // check to make sure we are not already connected
         if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
-            Serial.printf("We are already connected to this node as AP.  Drop new connection");
-            espconn_disconnect( receiveConn->esp_conn );
+            Serial.printf("We are already connected to this node as AP.  Drop new connection\n");
+            espconn_disconnect( conn->esp_conn );
             return;
         }
-
-        
-        receiveConn->chipId = remoteChipId;
+        // else
+        conn->chipId = remoteChipId;
     }
+    else {
+        Serial.printf("handleHandShake(): Weird msg\n");
+    }
+}
+
+//***********************************************************************
+void easyMesh::handleTimeSync( meshConnection_t *conn, JsonObject& root ) {
+    Serial.printf("handleTimeSync():\n");
+}
+
+//***********************************************************************
+void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
+    Serial.printf("handleControl():\n");
 }
 
 //***********************************************************************
