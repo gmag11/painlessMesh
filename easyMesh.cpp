@@ -454,7 +454,7 @@ void easyMesh::meshDisconCb(void *arg) {
     else {
         Serial.printf("Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
         wifi_station_disconnect();
-        staticThis->connectToBestAP();
+        // staticThis->connectToBestAP(); // moved to wifiEventCb
     }
     
     return;
@@ -467,38 +467,39 @@ void easyMesh::meshReconCb(void *arg, sint8 err) {
 
 //***********************************************************************
 void easyMesh::wifiEventCb(System_Event_t *event) {
-  switch (event->event) {
-    case EVENT_STAMODE_CONNECTED:
-      Serial.printf("Event: EVENT_STAMODE_CONNECTED ssid=%s\n", (char*)event->event_info.connected.ssid );
-      break;
-    case EVENT_STAMODE_DISCONNECTED:
-      Serial.printf("Event: EVENT_STAMODE_DISCONNECTED\n");
-      break;
-    case EVENT_STAMODE_AUTHMODE_CHANGE:
-      Serial.printf("Event: EVENT_STAMODE_AUTHMODE_CHANGE\n");
-      break;
-    case EVENT_STAMODE_GOT_IP:
-      Serial.printf("Event: EVENT_STAMODE_GOT_IP\n");
-      staticThis->tcpConnect();
-      break;
-
-    case EVENT_SOFTAPMODE_STACONNECTED:
-      Serial.printf("Event: EVENT_SOFTAPMODE_STACONNECTED\n");
-      break;
-
-    case EVENT_SOFTAPMODE_STADISCONNECTED:
-      Serial.printf("Event: EVENT_SOFTAPMODE_STADISCONNECTED\n");
-      break;
-    case EVENT_STAMODE_DHCP_TIMEOUT:
-      Serial.printf("Event: EVENT_STAMODE_DHCP_TIMEOUT\n");
-      break;
-    case EVENT_SOFTAPMODE_PROBEREQRECVED:
-      // Serial.printf("Event: EVENT_SOFTAPMODE_PROBEREQRECVED\n");  // dont need to know about every probe request
-      break;
-    default:
-      Serial.printf("Unexpected WiFi event: %d\n", event->event);
-      break;
-  }
+    switch (event->event) {
+        case EVENT_STAMODE_CONNECTED:
+            Serial.printf("Event: EVENT_STAMODE_CONNECTED ssid=%s\n", (char*)event->event_info.connected.ssid );
+            break;
+        case EVENT_STAMODE_DISCONNECTED:
+            Serial.printf("Event: EVENT_STAMODE_DISCONNECTED\n");
+            staticThis->connectToBestAP();
+            break;
+        case EVENT_STAMODE_AUTHMODE_CHANGE:
+            Serial.printf("Event: EVENT_STAMODE_AUTHMODE_CHANGE\n");
+            break;
+        case EVENT_STAMODE_GOT_IP:
+            Serial.printf("Event: EVENT_STAMODE_GOT_IP\n");
+            staticThis->tcpConnect();
+            break;
+            
+        case EVENT_SOFTAPMODE_STACONNECTED:
+            Serial.printf("Event: EVENT_SOFTAPMODE_STACONNECTED\n");
+            break;
+            
+        case EVENT_SOFTAPMODE_STADISCONNECTED:
+            Serial.printf("Event: EVENT_SOFTAPMODE_STADISCONNECTED\n");
+            break;
+        case EVENT_STAMODE_DHCP_TIMEOUT:
+            Serial.printf("Event: EVENT_STAMODE_DHCP_TIMEOUT\n");
+            break;
+        case EVENT_SOFTAPMODE_PROBEREQRECVED:
+            // Serial.printf("Event: EVENT_SOFTAPMODE_PROBEREQRECVED\n");  // dont need to know about every probe request
+            break;
+        default:
+            Serial.printf("Unexpected WiFi event: %d\n", event->event);
+            break;
+    }
 }
 
 
