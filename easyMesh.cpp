@@ -27,14 +27,17 @@ uint16_t  count = 0;
 
 //***********************************************************************
 void easyMesh::init( void ) {
-    staticThis = this;  // provides a way for static callback methods to access "this" object;
-
-    wifi_set_event_handler_cb( wifiEventCb );
-
     // shut everything down, start with a blank slate.
     wifi_station_set_auto_connect( 0 );
-    wifi_station_disconnect();
+    if ( wifi_station_get_connect_status() == STATION_IDLE ) {
+        Serial.printf("Station is doing something... wierd!?\n");
+        wifi_station_disconnect();
+    }
     wifi_softap_dhcps_stop();
+
+    wifi_set_event_handler_cb( wifiEventCb );
+    
+    staticThis = this;  // provides a way for static callback methods to access "this" object;
     
     // start configuration
     Serial.printf("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
@@ -364,18 +367,18 @@ meshConnection_t* easyMesh::findConnection( espconn *conn ) {
 
 //***********************************************************************
 void easyMesh::cleanDeadConnections( void ) {
-    Serial.printf("In cleanDeadConnections() size=%d\n", _connections.size() );
+    //Serial.printf("In cleanDeadConnections() size=%d\n", _connections.size() );
     
     int i=0;
     
     SimpleList<meshConnection_t>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
-        Serial.printf("i=%d esp_conn=0x%x type=%d state=%d\n",
+        /*Serial.printf("i=%d esp_conn=0x%x type=%d state=%d\n",
                       i,
                       connection->esp_conn,
                       connection->esp_conn->type,
                       connection->esp_conn->state);
-        
+        */
         if ( connection->esp_conn->state == ESPCONN_CLOSE ) {
             connection = _connections.erase( connection );
         } else {
@@ -408,8 +411,6 @@ void easyMesh::meshConnectedCb(void *arg) {
 //***********************************************************************
 void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     Serial.printf("In meshRecvCb recvd*-->%s<--*\n", data);
-    struct espconn *recConn = (espconn *)arg;
-    
     meshConnection_t *receiveConn = staticThis->findConnection( (espconn *)arg );
     
     StaticJsonBuffer<500> jsonBuffer;
@@ -420,18 +421,43 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     }
     
     String msg = root["msg"];
+    uint32_t remoteChipId = (uint32_t)root["from"];
+    
     if ( msg == "Station Handshake Msg") {
-        Serial.printf("meshRecvCb: recieved station handshake sending AP handshake\n", data);
-        String package = staticThis->buildMeshPackage( root["from"], root["from"], "AP Handshake Msg" );
+        Serial.printf("meshRecvCb: recieved station handshake\n");
+        
+        // check to make sure we are not already connected
+        if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
+            Serial.printf("We are already connected to this node as Station.  Drop new connection");
+            espconn_disconnect( receiveConn->esp_conn );
+            return;
+        }
+
+        //else
+        Serial.printf("sending AP handshake\n");
+
+        receiveConn->chipId = remoteChipId;
+        
+        String package = staticThis->buildMeshPackage( remoteChipId, remoteChipId, "AP Handshake Msg" );
         staticThis->sendPackage( receiveConn, package );
         return;
     }
     
     if ( msg == "AP Handshake Msg") {  // add AP chipId to connection
         Serial.printf("Got AP Handshake\n");
-        receiveConn->chipId = root["from"];
+
+        // check to make sure we are not already connected
+        if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
+            Serial.printf("We are already connected to this node as AP.  Drop new connection");
+            espconn_disconnect( receiveConn->esp_conn );
+            return;
+        }
+
+        
+        receiveConn->chipId = remoteChipId;
     }
 }
+
 
 //***********************************************************************
 void easyMesh::meshSentCb(void *arg) {
@@ -454,7 +480,7 @@ void easyMesh::meshDisconCb(void *arg) {
     else {
         Serial.printf("Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
         wifi_station_disconnect();
-        // staticThis->connectToBestAP(); // moved to wifiEventCb
+        staticThis->connectToBestAP(); // I'm not sure this shouldn't be in the wifiEvent call back, but it is causeing trouble there.
     }
     
     return;
@@ -473,7 +499,6 @@ void easyMesh::wifiEventCb(System_Event_t *event) {
             break;
         case EVENT_STAMODE_DISCONNECTED:
             Serial.printf("Event: EVENT_STAMODE_DISCONNECTED\n");
-            staticThis->connectToBestAP();
             break;
         case EVENT_STAMODE_AUTHMODE_CHANGE:
             Serial.printf("Event: EVENT_STAMODE_AUTHMODE_CHANGE\n");
