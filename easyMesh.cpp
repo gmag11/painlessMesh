@@ -208,18 +208,18 @@ bool easyMesh::connectToBestAP( void ) {
         Serial.print("\n");
         ap++;
     }
+
+    uint8 statusCode = wifi_station_get_connect_status();
+    if ( statusCode != STATION_IDLE ) {
+        Serial.printf("connectToBestAP(): station not idle.  code=%d\n", statusCode);
+        return false;
+    }
     
     if ( staticThis->_meshAPs.empty() ) {  // no meshNodes left in most recent scan
         Serial.printf("connectToBestAP(): no nodes left in list\n");
         // wait 5 seconds and rescan;
         os_timer_setfn( &_scanTimer, scanTimerCallback, NULL );
         os_timer_arm( &_scanTimer, 5000, 0 );
-        return false;
-    }
-    
-    uint8 statusCode = wifi_station_get_connect_status();
-    if ( statusCode != STATION_IDLE ) {
-        Serial.printf("connectToBestAP(): station not idle.  code=%d\n", statusCode);
         return false;
     }
     
@@ -458,7 +458,6 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     }
 }
 
-
 //***********************************************************************
 void easyMesh::meshSentCb(void *arg) {
     Serial.printf("In meshSentCb\r\n");    //data sent successfully
@@ -480,7 +479,6 @@ void easyMesh::meshDisconCb(void *arg) {
     else {
         Serial.printf("Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
         wifi_station_disconnect();
-        staticThis->connectToBestAP(); // I'm not sure this shouldn't be in the wifiEvent call back, but it is causeing trouble there.
     }
     
     return;
@@ -499,6 +497,7 @@ void easyMesh::wifiEventCb(System_Event_t *event) {
             break;
         case EVENT_STAMODE_DISCONNECTED:
             Serial.printf("Event: EVENT_STAMODE_DISCONNECTED\n");
+            staticThis->connectToBestAP();
             break;
         case EVENT_STAMODE_AUTHMODE_CHANGE:
             Serial.printf("Event: EVENT_STAMODE_AUTHMODE_CHANGE\n");
