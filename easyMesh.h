@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <SimpleList.h>
+#include <ArduinoJson.h>
 
 extern "C" {
 #include "ets_sys.h"
@@ -26,28 +27,30 @@ extern "C" {
 #define MESH_PORT           4444
 
 #define SCAN_INTERVAL       5000
-#define TIMESYNC_INTERVAL   1000
-
+#define SYNC_INTERVAL       1000
+#define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
 enum scanStatus {
-  IDLE       = 0,
-  SCANNING   = 1
+    IDLE       = 0,
+    SCANNING   = 1
 };
 
 enum meshPackageType {
-    HANDSHAKE       = 0,
-    TIMESYNC        = 1,
-    CONTROL         = 2
+    HANDSHAKE               = 0,
+    MESH_SYNC_REQUEST       = 1,
+    MESH_SYNC_REPLY         = 2,
+    CONTROL                 = 3
 };
 
 struct meshConnection_t {
-  espconn *esp_conn;
-  uint32_t  chipId = 0;
+    espconn *esp_conn;
+    uint32_t  chipId = 0;
+    String subConnections;
 };
 
 
 class easyMesh {
-  public:
+public:
     void init( void );
     void update( void );
     void manageStation( void );
@@ -61,23 +64,23 @@ class easyMesh {
     meshConnection_t* findConnection( espconn *conn );
     void cleanDeadConnections( void );
     void handleHandShake( meshConnection_t *conn, JsonObject& root );
-    void handleTimeSync( meshConnection_t *conn, JsonObject& root );
+    void handleMeshSync( meshConnection_t *conn, JsonObject& root );
     void handleControl( meshConnection_t *conn, JsonObject& root );
-    
+    String subConnectionJson( meshConnection_t *thisConn );
     
     uint8_t     scanStatus = IDLE;
     SimpleList<bss_info>            _meshAPs;               // should be prototected, but public for debugging
     SimpleList<meshConnection_t>    _connections;           // should be prototected, but public for debugging
-
     
-  protected:
+    
+protected:
     void apInit( void );
     void stationInit( void );
     void tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
-
+    
     bool stationConnect( void );
     void startStationScan( void );
-
+    
     // callbacks
     static void wifiEventCb(System_Event_t *event);
     static void meshConnectedCb(void *arg);
@@ -87,28 +90,28 @@ class easyMesh {
     static void meshReconCb(void *arg, sint8 err);
     static void stationScanCb(void *arg, STATUS status);
     static void scanTimerCallback( void *arg );
-    static void timeSyncCallback( void *arg );
+    static void meshSyncCallback( void *arg );
     
     meshConnection_t* findConnection( uint32_t chipId );
     
     String buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, meshPackageType type, String &msg );
     bool sendPackage( meshConnection_t *connection, String &package );
-
+    
     uint32_t    _chipId;
     String      _mySSID;
-
+    
     os_timer_t  _scanTimer;
-    os_timer_t  _timeSyncTimer;
-
+    os_timer_t  _meshSyncTimer;
+    
     espconn     _meshServerConn;
     esp_tcp     _meshServerTcp;
-
+    
     espconn     _webServerConn;
     esp_tcp     _webServerTcp;
-
+    
     espconn     _webSocketConn;
     esp_tcp     _webSocketTcp;
-
+    
     espconn     _stationConn;
     esp_tcp     _stationTcp;
     

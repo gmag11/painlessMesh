@@ -48,24 +48,8 @@ void easyMesh::init( void ) {
     apInit();       // setup AP
     stationInit();  // setup station
     
-    os_timer_setfn( &_timeSyncTimer, timeSyncCallback, NULL );
-    os_timer_arm( &_timeSyncTimer, TIMESYNC_INTERVAL, 1 );
-}
-
-//***********************************************************************
-void easyMesh::timeSyncCallback( void *arg ) {
-    if ( wifi_station_get_connect_status() == STATION_GOT_IP ) {
-        // we are connected as a station find station connection
-        SimpleList<meshConnection_t>::iterator connection = _connections.begin();
-        while ( connection != _connections.end() ) {
-            if ( connection->esp_conn->proto.tcp->local_port != MESH_PORT ) {
-                // found station connection.  Initiate timeSync
-                staticThis->sendMessage( connection->chipId, TIMESYNC, )
-                break;
-            }
-            connection++;
-        }
-    }
+    os_timer_setfn( &_meshSyncTimer, meshSyncCallback, NULL );
+    os_timer_arm( &_meshSyncTimer, SYNC_INTERVAL, 1 );
 }
 
 //***********************************************************************
@@ -312,7 +296,7 @@ void easyMesh::tcpConnect( void ) {
 
 //***********************************************************************
 bool easyMesh::sendMessage( uint32_t finalDestId, meshPackageType type, String &msg ) {
-  Serial.printf("In sendMessage()\n");
+//  Serial.printf("In sendMessage()\n");
 
   String package = buildMeshPackage( finalDestId, finalDestId, type, msg );
 
@@ -327,21 +311,33 @@ bool easyMesh::sendMessage( uint32_t finalDestId, meshPackageType type, const ch
 
 //***********************************************************************
 String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, meshPackageType type, String &msg ) {
-    Serial.printf("In buildMeshPackage()\n");
+//    Serial.printf("In buildMeshPackage()\n");
     
-    StaticJsonBuffer<200> jsonBuffer;
-    char sendBuffer[200];
-    
+    DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.createObject();
     root["from"] = _chipId;
     root["localDest"] = localDestId;
     root["finalDest"] = finalDestId;
     root["type"] = (uint8_t)type;
-    root["msg"] = msg;
+
+    switch( type ) {
+        case MESH_SYNC_REQUEST:
+        case MESH_SYNC_REPLY:
+        {
+            JsonArray& subs = jsonBuffer.parseArray( msg );
+            if ( !subs.success() ) {
+                Serial.printf("buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!");
+            }
+            root["subs"] = subs;
+            break;
+        }
+        default:
+            root["msg"] = msg;
+    }
     
-    root.printTo( sendBuffer, sizeof( sendBuffer ) );
-    
-    return String( sendBuffer );
+    String ret;
+    root.printTo( ret );
+    return ret;
 }
 
 //***********************************************************************
@@ -351,7 +347,7 @@ bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
     sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
     
     if ( errCode == 0 ) {
-        Serial.printf("espconn_send Suceeded\n");
+        // Serial.printf("espconn_send Suceeded\n");
         return true;
     }
     else {
@@ -362,7 +358,7 @@ bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
 
 //***********************************************************************
 meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
-    Serial.printf("In findConnection(chipId)\n");
+//    Serial.printf("In findConnection(chipId)\n");
     
     SimpleList<meshConnection_t>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
@@ -376,7 +372,7 @@ meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
 
 //***********************************************************************
 meshConnection_t* easyMesh::findConnection( espconn *conn ) {
-    Serial.printf("In findConnection(esp_conn) conn=0x%x\n", conn );
+//    Serial.printf("In findConnection(esp_conn) conn=0x%x\n", conn );
     
     int i=0;
     
@@ -441,24 +437,26 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     Serial.printf("In meshRecvCb recvd*-->%s<--*\n", data);
     meshConnection_t *receiveConn = staticThis->findConnection( (espconn *)arg );
     
-    StaticJsonBuffer<500> jsonBuffer;
+    DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.parseObject( data );
     if (!root.success()) {   // Test if parsing succeeded.
         Serial.printf("meshRecvCb: parseObject() failed. data=%s<--\n", data);
         return;
     }
     
-//    meshPackageType type = (meshPackageType)(int)root["type"];
     switch( (meshPackageType)(int)root["type"] ) {
         case HANDSHAKE:
             staticThis->handleHandShake( receiveConn, root );
             break;
-        case TIMESYNC:
-            staticThis->handleTimeSync( receiveConn, root );
+        case MESH_SYNC_REQUEST:
+        case MESH_SYNC_REPLY:
+            staticThis->handleMeshSync( receiveConn, root );
             break;
         case CONTROL:
             staticThis->handleControl( receiveConn, root );
             break;
+        default:
+            Serial.printf("meshRecvCb(): unexpected json root[\"type\"]=%d", (int)root["type"]);
     }
     return;
 }
@@ -500,9 +498,76 @@ void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
 }
 
 //***********************************************************************
-void easyMesh::handleTimeSync( meshConnection_t *conn, JsonObject& root ) {
-    Serial.printf("handleTimeSync():\n");
+void easyMesh::handleMeshSync( meshConnection_t *conn, JsonObject& root ) {
+    Serial.printf("handleSync(): type=%d\n", (int)root["type"] );
+    
+    String subs = root["subs"];
+    conn->subConnections = subs;
+    Serial.printf("subs=%s", conn->subConnections.c_str());
+    
+    if ( (meshPackageType)(int)root["type"] == MESH_SYNC_REQUEST ) {
+        String subsJson = staticThis->subConnectionJson( conn );
+        staticThis->sendMessage( conn->chipId, MESH_SYNC_REPLY, subsJson );
+    }
+    else {
+        // start timesyncing
+    }
 }
+
+//***********************************************************************
+void easyMesh::meshSyncCallback( void *arg ) {
+    Serial.printf("syncCallback():\n");
+
+    if ( wifi_station_get_connect_status() == STATION_GOT_IP ) {
+        // we are connected as a station find station connection
+        SimpleList<meshConnection_t>::iterator connection = staticThis->_connections.begin();
+        while ( connection != staticThis->_connections.end() ) {
+            if ( connection->esp_conn->proto.tcp->local_port != MESH_PORT ) {
+                // found station connection.  Initiate sync
+                String subsJson = staticThis->subConnectionJson( connection );
+                staticThis->sendMessage( connection->chipId, MESH_SYNC_REQUEST, subsJson );
+                break;
+            }
+            connection++;
+        }
+    }
+}
+
+//***********************************************************************
+String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
+    DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
+    JsonArray& subArray = jsonBuffer.createArray();
+    if ( !subArray.success() )
+        Serial.printf("subConnectionJson(): ran out of memory 1");
+    
+    SimpleList<meshConnection_t>::iterator sub = _connections.begin();
+    while ( sub != _connections.end() ) {
+        if ( sub != thisConn ) {  //exclude the connection that we are working with.
+            JsonObject& subObj = jsonBuffer.createObject();
+            if ( !subObj.success() )
+                Serial.printf("subConnectionJson(): ran out of memory 2");
+            
+            subObj["chipId"] = sub->chipId;
+            
+            if ( sub->subConnections.length() != 0 ) {
+                JsonArray& subs = jsonBuffer.parseArray( sub->subConnections );
+                if ( !subs.success() )
+                    Serial.printf("subConnectionJson(): ran out of memory 3");
+                
+                subObj["subs"] = subs;
+            }
+            
+            if ( !subArray.add( subObj ) )
+                Serial.printf("subConnectionJson(): ran out of memory 4");
+        }
+        sub++;
+    }
+    
+    String ret;
+    subArray.printTo( ret );
+    return ret;
+}
+
 
 //***********************************************************************
 void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
