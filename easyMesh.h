@@ -19,6 +19,7 @@ extern "C" {
 #include "mem.h"
 }
 
+#include "meshSync.h"
 #include "meshWebServer.h"
 #include "meshWebSocket.h"
 
@@ -26,9 +27,8 @@ extern "C" {
 #define MESH_PASSWORD       "bootyboo"
 #define MESH_PORT           4444
 
-#define SCAN_INTERVAL       5000
-#define SYNC_INTERVAL       1000
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
+
 
 enum scanStatus {
     IDLE       = 0,
@@ -39,14 +39,18 @@ enum meshPackageType {
     HANDSHAKE               = 0,
     MESH_SYNC_REQUEST       = 1,
     MESH_SYNC_REPLY         = 2,
-    CONTROL                 = 3
+    TIME_SYNC               = 3,
+    CONTROL                 = 4
 };
 
+
 struct meshConnection_t {
-    espconn *esp_conn;
-    uint32_t  chipId = 0;
-    String subConnections;
+    espconn         *esp_conn;
+    uint32_t        chipId = 0;
+    String          subConnections;
+    timeSync        time;
 };
+
 
 
 class easyMesh {
@@ -66,7 +70,10 @@ public:
     void handleHandShake( meshConnection_t *conn, JsonObject& root );
     void handleMeshSync( meshConnection_t *conn, JsonObject& root );
     void handleControl( meshConnection_t *conn, JsonObject& root );
+    void handleTimeSync( meshConnection_t *conn, JsonObject& root );
     String subConnectionJson( meshConnection_t *thisConn );
+    void startTimeSync( meshConnection_t *conn );
+    uint16_t jsonSubConnCount( String& subConns );
     
     uint8_t     scanStatus = IDLE;
     SimpleList<bss_info>            _meshAPs;               // should be prototected, but public for debugging
