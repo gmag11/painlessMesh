@@ -73,20 +73,20 @@ bool timeSync::processTimeStamp( String &str ) {
 }
 
 void timeSync::calcAdjustment ( bool odd ) {
-    Serial.printf("calcAdjustment(): odd=%u\n", odd);
+//    Serial.printf("calcAdjustment(): odd=%u\n", odd);
 
     uint32_t    bestInterval = 0xFFFFFFFF;
     uint8_t     bestIndex;
     uint32_t    temp;
 
     for (int i = 0; i < TIME_SYNC_CYCLES; i++) {
-        Serial.printf("times[%d]=%u\n", i, times[i]);
+  //      Serial.printf("times[%d]=%u\n", i, times[i]);
         
         if ( i % 2 == odd ) {
             temp = times[i + 2] - times[i];
             
             if ( i < TIME_SYNC_CYCLES - 2 ){
-                Serial.printf("\tinterval=%u\n", temp);
+    //            Serial.printf("\tinterval=%u\n", temp);
                 
                 if ( temp < bestInterval ) {
                     bestInterval = temp;
@@ -95,13 +95,13 @@ void timeSync::calcAdjustment ( bool odd ) {
             }
         }
     }
-    Serial.printf("best interval=%u, best index=%u\n", bestInterval, bestIndex);
+//    Serial.printf("best interval=%u, best index=%u\n", bestInterval, bestIndex);
     
     // find number that turns local time into remote time
     uint32_t adopterTime = times[ bestIndex ] + (bestInterval / 2);
     uint32_t adjustment = times[ bestIndex + 1 ] - adopterTime;
     
-    Serial.printf("new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
+ //   Serial.printf("new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
 
     timeAdjuster += adjustment;
 }

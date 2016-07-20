@@ -19,8 +19,8 @@ extern "C" {
 #include "mem.h"
 }
     
-#define SCAN_INTERVAL       5000
-#define SYNC_INTERVAL       4000
+#define SCAN_INTERVAL       10000
+#define SYNC_INTERVAL       7000
 #define TIME_SYNC_CYCLES    10 // should (must?) be an even number
 
 uint32_t getNodeTime( void );

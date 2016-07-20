@@ -63,6 +63,7 @@ public:
     //must be accessable from callback
     bool sendMessage( uint32_t finalDestId, meshPackageType type, String &msg );
     bool sendMessage( uint32_t finalDestId, meshPackageType type, const char *msg );
+    bool broadcastMessage( meshPackageType type, const char *msg );
     void tcpConnect( void );
     bool connectToBestAP( void );
     meshConnection_t* findConnection( espconn *conn );

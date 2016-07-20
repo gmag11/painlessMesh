@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <SimpleList.h>
+#include <NeoPixelBus.h>
+#include <NeoPixelAnimator.h>
 
 extern "C" {
 #include "ets_sys.h"
@@ -22,6 +24,8 @@ extern "C" {
 #include "meshWebServer.h"
 #include "meshWebSocket.h"
 
+
+extern AnimationController controller;
 
 easyMesh* staticThis;
 uint16_t  count = 0;
@@ -46,7 +50,7 @@ void easyMesh::init( void ) {
     _chipId = system_get_chip_id();
     _mySSID = String( MESH_PREFIX ) + String( _chipId );
     
-    apInit();       // setup AP
+ //   apInit();       // setup AP
     stationInit();  // setup station
     
     os_timer_setfn( &_meshSyncTimer, meshSyncCallback, NULL );
@@ -161,7 +165,7 @@ void easyMesh::startStationScan( void ) {
         return;
     }
     scanStatus = SCANNING;
-    Serial.printf("-->scan started @ %d<--\n", system_get_time());
+//    Serial.printf("-->scan started @ %d<--\n", system_get_time());
     return;
 }
 
@@ -174,20 +178,20 @@ void easyMesh::scanTimerCallback( void *arg ) {
 void easyMesh::stationScanCb(void *arg, STATUS status) {
     char ssid[32];
     bss_info *bssInfo = (bss_info *)arg;
-    Serial.printf("-- > scan finished @ % d < --\n", system_get_time());
+ //   Serial.printf("-- > scan finished @ % d < --\n", system_get_time());
     staticThis->scanStatus = IDLE;
     
     staticThis->_meshAPs.clear();
     while (bssInfo != NULL) {
-        Serial.printf("found : % s, % ddBm", (char*)bssInfo->ssid, (int16_t) bssInfo->rssi );
+ //       Serial.printf("found : % s, % ddBm", (char*)bssInfo->ssid, (int16_t) bssInfo->rssi );
         if ( strncmp( (char*)bssInfo->ssid, MESH_PREFIX, strlen(MESH_PREFIX) ) == 0 ) {
-            Serial.printf(" < ---");
+   //         Serial.printf(" < ---");
             staticThis->_meshAPs.push_back( *bssInfo );
         }
-        Serial.printf("\n");
+   //     Serial.printf("\n");
         bssInfo = STAILQ_NEXT(bssInfo, next);
     }
-    Serial.printf("Found % d nodes with MESH_PREFIX = \"%s\"\n", staticThis->_meshAPs.size(), MESH_PREFIX );
+//    Serial.printf("Found % d nodes with MESH_PREFIX = \"%s\"\n", staticThis->_meshAPs.size(), MESH_PREFIX );
     
     staticThis->connectToBestAP();
 }
@@ -200,16 +204,16 @@ bool easyMesh::connectToBestAP( void ) {
         SimpleList<bss_info>::iterator ap = _meshAPs.begin();
         while( ap != _meshAPs.end() ) {
             String apChipId = (char*)ap->ssid + strlen( MESH_PREFIX);
-            Serial.printf("connectToBestAP: sort - ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
+//            Serial.printf("connectToBestAP: sort - ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
             
             
             if ( apChipId.toInt() == connection->chipId ) {
                 ap = _meshAPs.erase( ap );
-                Serial.printf("<--already connected\n");
+//                Serial.printf("<--already connected\n");
             }
             else {
                 ap++;
-                Serial.print("\n");
+  //              Serial.print("\n");
             }
         }
         connection++;
@@ -222,7 +226,7 @@ bool easyMesh::connectToBestAP( void ) {
     }
     
     if ( staticThis->_meshAPs.empty() ) {  // no meshNodes left in most recent scan
-        Serial.printf("connectToBestAP(): no nodes left in list\n");
+  //      Serial.printf("connectToBestAP(): no nodes left in list\n");
         // wait 5 seconds and rescan;
         os_timer_setfn( &_scanTimer, scanTimerCallback, NULL );
         os_timer_arm( &_scanTimer, SCAN_INTERVAL, 0 );
@@ -241,7 +245,7 @@ bool easyMesh::connectToBestAP( void ) {
     }
     
     // connect to bestAP
-    Serial.printf("connectToBestAP(): Best AP is %s<---\n", (char*)bestAP->ssid );
+//    Serial.printf("connectToBestAP(): Best AP is %s<---\n", (char*)bestAP->ssid );
     struct station_config stationConf;
     stationConf.bssid_set = 0;
     memcpy(&stationConf.ssid, bestAP->ssid, 32);
@@ -311,6 +315,18 @@ bool easyMesh::sendMessage( uint32_t finalDestId, meshPackageType type, const ch
 }
 
 //***********************************************************************
+bool easyMesh::broadcastMessage( meshPackageType type, const char *msg ) {
+    String strMsg(msg);
+    
+    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    while ( connection != _connections.end() ) {
+        sendMessage( connection->chipId, type, strMsg );
+        connection++;
+    }
+    return true;
+}
+
+//***********************************************************************
 String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, meshPackageType type, String &msg ) {
     //    Serial.printf("In buildMeshPackage()\n");
     
@@ -336,7 +352,11 @@ String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, m
         case TIME_SYNC:
             root["timeStamp"] = jsonBuffer.parseObject( msg );
             break;
-            
+
+        case CONTROL:
+            root["control"] = jsonBuffer.parseObject( msg );
+            break;
+
         default:
             root["msg"] = msg;
     }
@@ -348,7 +368,7 @@ String easyMesh::buildMeshPackage( uint32_t localDestId, uint32_t finalDestId, m
 
 //***********************************************************************
 bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
-    Serial.printf("Sending package-->%s<--\n", package.c_str() );
+ //   Serial.printf("Sending package-->%s<--\n", package.c_str() );
     
     sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
     
@@ -440,7 +460,7 @@ void easyMesh::meshConnectedCb(void *arg) {
 
 //***********************************************************************
 void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
-    Serial.printf("In meshRecvCb recvd*-->%s<--*\n", data);
+//    Serial.printf("In meshRecvCb recvd*-->%s<--*\n", data);
     meshConnection_t *receiveConn = staticThis->findConnection( (espconn *)arg );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
@@ -508,18 +528,18 @@ void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
 
 //***********************************************************************
 void easyMesh::handleMeshSync( meshConnection_t *conn, JsonObject& root ) {
-    Serial.printf("handleMeshSync(): type=%d\n", (int)root["type"] );
+//    Serial.printf("handleMeshSync(): type=%d\n", (int)root["type"] );
     
     String subs = root["subs"];
     conn->subConnections = subs;
-    Serial.printf("subs=%s\n", conn->subConnections.c_str());
+//    Serial.printf("subs=%s\n", conn->subConnections.c_str());
     
     if ( (meshPackageType)(int)root["type"] == MESH_SYNC_REQUEST ) {
         String subsJson = staticThis->subConnectionJson( conn );
         staticThis->sendMessage( conn->chipId, MESH_SYNC_REPLY, subsJson );
     }
     else {
-        startTimeSync( conn );
+       // startTimeSync( conn );
     }
 }
 
@@ -591,7 +611,6 @@ void easyMesh::handleTimeSync( meshConnection_t *conn, JsonObject& root ) {
     }
 }
 
-
 //***********************************************************************
 uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
     uint16_t count = 0;
@@ -662,12 +681,28 @@ String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
 
 //***********************************************************************
 void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
-    Serial.printf("handleControl():\n");
+    Serial.printf("handleControl():");
+    
+    String control = root["control"];
+    
+    DynamicJsonBuffer jsonBuffer(50 );
+    JsonObject& controlObj = jsonBuffer.parseObject(control);
+    
+    if ( !controlObj.success() ) {
+        Serial.printf("handleControl(): out of memory1?\n" );
+        return;
+    }
+    
+    controller.hue = controlObj.get<float>("one");
+    
+    String temp;
+    controlObj.printTo(temp);
+    Serial.printf("control=%s, controlObj=%s, one=%d\n", control.c_str(), temp.c_str(), controller.hue );
 }
 
 //***********************************************************************
 void easyMesh::meshSentCb(void *arg) {
-    Serial.printf("In meshSentCb\r\n");    //data sent successfully
+//    Serial.printf("In meshSentCb\r\n");    //data sent successfully
 }
 
 //***********************************************************************
