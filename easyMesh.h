@@ -30,7 +30,14 @@ extern "C" {
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
 
-enum scanStatus {
+enum nodeStatusType {
+    INITIALIZING        = 0,
+    SEARCHING           = 1,
+    FOUND_MESH          = 2,
+    CONNECTED           = 3
+};
+
+enum scanStatusType {
     IDLE       = 0,
     SCANNING   = 1
 };
@@ -55,39 +62,43 @@ struct meshConnection_t {
 
 class easyMesh {
 public:
-    void init( void );
-    void update( void );
-    void manageStation( void );
-    void setWSockRecvCallback( WSOnMessage onMessage );
+    void                init( void );
+    nodeStatusType      update( void );
+    void                manageStation( void );
+    void                setWSockRecvCallback( WSOnMessage onMessage );
+    void                setWSockConnectionCallback( WSOnConnection onConnection );
     
     //must be accessable from callback
-    bool sendMessage( uint32_t finalDestId, meshPackageType type, String &msg );
-    bool sendMessage( uint32_t finalDestId, meshPackageType type, const char *msg );
-    bool broadcastMessage( meshPackageType type, const char *msg );
-    void tcpConnect( void );
-    bool connectToBestAP( void );
-    meshConnection_t* findConnection( espconn *conn );
-    void cleanDeadConnections( void );
-    void handleHandShake( meshConnection_t *conn, JsonObject& root );
-    void handleMeshSync( meshConnection_t *conn, JsonObject& root );
-    void handleControl( meshConnection_t *conn, JsonObject& root );
-    void handleTimeSync( meshConnection_t *conn, JsonObject& root );
-    String subConnectionJson( meshConnection_t *thisConn );
-    void startTimeSync( meshConnection_t *conn );
-    uint16_t jsonSubConnCount( String& subConns );
+    bool    sendMessage( uint32_t finalDestId, meshPackageType type, String &msg );
+    bool    sendMessage( uint32_t finalDestId, meshPackageType type, const char *msg );
+    bool        broadcastMessage( meshPackageType type, const char *msg );
+    void            tcpConnect( void );
+    bool                connectToBestAP( void );
+    meshConnection_t*   findConnection( espconn *conn );
+    void                cleanDeadConnections( void );
+    void            handleHandShake( meshConnection_t *conn, JsonObject& root );
+    void        handleMeshSync( meshConnection_t *conn, JsonObject& root );
+    void    handleControl( meshConnection_t *conn, JsonObject& root );
+    void    handleTimeSync( meshConnection_t *conn, JsonObject& root );
+    String  subConnectionJson( meshConnection_t *thisConn );
+    void    startTimeSync( meshConnection_t *conn );
+    uint16_t    jsonSubConnCount( String& subConns );
+    void setStatus( nodeStatusType newStatus );
     
-    uint8_t     scanStatus = IDLE;
-    SimpleList<bss_info>            _meshAPs;               // should be prototected, but public for debugging
-    SimpleList<meshConnection_t>    _connections;           // should be prototected, but public for debugging
+    // should be prototected, but public for debugging
+    scanStatusType                  _scanStatus = IDLE;
+    nodeStatusType                  _nodeStatus = INITIALIZING;
+    SimpleList<bss_info>            _meshAPs;
+    SimpleList<meshConnection_t>    _connections;
     
     
 protected:
-    void apInit( void );
-    void stationInit( void );
-    void tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
+    void    apInit( void );
+    void    stationInit( void );
+    void    tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
     
-    bool stationConnect( void );
-    void startStationScan( void );
+    bool    stationConnect( void );
+    void    startStationScan( void );
     
     // callbacks
     static void wifiEventCb(System_Event_t *event);

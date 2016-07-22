@@ -25,7 +25,7 @@ extern "C" {
 #include "meshWebSocket.h"
 
 
-extern AnimationController controller;
+extern AnimationController *blipController;
 
 easyMesh* staticThis;
 uint16_t  count = 0;
@@ -50,7 +50,7 @@ void easyMesh::init( void ) {
     _chipId = system_get_chip_id();
     _mySSID = String( MESH_PREFIX ) + String( _chipId );
     
- //   apInit();       // setup AP
+    apInit();       // setup AP
     stationInit();  // setup station
     
     os_timer_setfn( &_meshSyncTimer, meshSyncCallback, NULL );
@@ -58,8 +58,9 @@ void easyMesh::init( void ) {
 }
 
 //***********************************************************************
-void easyMesh::update( void ) {
+nodeStatusType easyMesh::update( void ) {
     manageStation();
+    return _nodeStatus;
 }
 
 //***********************************************************************
@@ -155,8 +156,13 @@ void easyMesh::setWSockRecvCallback( WSOnMessage onMessage ){
 }
 
 //***********************************************************************
+void easyMesh::setWSockConnectionCallback( WSOnConnection onConnection ){
+    webSocketSetConnectionCallback( onConnection );
+}
+
+//***********************************************************************
 void easyMesh::startStationScan( void ) {
-    if ( scanStatus != IDLE ) {
+    if ( _scanStatus != IDLE ) {
         return;
     }
     
@@ -164,9 +170,14 @@ void easyMesh::startStationScan( void ) {
         Serial.printf("wifi_station_scan() failed!?\n");
         return;
     }
-    scanStatus = SCANNING;
+    _scanStatus = SCANNING;
 //    Serial.printf("-->scan started @ %d<--\n", system_get_time());
     return;
+}
+
+//***********************************************************************
+void easyMesh::setStatus( nodeStatusType newStatus ) {
+    _nodeStatus = newStatus;
 }
 
 //***********************************************************************
@@ -179,7 +190,7 @@ void easyMesh::stationScanCb(void *arg, STATUS status) {
     char ssid[32];
     bss_info *bssInfo = (bss_info *)arg;
  //   Serial.printf("-- > scan finished @ % d < --\n", system_get_time());
-    staticThis->scanStatus = IDLE;
+    staticThis->_scanStatus = IDLE;
     
     staticThis->_meshAPs.clear();
     while (bssInfo != NULL) {
@@ -235,6 +246,7 @@ bool easyMesh::connectToBestAP( void ) {
     
     // if we are here, then we have a list of at least 1 meshAPs.
     // find strongest signal of remaining meshAPs... that is not already connected to our AP.
+    _nodeStatus = FOUND_MESH;
     SimpleList<bss_info>::iterator bestAP = staticThis->_meshAPs.begin();
     SimpleList<bss_info>::iterator i = staticThis->_meshAPs.begin();
     while ( i != staticThis->_meshAPs.end() ) {
@@ -418,7 +430,7 @@ meshConnection_t* easyMesh::findConnection( espconn *conn ) {
 void easyMesh::cleanDeadConnections( void ) {
     //Serial.printf("In cleanDeadConnections() size=%d\n", _connections.size() );
     
-    int i=0;
+    //int i=0;
     
     SimpleList<meshConnection_t>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
@@ -434,8 +446,12 @@ void easyMesh::cleanDeadConnections( void ) {
             connection++;
         }
         
-        i++;
+      //  i++;
     }
+    
+    if (_connections.empty())
+        _nodeStatus = SEARCHING;
+    
     return;
 }
 
@@ -508,6 +524,7 @@ void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
         conn->chipId = remoteChipId;
         Serial.printf("sending AP handshake\n");
         staticThis->sendMessage( remoteChipId, HANDSHAKE, "AP Handshake");
+        _nodeStatus = CONNECTED;
     }
     else if ( msg == "AP Handshake") {  // add AP chipId to connection
         Serial.printf("handleHandShake: Got AP Handshake\n");
@@ -518,8 +535,9 @@ void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
             espconn_disconnect( conn->esp_conn );
             return;
         }
-        // else
+        //else
         conn->chipId = remoteChipId;
+        _nodeStatus = CONNECTED;
     }
     else {
         Serial.printf("handleHandShake(): Weird msg\n");
@@ -539,7 +557,7 @@ void easyMesh::handleMeshSync( meshConnection_t *conn, JsonObject& root ) {
         staticThis->sendMessage( conn->chipId, MESH_SYNC_REPLY, subsJson );
     }
     else {
-       // startTimeSync( conn );
+        startTimeSync( conn );
     }
 }
 
@@ -693,11 +711,11 @@ void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
         return;
     }
     
-    controller.hue = controlObj.get<float>("one");
+    blipController->hue = controlObj.get<float>("one");
     
     String temp;
     controlObj.printTo(temp);
-    Serial.printf("control=%s, controlObj=%s, one=%d\n", control.c_str(), temp.c_str(), controller.hue );
+    Serial.printf("control=%s, controlObj=%s, one=%d\n", control.c_str(), temp.c_str(), blipController->hue );
 }
 
 //***********************************************************************
@@ -716,7 +734,7 @@ void easyMesh::meshDisconCb(void *arg) {
     
     //test to see if this connection was on the STATION interface by checking the local port
     if ( disConn->proto.tcp->local_port == MESH_PORT ) {
-        Serial.printf("AP connection.  All good! local_port=%d\n", disConn->proto.tcp->local_port);
+        Serial.printf("AP connection.  No cleanup needed. local_port=%d\n", disConn->proto.tcp->local_port);
     }
     else {
         Serial.printf("Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);

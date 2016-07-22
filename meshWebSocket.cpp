@@ -34,9 +34,8 @@ void webSocketSetConnectionCallback( WSOnConnection onConnection ) {
 
 void webSocketConnectCb(void *arg) {
   struct espconn *connection = (espconn *)arg;
-  //  wsOnConnectionCallback = (WSOnConnection)webSocketConnectCb;
 
-  //  Serial.printf("\n\nmeshWebSocket received connection !!!\n");
+  Serial.printf("\n\nmeshWebSocket received connection !!!\n");
 
     // set time out for this connection in seconds
     espconn_regist_time( connection, 120, 1);
@@ -166,7 +165,6 @@ void webSocketRecvCb(void *arg, char *data, unsigned short len) {
     }
 
     if (wsConnection->onMessage != NULL) {
-      //      Serial.printf("Ahhh, here is a problem!");
       wsConnection->onMessage(wsConnection, &frame);
     }
   }
