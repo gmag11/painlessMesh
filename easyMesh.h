@@ -3,24 +3,9 @@
 
 #include <Arduino.h>
 #include <SimpleList.h>
-#include <ArduinoJson.h>
-
-extern "C" {
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
-#include "user_config.h"
-#include "user_interface.h"
-#include "uart.h"
-
-#include "c_types.h"
-#include "espconn.h"
-#include "mem.h"
-}
 
 #include "meshSync.h"
-#include "meshWebServer.h"
+#include "easyMeshWebServer.h"
 #include "meshWebSocket.h"
 
 #define MESH_PREFIX         "mesh"
@@ -69,21 +54,22 @@ public:
     void                setWSockConnectionCallback( WSOnConnection onConnection );
     
     //must be accessable from callback
-    bool    sendMessage( uint32_t finalDestId, meshPackageType type, String &msg );
-    bool    sendMessage( uint32_t finalDestId, meshPackageType type, const char *msg );
-    bool        broadcastMessage( meshPackageType type, const char *msg );
-    void            tcpConnect( void );
+    bool                sendMessage( uint32_t finalDestId, meshPackageType type, String &msg );
+    bool                sendMessage( uint32_t finalDestId, meshPackageType type, const char *msg );
+    bool                broadcastMessage( meshPackageType type, const char *msg );
+    void                tcpConnect( void );
     bool                connectToBestAP( void );
     meshConnection_t*   findConnection( espconn *conn );
     void                cleanDeadConnections( void );
-    void            handleHandShake( meshConnection_t *conn, JsonObject& root );
-    void        handleMeshSync( meshConnection_t *conn, JsonObject& root );
-    void    handleControl( meshConnection_t *conn, JsonObject& root );
-    void    handleTimeSync( meshConnection_t *conn, JsonObject& root );
-    String  subConnectionJson( meshConnection_t *thisConn );
-    void    startTimeSync( meshConnection_t *conn );
-    uint16_t    jsonSubConnCount( String& subConns );
-    void setStatus( nodeStatusType newStatus );
+    void                handleHandShake( meshConnection_t *conn, JsonObject& root );
+    void                handleMeshSync( meshConnection_t *conn, JsonObject& root );
+    void                handleControl( meshConnection_t *conn, JsonObject& root );
+    void                handleTimeSync( meshConnection_t *conn, JsonObject& root );
+    String              subConnectionJson( meshConnection_t *thisConn );
+    void                startTimeSync( meshConnection_t *conn );
+    uint16_t            jsonSubConnCount( String& subConns );
+    void                setStatus( nodeStatusType newStatus );
+    uint32              getChipId( void ) { return _chipId;};
     
     // should be prototected, but public for debugging
     scanStatusType                  _scanStatus = IDLE;

@@ -20,9 +20,8 @@ extern "C" {
 
 #define WEB_PORT          80
 
-
+void webServerInit( void );
 void webServerConnectCb(void *arg);
-
 void webServerRecvCb(void *arg, char *data, unsigned short length);
 void webServerSentCb(void *arg);
 void webServerDisconCb(void *arg);

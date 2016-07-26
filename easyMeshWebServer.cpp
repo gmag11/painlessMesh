@@ -13,11 +13,15 @@ extern "C" {
 #include "mem.h"
 }
 
-#include "meshWebServer.h"
+#include "easyMeshWebServer.h"
 #include "FS.h"
 
 SimpleList<espconn*> webConnections;
 uint8_t webCount;
+
+void webServerInit( void ) {
+    
+}
 
 void webServerConnectCb(void *arg) {
   struct espconn *newConn = (espconn *)arg;
