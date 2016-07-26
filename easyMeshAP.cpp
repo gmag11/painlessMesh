@@ -15,6 +15,7 @@ extern "C" {
 
 #include "easyMesh.h"
 #include "easyMeshWebServer.h"
+#include "easyMeshWebSocket.h"
 
 
 // AP functions
@@ -62,7 +63,6 @@ void easyMesh::apInit( void  ) {
     // establish AP tcpServers
     tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, MESH_PORT );
     webServerInit();
- //   tcpServerInit( _webSocketConn, _webSocketTcp, webSocketConnectCb, WEB_SOCKET_PORT );
     webSocketInit();
 }
 
@@ -83,11 +83,11 @@ void easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_co
 }
 
 //***********************************************************************
-void easyMesh::setWSockRecvCallback( WSOnMessage onMessage ){
+void easyMesh::setWSockRecvCallback( void (*onMessage)(char *payloadData) ){
     webSocketSetReceiveCallback( onMessage );
 }
 
 //***********************************************************************
-void easyMesh::setWSockConnectionCallback( WSOnConnection onConnection ){
+void easyMesh::setWSockConnectionCallback( void (*onConnection)(void) ){
     webSocketSetConnectionCallback( onConnection );
 }

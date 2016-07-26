@@ -63,8 +63,8 @@
 typedef struct WSFrame WSFrame;
 typedef struct WSConnection WSConnection;
 
-typedef void (* WSOnMessage)(WSConnection *,const WSFrame* );
-typedef void (* WSOnConnection)(WSConnection *connection);
+typedef void (* WSOnMessage)(char *payloadData);
+typedef void (* WSOnConnection)(void);
 
 struct WSFrame {
   uint8_t flags;
@@ -93,8 +93,12 @@ static void ICACHE_FLASH_ATTR unmaskWsPayload(char *maskedPayload, uint32_t payl
 void closeWsConnection(WSConnection* connection);
 
 
-void webSocketSetReceiveCallback( WSOnMessage onMessage );
-void webSocketSetConnectionCallback( WSOnConnection onConnection );
+//void webSocketSetReceiveCallback( WSOnMessage onMessage );
+//void webSocketSetConnectionCallback( WSOnConnection onConnection );
+void webSocketSetReceiveCallback( void (*onMessage)(char *paylodData) );
+void webSocketSetConnectionCallback( void (*onConnection)(void) );
+
+
 
 void webSocketConnectCb(void *arg);
 void webSocketRecvCb(void *arg, char *pusrdata, unsigned short length);

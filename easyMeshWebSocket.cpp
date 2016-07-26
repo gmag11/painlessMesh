@@ -15,8 +15,11 @@ extern "C" {
 espconn webSocketConn;
 esp_tcp webSocketTcp;
 
-static WSOnConnection wsOnConnectionCallback;
-static WSOnMessage wsOnMessageCallback;
+//static WSOnConnection wsOnConnectionCallback;
+//static WSOnMessage wsOnMessageCallback;
+static void (*wsOnConnectionCallback)(void);
+static void (*wsOnMessageCallback)( char *payloadData );
+
 static WSConnection wsConnections[WS_MAXCONN];
 
 void webSocketInit( void ) {
@@ -34,15 +37,24 @@ void webSocketInit( void ) {
     return;
 }
 
-void webSocketSetReceiveCallback( WSOnMessage onMessage ) {
+/*void webSocketSetReceiveCallback( WSOnMessage onMessage ) {
   wsOnMessageCallback = (WSOnMessage)onMessage;
 }
 
 void webSocketSetConnectionCallback( WSOnConnection onConnection ) {
   wsOnConnectionCallback = (WSOnConnection)onConnection;
 }
+*/
+void webSocketSetReceiveCallback( void (*onMessage)( char *payloadData) ) {
+    wsOnMessageCallback = onMessage;
+}
+
+void webSocketSetConnectionCallback( void (*onConnection)(void) ) {
+    wsOnConnectionCallback = onConnection;
+}
 
 
+//***********************************************************************
 void webSocketConnectCb(void *arg) {
   struct espconn *connection = (espconn *)arg;
 
@@ -85,7 +97,7 @@ void webSocketConnectCb(void *arg) {
   //  Serial.printf("leaving websocketConnectCb\n");
 }
 
-/***********************************************************************/
+//***********************************************************************
 void webSocketRecvCb(void *arg, char *data, unsigned short len) {
   espconn *esp_connection = (espconn*)arg;
 
@@ -140,7 +152,7 @@ void webSocketRecvCb(void *arg, char *data, unsigned short len) {
       //call the connection callback
       if (wsOnConnectionCallback != NULL) {
         //       Serial.printf("Handle the Handshake 5\n");
-        wsOnConnectionCallback(wsConnection);
+        wsOnConnectionCallback();
       }
     }
   } else {
@@ -176,7 +188,7 @@ void webSocketRecvCb(void *arg, char *data, unsigned short len) {
     }
 
     if (wsConnection->onMessage != NULL) {
-      wsConnection->onMessage(wsConnection, &frame);
+      wsConnection->onMessage(frame.payloadData);
     }
   }
   //  Serial.printf("Leaving webSocketRecvCb\n");

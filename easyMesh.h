@@ -5,7 +5,6 @@
 #include <SimpleList.h>
 
 #include "meshSync.h"
-#include "easyMeshWebSocket.h"
 
 #define MESH_PREFIX         "mesh"
 #define MESH_PASSWORD       "bootyboo"
@@ -49,8 +48,10 @@ public:
     void                init( void );
     nodeStatusType      update( void );
     void                manageStation( void );
-    void                setWSockRecvCallback( WSOnMessage onMessage );
-    void                setWSockConnectionCallback( WSOnConnection onConnection );
+//    void                setWSockRecvCallback( WSOnMessage onMessage );
+//    void                setWSockConnectionCallback( WSOnConnection onConnection );
+    void                setWSockRecvCallback( void (*onMessage)(char *payloadData) );
+    void                setWSockConnectionCallback( void (*onConnection)(void) );
     
     //must be accessable from callback
     bool                sendMessage( uint32_t finalDestId, meshPackageType type, String &msg );
