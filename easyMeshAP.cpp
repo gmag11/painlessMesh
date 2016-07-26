@@ -28,7 +28,7 @@ extern "C" {
 
 #include "FS.h"  // for SPIFFS
 #include "easyMesh.h"
-
+#include "easyMeshWebServer.h"
 
 
 // AP functions
@@ -76,8 +76,8 @@ void easyMesh::apInit( void  ) {
     // establish AP tcpServers
     tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, MESH_PORT );
 
-    tcpServerInit( _webServerConn, _webServerTcp, webServerConnectCb, WEB_PORT );
-
+    webServerInit();
+    
     tcpServerInit( _webSocketConn, _webSocketTcp, webSocketConnectCb, WEB_SOCKET_PORT );
     
     SPIFFS.begin(); // start file system for webserver

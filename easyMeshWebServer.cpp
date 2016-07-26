@@ -16,18 +16,33 @@ extern "C" {
 #include "easyMeshWebServer.h"
 #include "FS.h"
 
-SimpleList<espconn*> webConnections;
-uint8_t webCount;
+espconn webServerConn;
+esp_tcp webServerTcp;
 
+
+//***********************************************************************
 void webServerInit( void ) {
+    webServerConn.type = ESPCONN_TCP;
+    webServerConn.state = ESPCONN_NONE;
+    webServerConn.proto.tcp = &webServerTcp;
+    webServerConn.proto.tcp->local_port = WEB_PORT;
+    espconn_regist_connectcb(&webServerConn, webServerConnectCb);
+    sint8 ret = espconn_accept(&webServerConn);
     
+    if ( ret == 0 )
+        Serial.printf("web server established on port %d\n", WEB_PORT );
+    else
+        Serial.printf("web server on port %d FAILED ret=%d\n", WEB_PORT, ret);
+    
+    return;
 }
 
+//***********************************************************************
 void webServerConnectCb(void *arg) {
   struct espconn *newConn = (espconn *)arg;
-  webConnections.push_back( newConn );
+//  webConnections.push_back( newConn );
 
-//  Serial.printf("meshWebServer received connection !!!\n");
+//  Serial.printf("web Server received connection !!!\n");
 
   espconn_regist_recvcb(newConn, webServerRecvCb);
   espconn_regist_sentcb(newConn, webServerSentCb);

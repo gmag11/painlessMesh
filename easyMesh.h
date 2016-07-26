@@ -5,7 +5,6 @@
 #include <SimpleList.h>
 
 #include "meshSync.h"
-#include "easyMeshWebServer.h"
 #include "meshWebSocket.h"
 
 #define MESH_PREFIX         "mesh"
