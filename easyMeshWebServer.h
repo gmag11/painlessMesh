@@ -1,23 +1,6 @@
 #ifndef   _MESH_WEB_SERVER_H_
 #define   _MESH_WEB_SERVER_H_
 
-#include <Arduino.h>
-#include <SimpleList.h>
-
-extern "C" {
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
-#include "user_config.h"
-#include "user_interface.h"
-#include "uart.h"
-
-#include "c_types.h"
-#include "espconn.h"
-#include "mem.h"
-}
-
 #define WEB_PORT          80
 
 void webServerInit( void );

@@ -1,16 +1,8 @@
 #include <Arduino.h>
-extern "C" {
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
-#include "user_config.h"
-#include "user_interface.h"
-#include "uart.h"
 
-#include "c_types.h"
+extern "C" {
+#include "user_interface.h"
 #include "espconn.h"
-#include "mem.h"
 }
 
 #include "easyMeshWebServer.h"
@@ -28,6 +20,8 @@ void webServerInit( void ) {
     webServerConn.proto.tcp->local_port = WEB_PORT;
     espconn_regist_connectcb(&webServerConn, webServerConnectCb);
     sint8 ret = espconn_accept(&webServerConn);
+    
+    SPIFFS.begin(); // start file system for webserver
     
     if ( ret == 0 )
         Serial.printf("web server established on port %d\n", WEB_PORT );

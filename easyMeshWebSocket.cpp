@@ -1,27 +1,38 @@
 // based on https://github.com/dangrie158/ESP-8266-WebSocket
 
 #include <Arduino.h>
+
 extern "C" {
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
-#include "user_config.h"
 #include "user_interface.h"
-#include "uart.h"
-#include "c_types.h"
 #include "espconn.h"
-#include "mem.h"
 
 #include "sha1.h"
 #include "base64.h"
 }
 
-#include "meshWebSocket.h"
+#include "easyMeshWebSocket.h"
+
+espconn webSocketConn;
+esp_tcp webSocketTcp;
 
 static WSOnConnection wsOnConnectionCallback;
 static WSOnMessage wsOnMessageCallback;
 static WSConnection wsConnections[WS_MAXCONN];
+
+void webSocketInit( void ) {
+    webSocketConn.type = ESPCONN_TCP;
+    webSocketConn.state = ESPCONN_NONE;
+    webSocketConn.proto.tcp = &webSocketTcp;
+    webSocketConn.proto.tcp->local_port = WEB_SOCKET_PORT;
+    espconn_regist_connectcb(&webSocketConn, webSocketConnectCb);
+    sint8 ret = espconn_accept(&webSocketConn);
+    if ( ret == 0 )
+        Serial.printf("webSocket server established on port %d\n", WEB_SOCKET_PORT );
+    else
+        Serial.printf("webSocket server on port %d FAILED ret=%d\n", WEB_SOCKET_PORT, ret);
+    
+    return;
+}
 
 void webSocketSetReceiveCallback( WSOnMessage onMessage ) {
   wsOnMessageCallback = (WSOnMessage)onMessage;

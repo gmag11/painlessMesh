@@ -5,7 +5,7 @@
 #include <SimpleList.h>
 
 #include "meshSync.h"
-#include "meshWebSocket.h"
+#include "easyMeshWebSocket.h"
 
 #define MESH_PREFIX         "mesh"
 #define MESH_PASSWORD       "bootyboo"

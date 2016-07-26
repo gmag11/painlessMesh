@@ -7,26 +7,12 @@
 //
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include <SimpleList.h>
-#include <NeoPixelBus.h>
-#include <NeoPixelAnimator.h>
 
 extern "C" {
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
-#include "user_config.h"
 #include "user_interface.h"
-#include "uart.h"
-    
-#include "c_types.h"
 #include "espconn.h"
-#include "mem.h"
 }
 
-#include "FS.h"  // for SPIFFS
 #include "easyMesh.h"
 #include "easyMeshWebServer.h"
 
@@ -75,12 +61,9 @@ void easyMesh::apInit( void  ) {
     
     // establish AP tcpServers
     tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, MESH_PORT );
-
     webServerInit();
-    
-    tcpServerInit( _webSocketConn, _webSocketTcp, webSocketConnectCb, WEB_SOCKET_PORT );
-    
-    SPIFFS.begin(); // start file system for webserver
+ //   tcpServerInit( _webSocketConn, _webSocketTcp, webSocketConnectCb, WEB_SOCKET_PORT );
+    webSocketInit();
 }
 
 //***********************************************************************

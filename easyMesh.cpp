@@ -20,8 +20,6 @@ extern "C" {
 
 #include "easyMesh.h"
 #include "meshSync.h"
-#include "easyMeshWebServer.h"
-#include "meshWebSocket.h"
 
 
 extern AnimationController *blipController;

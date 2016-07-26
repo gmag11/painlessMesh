@@ -1,34 +1,12 @@
-// based on https://github.com/dangrie158/ESP-8266-WebSocket
+// adapted from https://github.com/dangrie158/ESP-8266-WebSocket
 
 #ifndef   _MESH_WEB_SOCKET_H_
 #define   _MESH_WEB_SOCKET_H_
-
-#include <Arduino.h>
-
-extern "C" {
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
-#include "user_config.h"
-#include "user_interface.h"
-#include "uart.h"
-
-#include "c_types.h"
-#include "espconn.h"
-#include "mem.h"
-
-#include "sha1.h"
-
-}
-
 
 #define WEB_SOCKET_PORT   2222
 
 #define WS_KEY_IDENTIFIER "Sec-WebSocket-Key: "
 #define WS_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-//#define WS_RESPONSE "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\nSec-WebSocket-Protocol: chat\r\n\r\n"
-//#define WS_RESPONSE "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\nSec-WebSocket-Protocol: echo-protocol\r\n\r\n"
 #define WS_RESPONSE "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n"
 #define HTML_HEADER_LINEEND "\r\n"
 
@@ -104,7 +82,8 @@ struct WSConnection {
 };
 
 
-void ICACHE_FLASH_ATTR websocketdInit(int port, WSOnConnection onConnection);
+void ICACHE_FLASH_ATTR webSocketInit( void );
+
 void ICACHE_FLASH_ATTR sendWsMessage(WSConnection* connection, const char* payload, uint32_t payloadLength, uint8_t options);
 void ICACHE_FLASH_ATTR broadcastWsMessage(const char* payload, uint32_t payloadLength, uint8_t options);
 WSConnection *ICACHE_FLASH_ATTR getWsConnection(struct espconn *connection);
