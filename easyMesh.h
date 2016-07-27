@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <SimpleList.h>
+#include <ArduinoJson.h>
 
 extern "C" {
 #include "user_interface.h"
@@ -17,6 +18,7 @@ extern "C" {
 
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
+#define DEBUG_MSG(...) Serial.printf(__VA_ARGS__)
 
 enum nodeStatusType {
     INITIALIZING        = 0,

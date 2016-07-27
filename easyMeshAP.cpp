@@ -32,10 +32,10 @@ void easyMesh::apInit( void  ) {
     ipInfo.gw = ip;
     ipInfo.netmask = netmask;
     if ( !wifi_set_ip_info( SOFTAP_IF, &ipInfo ) ) {
-        Serial.printf("wifi_set_ip_info() failed\n");
+        DEBUG_MSG("wifi_set_ip_info() failed\n");
     }
     
-    Serial.printf("Starting AP with SSID=%s IP=%d.%d.%d.%d GW=%d.%d.%d.%d NM=%d.%d.%d.%d\n",
+    DEBUG_MSG("Starting AP with SSID=%s IP=%d.%d.%d.%d GW=%d.%d.%d.%d NM=%d.%d.%d.%d\n",
                   _mySSID.c_str(),
                   IP2STR( &ipInfo.ip ),
                   IP2STR( &ipInfo.gw ),
@@ -56,9 +56,9 @@ void easyMesh::apInit( void  ) {
     
     wifi_softap_set_config(&apConfig);// Set ESP8266 softap config .
     if ( !wifi_softap_dhcps_start() )
-        Serial.printf("DHCP server failed\n");
+        DEBUG_MSG("DHCP server failed\n");
     else
-        Serial.printf("DHCP server started\n");
+        DEBUG_MSG("DHCP server started\n");
     
     // establish AP tcpServers
     tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, MESH_PORT );
@@ -75,9 +75,9 @@ void easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_co
     espconn_regist_connectcb(&serverConn, connectCb);
     sint8 ret = espconn_accept(&serverConn);
     if ( ret == 0 )
-        Serial.printf("AP tcp server established on port %d\n", port );
+        DEBUG_MSG("AP tcp server established on port %d\n", port );
     else
-        Serial.printf("AP tcp server on port %d FAILED ret=%d\n", port, ret);
+        DEBUG_MSG("AP tcp server on port %d FAILED ret=%d\n", port, ret);
     
     return;
 }

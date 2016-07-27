@@ -2,23 +2,9 @@
 #define   _MESH_SYNC_H_
 
 #include <Arduino.h>
-#include <SimpleList.h>
-#include <ArduinoJson.h>
+//#include <SimpleList.h>
+//#include <ArduinoJson.h>
 
-extern "C" {
-//#include "ets_sys.h"
-//#include "osapi.h"
-//#include "gpio.h"
-//#include "os_type.h"
-//#include "user_config.h"
-//#include "user_interface.h"
-//#include "uart.h"
-
-//#include "c_types.h"
-//#include "espconn.h"
-//#include "mem.h"
-}
-    
 #define SCAN_INTERVAL       10000
 #define SYNC_INTERVAL       7000
 #define TIME_SYNC_CYCLES    10 // should (must?) be an even number
