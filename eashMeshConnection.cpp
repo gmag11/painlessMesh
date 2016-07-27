@@ -36,8 +36,19 @@ meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
     
     SimpleList<meshConnection_t>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
-        if ( connection->chipId == chipId )
+        Serial.printf("findConnection(chipId): connection-subConnections=%s\n", connection->subConnections.c_str());
+        
+        if ( connection->chipId == chipId ) {  // check direct connections
+            Serial.printf("findConnection(chipId): Found Direct Connection\n");
             return connection;
+        }
+        
+        String chipIdStr(chipId);
+        if ( connection->subConnections.indexOf(chipIdStr) != -1 ) { // check sub-connections
+            Serial.printf("findConnection(chipId): Found Sub Connection\n");
+            return connection;
+        }
+        
         connection++;
     }
     Serial.printf("findConnection(%d): did not find connection\n", chipId );

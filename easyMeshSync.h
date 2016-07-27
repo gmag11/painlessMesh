@@ -6,17 +6,17 @@
 #include <ArduinoJson.h>
 
 extern "C" {
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
-#include "user_config.h"
-#include "user_interface.h"
-#include "uart.h"
+//#include "ets_sys.h"
+//#include "osapi.h"
+//#include "gpio.h"
+//#include "os_type.h"
+//#include "user_config.h"
+//#include "user_interface.h"
+//#include "uart.h"
 
-#include "c_types.h"
-#include "espconn.h"
-#include "mem.h"
+//#include "c_types.h"
+//#include "espconn.h"
+//#include "mem.h"
 }
     
 #define SCAN_INTERVAL       10000

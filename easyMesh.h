@@ -4,7 +4,12 @@
 #include <Arduino.h>
 #include <SimpleList.h>
 
-#include "meshSync.h"
+extern "C" {
+#include "user_interface.h"
+#include "espconn.h"
+}
+
+#include "easyMeshSync.h"
 
 #define MESH_PREFIX         "mesh"
 #define MESH_PASSWORD       "bootyboo"
@@ -45,8 +50,26 @@ struct meshConnection_t {
 
 class easyMesh {
 public:
+    // in easyMesh.cpp
     void                init( void );
     nodeStatusType      update( void );
+    void                setStatus( nodeStatusType newStatus ); //must be accessable from callback
+    void                handleControl( meshConnection_t *conn, JsonObject& root ); //must be accessable from callback?
+    
+    // in easyMeshSync.cpp
+    void                handleHandShake( meshConnection_t *conn, JsonObject& root );  //must be accessable from callback
+    void                handleMeshSync( meshConnection_t *conn, JsonObject& root );
+    void                handleTimeSync( meshConnection_t *conn, JsonObject& root );
+    void                startTimeSync( meshConnection_t *conn );
+    String              subConnectionJson( meshConnection_t *thisConn );
+    uint16_t            jsonSubConnCount( String& subConns );
+protected:
+    static void         meshSyncCallback( void *arg );
+
+    
+    
+public:
+    
     void                manageStation( void );
 //    void                setWSockRecvCallback( WSOnMessage onMessage );
 //    void                setWSockConnectionCallback( WSOnConnection onConnection );
@@ -61,14 +84,6 @@ public:
     bool                connectToBestAP( void );
     meshConnection_t*   findConnection( espconn *conn );
     void                cleanDeadConnections( void );
-    void                handleHandShake( meshConnection_t *conn, JsonObject& root );
-    void                handleMeshSync( meshConnection_t *conn, JsonObject& root );
-    void                handleControl( meshConnection_t *conn, JsonObject& root );
-    void                handleTimeSync( meshConnection_t *conn, JsonObject& root );
-    String              subConnectionJson( meshConnection_t *thisConn );
-    void                startTimeSync( meshConnection_t *conn );
-    uint16_t            jsonSubConnCount( String& subConns );
-    void                setStatus( nodeStatusType newStatus );
     uint32              getChipId( void ) { return _chipId;};
     
     // should be prototected, but public for debugging
@@ -95,7 +110,6 @@ protected:
     static void meshReconCb(void *arg, sint8 err);
     static void stationScanCb(void *arg, STATUS status);
     static void scanTimerCallback( void *arg );
-    static void meshSyncCallback( void *arg );
     
     meshConnection_t* findConnection( uint32_t chipId );
     
