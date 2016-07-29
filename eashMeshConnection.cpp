@@ -17,9 +17,16 @@ extern "C" {
 
 #include "easyMesh.h"
 
+static void (*meshControlCallback)(JsonObject& control);
+
 extern easyMesh* staticThis;
 
 // connection managment functions
+
+//***********************************************************************
+void easyMesh::setControlCallback( void(*onControl)(ArduinoJson::JsonObject& control) ) {
+    meshControlCallback = onControl;
+}
 
 //***********************************************************************
 meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
@@ -141,7 +148,7 @@ void easyMesh::meshConnectedCb(void *arg) {
 //***********************************************************************
 void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnection_t *receiveConn = staticThis->findConnection( (espconn *)arg );
-    meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
+    //meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.parseObject( data );
@@ -163,10 +170,25 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
             staticThis->handleTimeSync( receiveConn, root );
             break;
         case CONTROL:
-            staticThis->handleControl( receiveConn, root );
+        {
+            meshPrintDebug("Recvd control from %d-->%s<--\n", receiveConn->chipId, data);
+
+            DynamicJsonBuffer jsonBuffer(50);
+            String control = root["control"];
+            JsonObject& controlObj = jsonBuffer.parseObject(control);
+
+            staticThis->broadcastMessage( CONTROL, control.c_str(), receiveConn );
+            
+            if ( !controlObj.success() ) {
+                meshPrintDebug("meshRecvCb(): out of memory1?\n" );
+                return;
+            }
+            
+            meshControlCallback( controlObj );
             break;
+        }
         default:
-            meshPrintDebug("meshRecvCb(): unexpected json root[\"type\"]=%d", (int)root["type"]);
+            meshPrintDebug("meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
     }
     return;
 }

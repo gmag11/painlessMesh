@@ -31,12 +31,14 @@ bool easyMesh::sendMessage( uint32_t destId, meshPackageType type, const char *m
 }
 
 //***********************************************************************
-bool easyMesh::broadcastMessage( meshPackageType type, const char *msg ) {
+bool easyMesh::broadcastMessage( meshPackageType type, const char *msg, meshConnection_t *exclude ) {
     String strMsg(msg);
     
     SimpleList<meshConnection_t>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
-        sendMessage( connection->chipId, type, strMsg );
+        if ( connection != exclude ) {
+            sendMessage( connection->chipId, type, strMsg );
+        }
         connection++;
     }
     return true;
@@ -44,7 +46,7 @@ bool easyMesh::broadcastMessage( meshPackageType type, const char *msg ) {
 
 //***********************************************************************
 bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
-    meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
+    //meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
     
     sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
     

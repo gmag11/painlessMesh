@@ -107,24 +107,20 @@ void easyMesh::stationScanCb(void *arg, STATUS status) {
 //***********************************************************************
 bool easyMesh::connectToBestAP( void ) {
     
-    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
-    while ( connection != _connections.end() ) {
-        SimpleList<bss_info>::iterator ap = _meshAPs.begin();
-        while( ap != _meshAPs.end() ) {
-            String apChipId = (char*)ap->ssid + strlen( MESH_PREFIX);
-            //            meshPrintDebug("connectToBestAP: sort - ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
-            
-            
-            if ( apChipId.toInt() == connection->chipId ) {
-                ap = _meshAPs.erase( ap );
-                //                meshPrintDebug("<--already connected\n");
-            }
-            else {
-                ap++;
-                //              Serial.print("\n");
-            }
+    // drop any _meshAP's we are already connected to
+    SimpleList<bss_info>::iterator ap = _meshAPs.begin();
+    while( ap != _meshAPs.end() ) {
+        String apChipId = (char*)ap->ssid + strlen( MESH_PREFIX);
+        // meshPrintDebug("connectToBestAP: sort - ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
+        
+        if ( findConnection( apChipId.toInt() ) != NULL )  {
+            ap = _meshAPs.erase( ap );
+            //                meshPrintDebug("<--already connected\n");
         }
-        connection++;
+        else {
+            ap++;
+            //              meshPrintDebug("\n");
+        }
     }
     
     uint8 statusCode = wifi_station_get_connect_status();

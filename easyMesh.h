@@ -80,12 +80,11 @@ public:
     void                init( void );
     nodeStatusType      update( void );
     void                setStatus( nodeStatusType newStatus ); //must be accessable from callback
-    void                handleControl( meshConnection_t *conn, JsonObject& root ); //must be accessable from callback?
-
+    
     // in easyMeshComm.cpp
     bool                sendMessage( uint32_t destId, meshPackageType type, String &msg ); //must be accessable from callback
     bool                sendMessage( uint32_t destId, meshPackageType type, const char *msg ); //must be accessable from callback
-    bool                broadcastMessage( meshPackageType type, const char *msg ); //must be accessable from callback
+    bool                broadcastMessage( meshPackageType type, const char *msg, meshConnection_t *exclude = NULL ); //must be accessable from callback
     
     // in easyMeshSync.cpp
     void                handleHandShake( meshConnection_t *conn, JsonObject& root );  //must be accessable from callback
@@ -101,18 +100,17 @@ public:
     String              subConnectionJson( meshConnection_t *thisConn );
     meshConnection_t*   findConnection( espconn *conn ); //must be accessable from callback
     void                cleanDeadConnections( void ); //must be accessable from callback
+    void                tcpConnect( void );     //must be accessable from callback
+    bool                connectToBestAP( void );     //must be accessable from callback
+    void                setControlCallback( void(*onControl)(ArduinoJson::JsonObject& control));
 
     
-    
-    // in ?
+    // in easyMeshSTA.cpp
     void                manageStation( void );
+
+    // in easyMeshAP.cpp
     void                setWSockRecvCallback( void (*onMessage)(char *payloadData) );
     void                setWSockConnectionCallback( void (*onConnection)(void) );
-    
-    //must be accessable from callback
-    void                tcpConnect( void );
-    bool                connectToBestAP( void );
-    
     
     // should be prototected, but public for debugging
     scanStatusType                  _scanStatus = IDLE;
@@ -145,8 +143,6 @@ protected:
     // in easyMeshSync.cpp
     bool sendPackage( meshConnection_t *connection, String &package );
     String buildMeshPackage( uint32_t destId, meshPackageType type, String &msg );
-    
-
     
     uint32_t    _chipId;
     String      _mySSID;

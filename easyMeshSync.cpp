@@ -100,7 +100,6 @@ void timeSync::calcAdjustment ( bool odd ) {
 }
 
 
-
 // easyMesh Syncing functions
 //***********************************************************************
 void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
@@ -108,7 +107,7 @@ void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
     meshPackageType type = (meshPackageType)(int)root["type"];
     
     uint32_t remoteChipId = (uint32_t)root["from"];
-    if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
+    if ( findConnection( remoteChipId ) != NULL ) {  //drop this connection
         meshPrintDebug("We are already connected to node %d.  Dropping new connection\n", conn->chipId);
         espconn_disconnect( conn->esp_conn );
         return;
@@ -123,11 +122,12 @@ void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
     
     if ( type == STA_HANDSHAKE ) {
         String outGoingSubs = subConnectionJson( conn );
-        staticThis->sendMessage( conn->chipId, AP_HANDSHAKE, outGoingSubs );
+        sendMessage( conn->chipId, AP_HANDSHAKE, outGoingSubs );
         meshPrintDebug("handleHandShake(): valid STA handshake from %d sending AP handshake\n", conn->chipId );
     }
     else {  // AP connection
         meshPrintDebug("handleHandShake(): valid AP Handshake from %d\n", conn->chipId );
+        startTimeSync( conn );
     }
 }
 

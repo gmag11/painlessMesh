@@ -12,9 +12,6 @@ extern "C" {
 #include "easyMesh.h"
 #include "easyMeshSync.h"
 
-
-extern AnimationController *blipController;
-
 easyMesh* staticThis;
 uint16_t  count = 0;
 
@@ -58,28 +55,6 @@ nodeStatusType easyMesh::update( void ) {
 //***********************************************************************
 void easyMesh::setStatus( nodeStatusType newStatus ) {
     _nodeStatus = newStatus;
-}
-
-// control functions
-//***********************************************************************
-void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
-    meshPrintDebug("handleControl():");
-    
-    String control = root["control"];
-    
-    DynamicJsonBuffer jsonBuffer(50 );
-    JsonObject& controlObj = jsonBuffer.parseObject(control);
-    
-    if ( !controlObj.success() ) {
-        meshPrintDebug("handleControl(): out of memory1?\n" );
-        return;
-    }
-    
-    blipController->hue = controlObj.get<float>("one");
-    
-    String temp;
-    controlObj.printTo(temp);
-    meshPrintDebug("control=%s, controlObj=%s, one=%d\n", control.c_str(), temp.c_str(), blipController->hue );
 }
 
 
