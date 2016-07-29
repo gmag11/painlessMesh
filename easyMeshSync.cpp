@@ -16,10 +16,10 @@ uint32_t getNodeTime( void ) {
 
 //***********************************************************************
 String timeSync::buildTimeStamp( void ) {
-//    DEBUG_MSG("buildTimeStamp(): num=%d\n", num);
+//    meshPrintDebug("buildTimeStamp(): num=%d\n", num);
     
     if ( num > TIME_SYNC_CYCLES )
-        DEBUG_MSG("buildTimeStamp(): timeSync not started properly\n");
+        meshPrintDebug("buildTimeStamp(): timeSync not started properly\n");
     
     StaticJsonBuffer<75> jsonBuffer;
     JsonObject& timeStampObj = jsonBuffer.createObject();
@@ -32,19 +32,19 @@ String timeSync::buildTimeStamp( void ) {
     String timeStampStr;
     timeStampObj.printTo( timeStampStr );
     
-//    DEBUG_MSG("buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str() );
+//    meshPrintDebug("buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str() );
     return timeStampStr;
 }
 
 //***********************************************************************
 bool timeSync::processTimeStamp( String &str ) {
-//    DEBUG_MSG("processTimeStamp(): str=%s\n", str.c_str());
+//    meshPrintDebug("processTimeStamp(): str=%s\n", str.c_str());
     
     DynamicJsonBuffer jsonBuffer(50 );
     JsonObject& timeStampObj = jsonBuffer.parseObject(str);
     
     if ( !timeStampObj.success() ) {
-        DEBUG_MSG("processTimeStamp(): out of memory1?\n" );
+        meshPrintDebug("processTimeStamp(): out of memory1?\n" );
         return false;
     }
 
@@ -66,20 +66,20 @@ bool timeSync::processTimeStamp( String &str ) {
 
 //***********************************************************************
 void timeSync::calcAdjustment ( bool odd ) {
-//    DEBUG_MSG("calcAdjustment(): odd=%u\n", odd);
+//    meshPrintDebug("calcAdjustment(): odd=%u\n", odd);
 
     uint32_t    bestInterval = 0xFFFFFFFF;
     uint8_t     bestIndex;
     uint32_t    temp;
 
     for (int i = 0; i < TIME_SYNC_CYCLES; i++) {
-  //      DEBUG_MSG("times[%d]=%u\n", i, times[i]);
+  //      meshPrintDebug("times[%d]=%u\n", i, times[i]);
         
         if ( i % 2 == odd ) {
             temp = times[i + 2] - times[i];
             
             if ( i < TIME_SYNC_CYCLES - 2 ){
-    //            DEBUG_MSG("\tinterval=%u\n", temp);
+    //            meshPrintDebug("\tinterval=%u\n", temp);
                 
                 if ( temp < bestInterval ) {
                     bestInterval = temp;
@@ -88,13 +88,13 @@ void timeSync::calcAdjustment ( bool odd ) {
             }
         }
     }
-//    DEBUG_MSG("best interval=%u, best index=%u\n", bestInterval, bestIndex);
+//    meshPrintDebug("best interval=%u, best index=%u\n", bestInterval, bestIndex);
     
     // find number that turns local time into remote time
     uint32_t adopterTime = times[ bestIndex ] + (bestInterval / 2);
     uint32_t adjustment = times[ bestIndex + 1 ] - adopterTime;
     
- //   DEBUG_MSG("new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
+ //   meshPrintDebug("new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
 
     timeAdjuster += adjustment;
 }
@@ -104,45 +104,36 @@ void timeSync::calcAdjustment ( bool odd ) {
 // easyMesh Syncing functions
 //***********************************************************************
 void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
-    String msg = root["msg"];
-    uint32_t remoteChipId = (uint32_t)root["from"];
+    //String msg = root["msg"];
+    meshPackageType type = (meshPackageType)(int)root["type"];
     
-    if ( msg == "Station Handshake") {
-        DEBUG_MSG("handleHandShake(): recieved station handshake\n");
-        
-        // check to make sure we are not already connected
-        if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
-            DEBUG_MSG("We are already connected to this node as Station.  Drop new connection\n");
-            espconn_disconnect( conn->esp_conn );
-            return;
-        }
-        //else
-        conn->chipId = remoteChipId;
-        DEBUG_MSG("sending AP handshake\n");
-        staticThis->sendMessage( remoteChipId, HANDSHAKE, "AP Handshake");
-        _nodeStatus = CONNECTED;
+    uint32_t remoteChipId = (uint32_t)root["from"];
+    if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
+        meshPrintDebug("We are already connected to node %d.  Dropping new connection\n", conn->chipId);
+        espconn_disconnect( conn->esp_conn );
+        return;
     }
-    else if ( msg == "AP Handshake") {  // add AP chipId to connection
-        DEBUG_MSG("handleHandShake(): received AP Handshake\n");
-        
-        // check to make sure we are not already connected
-        if ( staticThis->findConnection( remoteChipId ) != NULL ) {  //drop this connection
-            DEBUG_MSG("We are already connected to this node as AP.  Drop new connection\n");
-            espconn_disconnect( conn->esp_conn );
-            return;
-        }
-        //else
-        conn->chipId = remoteChipId;
-        _nodeStatus = CONNECTED;
+    
+    conn->chipId = remoteChipId;  //add this connection
+
+    // valid, add subs
+    String inComingSubs = root["subs"];
+    conn->subConnections = inComingSubs;
+    _nodeStatus = CONNECTED;
+    
+    if ( type == STA_HANDSHAKE ) {
+        String outGoingSubs = subConnectionJson( conn );
+        staticThis->sendMessage( conn->chipId, AP_HANDSHAKE, outGoingSubs );
+        meshPrintDebug("handleHandShake(): valid STA handshake from %d sending AP handshake\n", conn->chipId );
     }
-    else {
-        DEBUG_MSG("handleHandShake(): Weird msg\n");
+    else {  // AP connection
+        meshPrintDebug("handleHandShake(): valid AP Handshake from %d\n", conn->chipId );
     }
 }
 
 //***********************************************************************
 void easyMesh::meshSyncCallback( void *arg ) {
-    DEBUG_MSG("meshSyncCallback(): entering\n");
+    //meshPrintDebug("meshSyncCallback(): entering\n");
     
     if ( wifi_station_get_connect_status() == STATION_GOT_IP ) {
         // we are connected as a station find station connection
@@ -151,24 +142,23 @@ void easyMesh::meshSyncCallback( void *arg ) {
             if ( connection->esp_conn->proto.tcp->local_port != MESH_PORT ) {
                 // found station connection.  Initiate sync
                 String subsJson = staticThis->subConnectionJson( connection );
-                DEBUG_MSG("meshSyncCallback(): Requesting Sync with %d", connection->chipId );
+                meshPrintDebug("meshSyncCallback(): Requesting Sync with %d", connection->chipId );
                 staticThis->sendMessage( connection->chipId, MESH_SYNC_REQUEST, subsJson );
                 break;
             }
             connection++;
         }
     }
-    DEBUG_MSG("meshSyncCallback(): leaving\n");
+    //meshPrintDebug("meshSyncCallback(): leaving\n");
 }
-
 
 //***********************************************************************
 void easyMesh::handleMeshSync( meshConnection_t *conn, JsonObject& root ) {
-    DEBUG_MSG("handleMeshSync(): type=%d\n", (int)root["type"] );
+    meshPrintDebug("handleMeshSync(): type=%d\n", (int)root["type"] );
     
     String subs = root["subs"];
     conn->subConnections = subs;
-    //    DEBUG_MSG("subs=%s\n", conn->subConnections.c_str());
+    //    meshPrintDebug("subs=%s\n", conn->subConnections.c_str());
     
     if ( (meshPackageType)(int)root["type"] == MESH_SYNC_REQUEST ) {
         String subsJson = staticThis->subConnectionJson( conn );
@@ -179,14 +169,13 @@ void easyMesh::handleMeshSync( meshConnection_t *conn, JsonObject& root ) {
     }
 }
 
-
 //***********************************************************************
 void easyMesh::startTimeSync( meshConnection_t *conn ) {
-    DEBUG_MSG("startTimeSync():\n");
+    meshPrintDebug("startTimeSync():\n");
     // since we are here, we know that we are the STA
     
     if ( conn->time.num > TIME_SYNC_CYCLES ) {
-        DEBUG_MSG("startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num );
+        meshPrintDebug("startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num );
     }
     
     conn->time.num = 0;
@@ -202,8 +191,9 @@ void easyMesh::startTimeSync( meshConnection_t *conn ) {
         sub++;
     }
     remoteSubCount = jsonSubConnCount( conn->subConnections );
+    meshPrintDebug("startTimeSync(): remoteSubCount=%d\n", remoteSubCount);
     conn->time.adopt = ( mySubCount > remoteSubCount ) ? false : true;  // do I adopt the estblished time?
-    DEBUG_MSG("startTimeSync(): adopt=%d\n", conn->time.adopt);
+    meshPrintDebug("startTimeSync(): adopt=%d\n", conn->time.adopt);
     
     String timeStamp = conn->time.buildTimeStamp();
     staticThis->sendMessage( conn->chipId, TIME_SYNC, timeStamp );
@@ -211,7 +201,7 @@ void easyMesh::startTimeSync( meshConnection_t *conn ) {
 
 //***********************************************************************
 void easyMesh::handleTimeSync( meshConnection_t *conn, JsonObject& root ) {
-    DEBUG_MSG("handleTimeSync():\n");
+//    meshPrintDebug("handleTimeSync():\n");
     
     String timeStamp = root["timeStamp"];
     conn->time.processTimeStamp( timeStamp );
@@ -231,6 +221,8 @@ void easyMesh::handleTimeSync( meshConnection_t *conn, JsonObject& root ) {
 
 //***********************************************************************
 uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
+    meshPrintDebug("jsonSubConnCount(): subConns=%s\n", subConns.c_str() );
+    
     uint16_t count = 0;
     
     if ( subConns.length() < 3 )
@@ -240,17 +232,16 @@ uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
     JsonArray& subArray = jsonBuffer.parseArray( subConns );
     
     if ( !subArray.success() ) {
-        DEBUG_MSG("subConnCount(): out of memory1\n");
+        meshPrintDebug("subConnCount(): out of memory1\n");
     }
     
     String str;
-    
     for ( uint8_t i = 0; i < subArray.size(); i++ ) {
         str = subArray.get<String>(i);
-        DEBUG_MSG("jsonSubConnCount(): str=%s\n", str.c_str() );
+        meshPrintDebug("jsonSubConnCount(): str=%s\n", str.c_str() );
         JsonObject& obj = jsonBuffer.parseObject( str );
         if ( !obj.success() ) {
-            DEBUG_MSG("subConnCount(): out of memory2\n");
+            meshPrintDebug("subConnCount(): out of memory2\n");
         }
         
         str = obj.get<String>("subs");
@@ -260,41 +251,5 @@ uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
     return count;
 }
 
-//***********************************************************************
-String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
-    DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
-    JsonArray& subArray = jsonBuffer.createArray();
-    if ( !subArray.success() )
-        DEBUG_MSG("subConnectionJson(): ran out of memory 1");
-    
-    SimpleList<meshConnection_t>::iterator sub = _connections.begin();
-    while ( sub != _connections.end() ) {
-        if ( sub != thisConn ) {  //exclude the connection that we are working with.
-            JsonObject& subObj = jsonBuffer.createObject();
-            if ( !subObj.success() )
-                DEBUG_MSG("subConnectionJson(): ran out of memory 2");
-            
-            subObj["chipId"] = sub->chipId;
-            
-            if ( sub->subConnections.length() != 0 ) {
-                DEBUG_MSG("subConnectionJson(): sub->subConnections=%s\n", sub->subConnections.c_str() );
-                
-                JsonArray& subs = jsonBuffer.parseArray( sub->subConnections );
-                if ( !subs.success() )
-                    DEBUG_MSG("subConnectionJson(): ran out of memory 3");
-                
-                subObj["subs"] = subs;
-            }
-            
-            if ( !subArray.add( subObj ) )
-                DEBUG_MSG("subConnectionJson(): ran out of memory 4");
-        }
-        sub++;
-    }
-    
-    String ret;
-    subArray.printTo( ret );
-    return ret;
-}
 
 

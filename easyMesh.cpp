@@ -25,7 +25,7 @@ void easyMesh::init( void ) {
     // shut everything down, start with a blank slate.
     wifi_station_set_auto_connect( 0 );
     if ( wifi_station_get_connect_status() != STATION_IDLE ) {
-        DEBUG_MSG("Station is doing something... wierd!? status=%d\n", wifi_station_get_connect_status());
+        meshPrintDebug("Station is doing something... wierd!? status=%d\n", wifi_station_get_connect_status());
         wifi_station_disconnect();
     }
     wifi_softap_dhcps_stop();
@@ -35,8 +35,8 @@ void easyMesh::init( void ) {
     staticThis = this;  // provides a way for static callback methods to access "this" object;
     
     // start configuration
-    //DEBUG_MSG("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
-    DEBUG_MSG("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
+    //meshPrintDebug("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
+    meshPrintDebug("wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
     
     
     _chipId = system_get_chip_id();
@@ -63,7 +63,7 @@ void easyMesh::setStatus( nodeStatusType newStatus ) {
 // control functions
 //***********************************************************************
 void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
-    DEBUG_MSG("handleControl():");
+    meshPrintDebug("handleControl():");
     
     String control = root["control"];
     
@@ -71,7 +71,7 @@ void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
     JsonObject& controlObj = jsonBuffer.parseObject(control);
     
     if ( !controlObj.success() ) {
-        DEBUG_MSG("handleControl(): out of memory1?\n" );
+        meshPrintDebug("handleControl(): out of memory1?\n" );
         return;
     }
     
@@ -79,7 +79,7 @@ void easyMesh::handleControl( meshConnection_t *conn, JsonObject& root ) {
     
     String temp;
     controlObj.printTo(temp);
-    DEBUG_MSG("control=%s, controlObj=%s, one=%d\n", control.c_str(), temp.c_str(), blipController->hue );
+    meshPrintDebug("control=%s, controlObj=%s, one=%d\n", control.c_str(), temp.c_str(), blipController->hue );
 }
 
 
