@@ -107,7 +107,7 @@ void easyMesh::handleHandShake( meshConnection_t *conn, JsonObject& root ) {
     meshPackageType type = (meshPackageType)(int)root["type"];
     
     uint32_t remoteChipId = (uint32_t)root["from"];
-    if ( findConnection( remoteChipId ) != NULL ) {  //drop this connection
+    if ( remoteChipId != 0 && findConnection( remoteChipId ) != NULL ) {  //drop this connection
         meshPrintDebug("We are already connected to node %d.  Dropping new connection\n", conn->chipId);
         espconn_disconnect( conn->esp_conn );
         return;

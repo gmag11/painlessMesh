@@ -17,7 +17,7 @@ extern easyMesh* staticThis;
 // communications functions
 //***********************************************************************
 bool easyMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg ) {
-    //  meshPrintDebug("In sendMessage()\n");
+    //meshPrintDebug("In sendMessage()\n");
     
     String package = buildMeshPackage( destId, type, msg );
     
@@ -51,7 +51,7 @@ bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
     sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
     
     if ( errCode == 0 ) {
-        // meshPrintDebug("espconn_send Suceeded\n");
+        //meshPrintDebug("espconn_send Suceeded\n");
         return true;
     }
     else {
@@ -62,7 +62,7 @@ bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
 
 //***********************************************************************
 String easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String &msg ) {
-    //    meshPrintDebug("In buildMeshPackage()\n");
+    // meshPrintDebug("In buildMeshPackage(): msg=%s\n", msg.c_str() );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.createObject();
@@ -76,7 +76,6 @@ String easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String
         case MESH_SYNC_REQUEST:
         case MESH_SYNC_REPLY:
         {
-            meshPrintDebug("In buildMeshPackage(): msg=%s\n", msg.c_str() );
             JsonArray& subs = jsonBuffer.parseArray( msg );
             if ( !subs.success() ) {
                 meshPrintDebug("buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!");

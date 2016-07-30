@@ -31,7 +31,7 @@ void easyMesh::setControlCallback( void(*onControl)(ArduinoJson::JsonObject& con
 //***********************************************************************
 meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
     //    meshPrintDebug("In findConnection(chipId)\n");
-        
+    
     SimpleList<meshConnection_t>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         //meshPrintDebug("findConnection(chipId): connection-subConnections=%s\n", connection->subConnections.c_str());
@@ -85,6 +85,7 @@ void easyMesh::cleanDeadConnections( void ) {
     }
     
     if (_connections.empty())
+        meshPrintDebug("cleanDeadConnections(): empty\n");
         _nodeStatus = SEARCHING;
     
     return;
@@ -124,6 +125,7 @@ String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
     
     String ret;
     subArray.printTo( ret );
+    meshPrintDebug("subConnectionJson(): returning\n");
     return ret;
 }
 
