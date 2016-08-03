@@ -64,7 +64,7 @@ void inline   meshPrintDebug( const char* format ... ) {
 
     vsnprintf(str, sizeof(str), format, args);
     Serial.print( str );
-    broadcastWsMessage(str, strlen(str), OPCODE_TEXT);
+//    broadcastWsMessage(str, strlen(str), OPCODE_TEXT);
     
     va_end(args);
 }
@@ -82,16 +82,18 @@ public:
     void                setStatus( nodeStatusType newStatus ); //must be accessable from callback
     
     // in easyMeshComm.cpp
-    bool                sendMessage( uint32_t destId, meshPackageType type, String &msg ); //must be accessable from callback
-    bool                sendMessage( uint32_t destId, meshPackageType type, const char *msg ); //must be accessable from callback
-    bool                broadcastMessage( meshPackageType type, const char *msg, meshConnection_t *exclude = NULL ); //must be accessable from callback
+    //must be accessable from callback
+    bool                sendMessage( uint32_t destId, meshPackageType type, String &msg );
+    bool                sendMessage( uint32_t destId, meshPackageType type, const char *msg );
+    bool                broadcastMessage( meshPackageType type, const char *msg, meshConnection_t *exclude = NULL );
     
     // in easyMeshSync.cpp
-    void                handleHandShake( meshConnection_t *conn, JsonObject& root );  //must be accessable from callback
+    //must be accessable from callback
+    void                handleHandShake( meshConnection_t *conn, JsonObject& root );
+    
     void                handleMeshSync( meshConnection_t *conn, JsonObject& root );
     void                handleTimeSync( meshConnection_t *conn, JsonObject& root );
     void                startTimeSync( meshConnection_t *conn );
-    uint16_t            jsonSubConnCount( String& subConns );
 protected:
     static void         meshSyncCallback( void *arg );
     
@@ -103,7 +105,9 @@ public:
     void                tcpConnect( void );     //must be accessable from callback
     bool                connectToBestAP( void );     //must be accessable from callback
     void                setControlCallback( void(*onControl)(ArduinoJson::JsonObject& control));
-
+    uint16_t            connectionCount( meshConnection_t *exclude );
+    uint16_t            jsonSubConnCount( String& subConns );
+    
     
     // in easyMeshSTA.cpp
     void                manageStation( void );

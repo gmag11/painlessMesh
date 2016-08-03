@@ -25,9 +25,9 @@ void webServerInit( void ) {
     SPIFFS.begin(); // start file system for webserver
     
     if ( ret == 0 )
-        DEBUG_MSG("web server established on port %d\n", WEB_PORT );
+        meshPrintDebug("web server established on port %d\n", WEB_PORT );
     else
-        DEBUG_MSG("web server on port %d FAILED ret=%d\n", WEB_PORT, ret);
+        meshPrintDebug("web server on port %d FAILED ret=%d\n", WEB_PORT, ret);
     
     return;
 }
@@ -47,41 +47,70 @@ void webServerConnectCb(void *arg) {
 
 /***********************************************************************/
 void webServerRecvCb(void *arg, char *data, unsigned short length) {
-  //received some data from webServer connection
-  String request( data );
-  
-//  DEBUG_MSG("In webServer_server_recv_cb count=%d\n", webCount);
-  struct espconn *activeConn = (espconn *)arg;
-//  DEBUG_MSG("webServer recv"); //--->%s<----\n", request.c_str());
-
-  String get("GET ");
-  String path; 
-
-  if ( request.startsWith( get ) ) {
-    uint16_t endFileIndex = request.indexOf(" HTTP");
-    path = request.substring( get.length(), endFileIndex );
-    if( path.equals("/") )
-      path = "/index.html";
-  }
-
-  String msg = "";
-  char ch;
-
-  File f = SPIFFS.open( path, "r" );
-  if ( !f ) {
-    msg = "File-->" + path + "<-- not found\n";
-  }
-  else {
-//  DEBUG_MSG("path=%s\n", path.c_str() );
-    while ( f.available() ) {
-      ch = f.read();
-      msg.concat( ch );
-    }
-  }
-
-  //DEBUG_MSG("msg=%s<---\n", msg.c_str() );
+    //received some data from webServer connection
+    String request( data );
     
-  espconn_send(activeConn, (uint8*)msg.c_str(), msg.length());
+    //  DEBUG_MSG("In webServer_server_recv_cb count=%d\n", webCount);
+    struct espconn *activeConn = (espconn *)arg;
+    meshPrintDebug("webServer recv length=%d--->\n", length);
+    int i;
+    for ( i = 0 ; i < length ; i++ ) {
+        meshPrintDebug("%c", data[i] ); //request.c_str());
+    }
+    meshPrintDebug("\n<---recv i=%d--->\n", i);
+    
+    String get("GET ");
+    String path;
+    
+    if ( request.startsWith( get ) ) {
+        uint16_t endFileIndex = request.indexOf(" HTTP");
+        path = request.substring( get.length(), endFileIndex );
+        if( path.equals("/") )
+            path = "/index.html";
+    }
+    
+    String msg = "";
+    char ch;
+    uint16_t msgLength = 0;
+    
+    String header;
+    
+    File f = SPIFFS.open( path, "r" );
+    if ( !f ) {
+        meshPrintDebug("webServerRecvCb(): file not found ->%s\n", path.c_str());
+        msg = "File-->" + path + "<-- not found\n";
+    }
+    else {
+        meshPrintDebug("path=%s\n", path.c_str() );
+        while ( f.available() ) {
+            ch = f.read();
+            msg.concat( ch );
+            msgLength++;
+        }
+        
+        meshPrintDebug("msgLength=%d\n", msgLength );
+        
+        header += "HTTP/1.0 200 OK \n";
+        header += "Server: SimpleHTTP/0.6 Python/2.7.10\n";
+        header += "Date: Wed, 03 Aug 2016 16:58:45 GMT\n";
+        header += "Content-Type: text/html\n";
+        header += "Content-Length: ";
+        header += msgLength;
+        header += "\nContent-Security-Policy: default-src 'self'; sandbox 'allow-scripts' 'allow-same-origin'; script-src 'unsafe-inline' 'unsafe-eval';\n";
+        header += "\nLast-Modified: Tue, 02 Aug 2016 22:07:13 GMT\n";
+        header += "\n";
+
+        msg = header + msg;
+    }
+    
+    meshPrintDebug("msg=\n" );
+    
+    for ( i = 0 ; i < msg.length() ; i++ ) {
+        meshPrintDebug("%c", msg.charAt(i) ); //request.c_str());
+    }
+    meshPrintDebug("<---msg\n" );
+    
+    espconn_send(activeConn, (uint8*)msg.c_str(), msg.length());
 }
 
 /***********************************************************************/

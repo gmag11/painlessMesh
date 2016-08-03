@@ -276,13 +276,25 @@ void closeWsConnection(WSConnection * connection) {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR broadcastWsMessage(const char *payload, uint32_t payloadLength, uint8_t options) {
-  //  meshPrintDebug("broadcaseWsMessage-->%s<-- payloadLength=%d\n", payload, payloadLength);
+    meshPrintDebug("broadcaseWsMessage-->%s<-- payloadLength=%d\n", payload, payloadLength);
   for (int slotId = 0; slotId < WS_MAXCONN; slotId++) {
     WSConnection connection = wsConnections[slotId];
     if (connection.connection != NULL && connection.status == STATUS_OPEN) {
       sendWsMessage(&connection, payload, payloadLength, options);
     }
   }
+}
+
+//***********************************************************************
+uint16_t ICACHE_FLASH_ATTR countWsConnections( void ) {
+    uint16_t count = 0;
+    for (int slotId = 0; slotId < WS_MAXCONN; slotId++) {
+        WSConnection connection = wsConnections[slotId];
+        if (connection.connection != NULL && connection.status == STATUS_OPEN) {
+            count++;
+        }
+    }
+    return count;
 }
 
 //***********************************************************************

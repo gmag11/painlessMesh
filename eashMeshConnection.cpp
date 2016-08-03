@@ -84,10 +84,10 @@ void easyMesh::cleanDeadConnections( void ) {
         }
     }
     
-    if (_connections.empty())
+    if (_connections.empty()) {
         meshPrintDebug("cleanDeadConnections(): empty\n");
         _nodeStatus = SEARCHING;
-    
+    }
     return;
 }
 
@@ -123,11 +123,87 @@ String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
         sub++;
     }
     
+    //adda sub for a WS connection  -- hack!!!!
+    meshPrintDebug("subConnectionJson(): countWsConnections()=%d\n", countWsConnections());
+    
+    if ( countWsConnections() > 0 ) {
+        meshPrintDebug("subConnectionJson(): adding WS connection\n");
+        
+        JsonObject& subObj = jsonBuffer.createObject();
+        if ( !subObj.success() )
+            meshPrintDebug("subConnectionJson(): ran out of memory 5");
+        
+        subObj["chipId"] = 4444;  // something random - hack!!!
+//        JsonArray& subs = jsonBuffer.parseArray( "[]" );
+  //      if ( !subs.success() )
+           // meshPrintDebug("subConnectionJson(): ran out of memory 6");
+        subObj["subs"] = "[]";//subs;
+        
+        if ( !subArray.add( subObj ) )
+            meshPrintDebug("subConnectionJson(): ran out of memory 4");
+    }
+    
     String ret;
     subArray.printTo( ret );
-    meshPrintDebug("subConnectionJson(): returning\n");
+    meshPrintDebug("subConnectionJson(): ret=%s\n", ret.c_str());
     return ret;
 }
+
+//***********************************************************************
+uint16_t easyMesh::connectionCount( meshConnection_t *exclude ) {
+//    meshPrintDebug("connectionCount():\n");
+    uint16_t count = 0;
+    
+    SimpleList<meshConnection_t>::iterator sub = _connections.begin();
+    while ( sub != _connections.end() ) {
+        if ( sub != exclude ) {  //exclude this connection in the calc.
+            count += ( 1 + jsonSubConnCount( sub->subConnections ) );
+        }
+        sub++;
+    }
+
+    if ( countWsConnections() > 0 ) {  //this is a hack.  It will report multiple ws on different nodes as multiple connections
+        count++;
+    }
+    
+    //meshPrintDebug("connectionCount(): count=%d\n", count);
+    return count;
+}
+
+//***********************************************************************
+uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
+//    meshPrintDebug("jsonSubConnCount(): subConns=%s\n", subConns.c_str() );
+    
+    uint16_t count = 0;
+    
+    if ( subConns.length() < 3 )
+        return 0;
+    
+    DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
+    JsonArray& subArray = jsonBuffer.parseArray( subConns );
+    
+    if ( !subArray.success() ) {
+        meshPrintDebug("subConnCount(): out of memory1\n");
+    }
+    
+    String str;
+    for ( uint8_t i = 0; i < subArray.size(); i++ ) {
+        str = subArray.get<String>(i);
+        //meshPrintDebug("jsonSubConnCount(): str=%s\n", str.c_str() );
+        JsonObject& obj = jsonBuffer.parseObject( str );
+        if ( !obj.success() ) {
+            meshPrintDebug("subConnCount(): out of memory2\n");
+        }
+        
+        str = obj.get<String>("subs");
+        count += ( 1 + jsonSubConnCount( str ) );
+    }
+    
+    //meshPrintDebug("jsonSubConnCount(): leaving count=%d\n", count );
+    
+    return count;
+}
+
 
 //***********************************************************************
 void easyMesh::meshConnectedCb(void *arg) {
@@ -211,7 +287,7 @@ void easyMesh::meshDisconCb(void *arg) {
     
     //test to see if this connection was on the STATION interface by checking the local port
     if ( disConn->proto.tcp->local_port == MESH_PORT ) {
-        meshPrintDebug("AP connection.  No cleanup needed. local_port=%d\n", disConn->proto.tcp->local_port);
+        meshPrintDebug("AP connection.  No new action needed. local_port=%d\n", disConn->proto.tcp->local_port);
     }
     else {
         meshPrintDebug("Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);

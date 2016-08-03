@@ -16,7 +16,7 @@ uint32_t getNodeTime( void ) {
 
 //***********************************************************************
 String timeSync::buildTimeStamp( void ) {
-//    meshPrintDebug("buildTimeStamp(): num=%d\n", num);
+  //  meshPrintDebug("buildTimeStamp(): num=%d\n", num);
     
     if ( num > TIME_SYNC_CYCLES )
         meshPrintDebug("buildTimeStamp(): timeSync not started properly\n");
@@ -32,7 +32,7 @@ String timeSync::buildTimeStamp( void ) {
     String timeStampStr;
     timeStampObj.printTo( timeStampStr );
     
-//    meshPrintDebug("buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str() );
+  //  meshPrintDebug("buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str() );
     return timeStampStr;
 }
 
@@ -142,7 +142,7 @@ void easyMesh::meshSyncCallback( void *arg ) {
             if ( connection->esp_conn->proto.tcp->local_port != MESH_PORT ) {
                 // found station connection.  Initiate sync
                 String subsJson = staticThis->subConnectionJson( connection );
-                meshPrintDebug("meshSyncCallback(): Requesting Sync with %d", connection->chipId );
+                meshPrintDebug("meshSyncCallback(): Requesting Sync with %d subJson=%s", connection->chipId, subsJson.c_str() );
                 staticThis->sendMessage( connection->chipId, MESH_SYNC_REQUEST, subsJson );
                 break;
             }
@@ -163,6 +163,8 @@ void easyMesh::handleMeshSync( meshConnection_t *conn, JsonObject& root ) {
     if ( (meshPackageType)(int)root["type"] == MESH_SYNC_REQUEST ) {
         String subsJson = staticThis->subConnectionJson( conn );
         staticThis->sendMessage( conn->chipId, MESH_SYNC_REPLY, subsJson );
+        meshPrintDebug("handleMeshSync(): subJson=%s", subsJson.c_str() );
+
     }
     else {
         startTimeSync( conn );
@@ -171,7 +173,7 @@ void easyMesh::handleMeshSync( meshConnection_t *conn, JsonObject& root ) {
 
 //***********************************************************************
 void easyMesh::startTimeSync( meshConnection_t *conn ) {
-    meshPrintDebug("startTimeSync():\n");
+  //  meshPrintDebug("startTimeSync():\n");
     // since we are here, we know that we are the STA
     
     if ( conn->time.num > TIME_SYNC_CYCLES ) {
@@ -181,22 +183,24 @@ void easyMesh::startTimeSync( meshConnection_t *conn ) {
     conn->time.num = 0;
     
     // make the adoption calulation.  Figure out how many nodes I am connected to exclusive of this connection.
-    uint16_t mySubCount = 0;
-    uint16_t remoteSubCount = 0;
-    SimpleList<meshConnection_t>::iterator sub = _connections.begin();
-    while ( sub != _connections.end() ) {
-        if ( sub != conn ) {  //exclude this connection in the calc.
-            mySubCount += ( 1 + jsonSubConnCount( sub->subConnections ) );
-        }
-        sub++;
-    }
-    remoteSubCount = jsonSubConnCount( conn->subConnections );
-    meshPrintDebug("startTimeSync(): remoteSubCount=%d\n", remoteSubCount);
+    uint16_t mySubCount = connectionCount( conn );
+    uint16_t remoteSubCount = jsonSubConnCount( conn->subConnections );
+
+    /*    SimpleList<meshConnection_t>::iterator sub = _connections.begin();
+     while ( sub != _connections.end() ) {
+     if ( sub != conn ) {  //exclude this connection in the calc.
+     mySubCount += ( 1 + jsonSubConnCount( sub->subConnections ) );
+     }
+     sub++;
+     }
+     */
+
     conn->time.adopt = ( mySubCount > remoteSubCount ) ? false : true;  // do I adopt the estblished time?
-    meshPrintDebug("startTimeSync(): adopt=%d\n", conn->time.adopt);
+ //   meshPrintDebug("startTimeSync(): remoteSubCount=%d adopt=%d\n", remoteSubCount, conn->time.adopt);
     
     String timeStamp = conn->time.buildTimeStamp();
     staticThis->sendMessage( conn->chipId, TIME_SYNC, timeStamp );
+ //   meshPrintDebug("startTimeSync(): Leaving\n");
 }
 
 //***********************************************************************
@@ -219,37 +223,6 @@ void easyMesh::handleTimeSync( meshConnection_t *conn, JsonObject& root ) {
     }
 }
 
-//***********************************************************************
-uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
-    meshPrintDebug("jsonSubConnCount(): subConns=%s\n", subConns.c_str() );
-    
-    uint16_t count = 0;
-    
-    if ( subConns.length() < 3 )
-        return 0;
-    
-    DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
-    JsonArray& subArray = jsonBuffer.parseArray( subConns );
-    
-    if ( !subArray.success() ) {
-        meshPrintDebug("subConnCount(): out of memory1\n");
-    }
-    
-    String str;
-    for ( uint8_t i = 0; i < subArray.size(); i++ ) {
-        str = subArray.get<String>(i);
-        meshPrintDebug("jsonSubConnCount(): str=%s\n", str.c_str() );
-        JsonObject& obj = jsonBuffer.parseObject( str );
-        if ( !obj.success() ) {
-            meshPrintDebug("subConnCount(): out of memory2\n");
-        }
-        
-        str = obj.get<String>("subs");
-        count += ( 1 + jsonSubConnCount( str ) );
-    }
-    
-    return count;
-}
 
 
 
