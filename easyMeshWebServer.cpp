@@ -50,14 +50,14 @@ void webServerRecvCb(void *arg, char *data, unsigned short length) {
     //received some data from webServer connection
     String request( data );
     
-    //  DEBUG_MSG("In webServer_server_recv_cb count=%d\n", webCount);
     struct espconn *activeConn = (espconn *)arg;
-    meshPrintDebug("webServer recv length=%d--->\n", length);
+ /*   meshPrintDebug("webServer recv length=%d--->\n", length);
     int i;
     for ( i = 0 ; i < length ; i++ ) {
         meshPrintDebug("%c", data[i] ); //request.c_str());
     }
     meshPrintDebug("\n<---recv i=%d--->\n", i);
+  */
     
     String get("GET ");
     String path;
@@ -74,11 +74,12 @@ void webServerRecvCb(void *arg, char *data, unsigned short length) {
     uint16_t msgLength = 0;
     
     String header;
+    String extension = path.substring( path.lastIndexOf(".") + 1 );
     
     File f = SPIFFS.open( path, "r" );
     if ( !f ) {
         meshPrintDebug("webServerRecvCb(): file not found ->%s\n", path.c_str());
-        msg = "File-->" + path + "<-- not found\n";
+        msg = "File-->" + path + "<-- not found - this should be 404\n";
     }
     else {
         meshPrintDebug("path=%s\n", path.c_str() );
@@ -88,27 +89,42 @@ void webServerRecvCb(void *arg, char *data, unsigned short length) {
             msgLength++;
         }
         
-        meshPrintDebug("msgLength=%d\n", msgLength );
+        meshPrintDebug("msgLength=%d extention=%s\n", msgLength, extension.c_str() );
         
         header += "HTTP/1.0 200 OK \n";
         header += "Server: SimpleHTTP/0.6 Python/2.7.10\n";
         header += "Date: Wed, 03 Aug 2016 16:58:45 GMT\n";
-        header += "Content-Type: text/html\n";
+  
+        if ( extension.equals("html") )
+            header += "Content-Type: text/html\n";
+        else if ( extension.equals("css") )
+            header += "Content-Type: text/css\n";
+        else if ( extension.equals("js") )
+            header += "Content-Type: application/javascript\n";
+        else if ( extension.equals("png") )
+            header += "Content-Type: image/png\n";
+        else if ( extension.equals("jpg") )
+            header += "Content-Type: image/jpeg\n";
+        else if ( extension.equals("gif") )
+            header += "Content-Type: image/gif\n";
+        else if ( extension.equals("ico") )
+            header += "Content-Type: image/x-icon\n";
+        else
+            meshPrintDebug("webServerRecvCb(): Wierd file type. path=%s", path.c_str());
+        
         header += "Content-Length: ";
         header += msgLength;
-        header += "\nContent-Security-Policy: default-src 'self'; sandbox 'allow-scripts' 'allow-same-origin'; script-src 'unsafe-inline' 'unsafe-eval';\n";
-        header += "\nLast-Modified: Tue, 02 Aug 2016 22:07:13 GMT\n";
-        header += "\n";
+        header += "\n\n";
 
         msg = header + msg;
     }
     
-    meshPrintDebug("msg=\n" );
-    
+/*    meshPrintDebug("msg=\n" );
     for ( i = 0 ; i < msg.length() ; i++ ) {
         meshPrintDebug("%c", msg.charAt(i) ); //request.c_str());
     }
     meshPrintDebug("<---msg\n" );
+  */
     
     espconn_send(activeConn, (uint8*)msg.c_str(), msg.length());
 }

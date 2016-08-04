@@ -50,6 +50,7 @@ void easyMesh::init( void ) {
 nodeStatusType easyMesh::update( void ) {
     manageStation();
     
+    // manage connections
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection->lastRecieved + NODE_TIMEOUT < getNodeTime() ) {
@@ -65,7 +66,7 @@ nodeStatusType easyMesh::update( void ) {
         }
         
         
-        // check to see if we've recieved something lately.  Stagger AP and STA 
+        // check to see if we've recieved something lately.  Stagger AP and STA
         if (    (connection->needsNodeSync) == true  ||
                 (   ( connection->lastRecieved + ( NODE_TIMEOUT / 2 ) < getNodeTime() ) &&
                     connection->nodeSyncRequest == 0  &&

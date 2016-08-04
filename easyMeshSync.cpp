@@ -166,12 +166,12 @@ void easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
     }
     
     if ( type == NODE_SYNC_REQUEST ) {
-        meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->chipId );
+        //meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->chipId );
         String myOtherSubConnections = subConnectionJson( conn );
         sendMessage( conn->chipId, NODE_SYNC_REPLY, myOtherSubConnections );
     }
     else if ( type == NODE_SYNC_REPLY ){
-        meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->chipId );
+        //meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->chipId );
         conn->nodeSyncRequest = 0;  //reset nodeSyncRequest Timer
         if ( conn->lastTimeSync == 0 )
             startTimeSync( conn );
@@ -191,7 +191,7 @@ void easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
             connection++;
         }
     }
-    meshPrintDebug("handleNodeSync(): leaving\n" );
+    //meshPrintDebug("handleNodeSync(): leaving\n" );
 }
 
 //***********************************************************************

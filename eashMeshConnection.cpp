@@ -67,7 +67,7 @@ meshConnectionType* easyMesh::findConnection( espconn *conn ) {
         connection++;
     }
     
-    meshPrintDebug("findConnection(espconn) Failed");
+    meshPrintDebug("findConnection(espconn): Did not Find\n");
     return NULL;
 }
 
@@ -108,7 +108,7 @@ String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
             subObj["chipId"] = sub->chipId;
             
             if ( sub->subConnections.length() != 0 ) {
-                meshPrintDebug("subConnectionJson(): sub->subConnections=%s\n", sub->subConnections.c_str() );
+                //meshPrintDebug("subConnectionJson(): sub->subConnections=%s\n", sub->subConnections.c_str() );
                 
                 JsonArray& subs = jsonBuffer.parseArray( sub->subConnections );
                 if ( !subs.success() )
@@ -127,7 +127,7 @@ String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
     //meshPrintDebug("subConnectionJson(): countWsConnections()=%d\n", countWsConnections());
     
     if ( countWsConnections() > 0 ) {
-        meshPrintDebug("subConnectionJson(): adding WS connection\n");
+        //meshPrintDebug("subConnectionJson(): adding WS connection\n");
         
         JsonObject& subObj = jsonBuffer.createObject();
         if ( !subObj.success() )
@@ -229,7 +229,8 @@ void easyMesh::meshConnectedCb(void *arg) {
 //***********************************************************************
 void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnectionType *receiveConn = staticThis->findConnection( (espconn *)arg );
-    meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
+    
+    //meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.parseObject( data );
@@ -238,8 +239,17 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
         return;
     }
     
+    if ( receiveConn == NULL ) {
+        meshPrintDebug("meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
+        uint32_t remoteId = (uint32_t)root["from"];
+        receiveConn = staticThis->findConnection( remoteId );
+        meshPrintDebug("meshRecvCb(): tried lookup by Id=%d, got this pointer 0x%x\n", remoteId, receiveConn);
+        meshPrintDebug("dropping this msg... see if we recover?\n", remoteId, receiveConn);
+        return;
+    }
+    
     switch( (meshPackageType)(int)root["type"] ) {
-        case STA_HANDSHAKE:
+ /*       case STA_HANDSHAKE:
         case AP_HANDSHAKE:
             staticThis->handleHandShake( receiveConn, root );
             break;
@@ -247,6 +257,7 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
         case MESH_SYNC_REPLY:
             staticThis->handleMeshSync( receiveConn, root );
             break;
+  */
         case NODE_SYNC_REQUEST:
         case NODE_SYNC_REPLY:
             staticThis->handleNodeSync( receiveConn, root );

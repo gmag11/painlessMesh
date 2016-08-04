@@ -46,7 +46,7 @@ bool easyMesh::broadcastMessage( meshPackageType type, const char *msg, meshConn
 
 //***********************************************************************
 bool easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
-    meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
+    //meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
     
     sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
     
