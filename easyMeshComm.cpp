@@ -31,10 +31,10 @@ bool easyMesh::sendMessage( uint32_t destId, meshPackageType type, const char *m
 }
 
 //***********************************************************************
-bool easyMesh::broadcastMessage( meshPackageType type, const char *msg, meshConnection_t *exclude ) {
+bool easyMesh::broadcastMessage( meshPackageType type, const char *msg, meshConnectionType *exclude ) {
     String strMsg(msg);
     
-    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection != exclude ) {
             sendMessage( connection->chipId, type, strMsg );
@@ -45,8 +45,8 @@ bool easyMesh::broadcastMessage( meshPackageType type, const char *msg, meshConn
 }
 
 //***********************************************************************
-bool easyMesh::sendPackage( meshConnection_t *connection, String &package ) {
-    //meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
+bool easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
+    meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
     
     sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
     
@@ -71,6 +71,9 @@ String easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String
     root["type"] = (uint8_t)type;
     
     switch( type ) {
+        case NODE_SYNC_REQUEST:
+            findConnection( destId )->nodeSyncRequest = getNodeTime();
+        case NODE_SYNC_REPLY:
         case STA_HANDSHAKE:
         case AP_HANDSHAKE:
         case MESH_SYNC_REQUEST:

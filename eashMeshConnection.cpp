@@ -1,6 +1,6 @@
 //
 //  eashMeshConnection.cpp
-//  
+//
 //
 //  Created by Bill Gray on 7/26/16.
 //
@@ -29,10 +29,10 @@ void easyMesh::setControlCallback( void(*onControl)(ArduinoJson::JsonObject& con
 }
 
 //***********************************************************************
-meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
+meshConnectionType* easyMesh::findConnection( uint32_t chipId ) {
     //    meshPrintDebug("In findConnection(chipId)\n");
     
-    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         //meshPrintDebug("findConnection(chipId): connection-subConnections=%s\n", connection->subConnections.c_str());
         
@@ -54,12 +54,12 @@ meshConnection_t* easyMesh::findConnection( uint32_t chipId ) {
 }
 
 //***********************************************************************
-meshConnection_t* easyMesh::findConnection( espconn *conn ) {
+meshConnectionType* easyMesh::findConnection( espconn *conn ) {
     //    meshPrintDebug("In findConnection(esp_conn) conn=0x%x\n", conn );
     
     int i=0;
     
-    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection->esp_conn == conn ) {
             return connection;
@@ -73,9 +73,9 @@ meshConnection_t* easyMesh::findConnection( espconn *conn ) {
 
 //***********************************************************************
 void easyMesh::cleanDeadConnections( void ) {
-    //meshPrintDebug("In cleanDeadConnections() size=%d\n", _connections.size() );
+    meshPrintDebug("In cleanDeadConnections() size=%d\n", _connections.size() );
     
-    SimpleList<meshConnection_t>::iterator connection = _connections.begin();
+    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection->esp_conn->state == ESPCONN_CLOSE ) {
             connection = _connections.erase( connection );
@@ -92,15 +92,15 @@ void easyMesh::cleanDeadConnections( void ) {
 }
 
 //***********************************************************************
-String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
+String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonArray& subArray = jsonBuffer.createArray();
     if ( !subArray.success() )
         meshPrintDebug("subConnectionJson(): ran out of memory 1");
     
-    SimpleList<meshConnection_t>::iterator sub = _connections.begin();
+    SimpleList<meshConnectionType>::iterator sub = _connections.begin();
     while ( sub != _connections.end() ) {
-        if ( sub != thisConn && sub->chipId != 0 ) {  //exclude connection that we are working with & anything too new.
+        if ( sub != exclude && sub->chipId != 0 ) {  //exclude connection that we are working with & anything too new.
             JsonObject& subObj = jsonBuffer.createObject();
             if ( !subObj.success() )
                 meshPrintDebug("subConnectionJson(): ran out of memory 2");
@@ -124,7 +124,7 @@ String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
     }
     
     //adda sub for a WS connection  -- hack!!!!
-    meshPrintDebug("subConnectionJson(): countWsConnections()=%d\n", countWsConnections());
+    //meshPrintDebug("subConnectionJson(): countWsConnections()=%d\n", countWsConnections());
     
     if ( countWsConnections() > 0 ) {
         meshPrintDebug("subConnectionJson(): adding WS connection\n");
@@ -134,9 +134,9 @@ String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
             meshPrintDebug("subConnectionJson(): ran out of memory 5");
         
         subObj["chipId"] = 4444;  // something random - hack!!!
-//        JsonArray& subs = jsonBuffer.parseArray( "[]" );
-  //      if ( !subs.success() )
-           // meshPrintDebug("subConnectionJson(): ran out of memory 6");
+        //        JsonArray& subs = jsonBuffer.parseArray( "[]" );
+        //      if ( !subs.success() )
+        // meshPrintDebug("subConnectionJson(): ran out of memory 6");
         subObj["subs"] = "[]";//subs;
         
         if ( !subArray.add( subObj ) )
@@ -145,23 +145,23 @@ String easyMesh::subConnectionJson( meshConnection_t *thisConn ) {
     
     String ret;
     subArray.printTo( ret );
-    meshPrintDebug("subConnectionJson(): ret=%s\n", ret.c_str());
+    //meshPrintDebug("subConnectionJson(): ret=%s\n", ret.c_str());
     return ret;
 }
 
 //***********************************************************************
-uint16_t easyMesh::connectionCount( meshConnection_t *exclude ) {
-//    meshPrintDebug("connectionCount():\n");
+uint16_t easyMesh::connectionCount( meshConnectionType *exclude ) {
+    //    meshPrintDebug("connectionCount():\n");
     uint16_t count = 0;
     
-    SimpleList<meshConnection_t>::iterator sub = _connections.begin();
+    SimpleList<meshConnectionType>::iterator sub = _connections.begin();
     while ( sub != _connections.end() ) {
         if ( sub != exclude ) {  //exclude this connection in the calc.
             count += ( 1 + jsonSubConnCount( sub->subConnections ) );
         }
         sub++;
     }
-
+    
     if ( countWsConnections() > 0 ) {  //this is a hack.  It will report multiple ws on different nodes as multiple connections
         count++;
     }
@@ -172,7 +172,7 @@ uint16_t easyMesh::connectionCount( meshConnection_t *exclude ) {
 
 //***********************************************************************
 uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
-//    meshPrintDebug("jsonSubConnCount(): subConns=%s\n", subConns.c_str() );
+    //    meshPrintDebug("jsonSubConnCount(): subConns=%s\n", subConns.c_str() );
     
     uint16_t count = 0;
     
@@ -207,9 +207,10 @@ uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
 
 //***********************************************************************
 void easyMesh::meshConnectedCb(void *arg) {
-    meshPrintDebug("new meshConnection !!!\n");
-    meshConnection_t newConn;
+    meshPrintDebug("meshConnectedCb(): new meshConnection !!!\n");
+    meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
+    newConn.lastRecieved = getNodeTime();
     staticThis->_connections.push_back( newConn );
     
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb);
@@ -218,15 +219,17 @@ void easyMesh::meshConnectedCb(void *arg) {
     espconn_regist_disconcb(newConn.esp_conn, meshDisconCb);
     
     if( newConn.esp_conn->proto.tcp->local_port != MESH_PORT ) { // we are the station, send station handshake
+        meshPrintDebug("meshConnectedCb(): we are the STA\n");
         String subs = staticThis->subConnectionJson( &newConn );
-        staticThis->sendMessage( 0, STA_HANDSHAKE, subs );
+        //        staticThis->sendMessage( 0, STA_HANDSHAKE, subs );
+        staticThis->sendMessage( 0, NODE_SYNC_REQUEST, subs );
     }
 }
 
 //***********************************************************************
 void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
-    meshConnection_t *receiveConn = staticThis->findConnection( (espconn *)arg );
-    //meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
+    meshConnectionType *receiveConn = staticThis->findConnection( (espconn *)arg );
+    meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.parseObject( data );
@@ -244,17 +247,21 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
         case MESH_SYNC_REPLY:
             staticThis->handleMeshSync( receiveConn, root );
             break;
+        case NODE_SYNC_REQUEST:
+        case NODE_SYNC_REPLY:
+            staticThis->handleNodeSync( receiveConn, root );
+            break;
         case TIME_SYNC:
             staticThis->handleTimeSync( receiveConn, root );
             break;
         case CONTROL:
         {
             meshPrintDebug("Recvd control from %d-->%s<--\n", receiveConn->chipId, data);
-
+            
             DynamicJsonBuffer jsonBuffer(50);
             String control = root["control"];
             JsonObject& controlObj = jsonBuffer.parseObject(control);
-
+            
             staticThis->broadcastMessage( CONTROL, control.c_str(), receiveConn );
             
             if ( !controlObj.success() ) {
@@ -267,7 +274,11 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
         }
         default:
             meshPrintDebug("meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
+            return;
     }
+    
+    // record that we've gotten a valid package
+    receiveConn->lastRecieved = getNodeTime();
     return;
 }
 

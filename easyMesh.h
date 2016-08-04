@@ -19,6 +19,7 @@ extern "C" {
 #define MESH_PREFIX         "mesh"
 #define MESH_PASSWORD       "bootyboo"
 #define MESH_PORT           4444
+#define NODE_TIMEOUT        3000000  //uSecs
 
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
@@ -44,15 +45,22 @@ enum meshPackageType {
     MESH_SYNC_REQUEST       = 2,
     MESH_SYNC_REPLY         = 3,
     TIME_SYNC               = 4,
-    CONTROL                 = 5
+    NODE_SYNC_REQUEST       = 5,
+    NODE_SYNC_REPLY         = 6,
+    CONTROL                 = 7
 };
 
 
-struct meshConnection_t {
+struct meshConnectionType {
     espconn         *esp_conn;
     uint32_t        chipId = 0;
     String          subConnections;
     timeSync        time;
+    uint32_t        lastRecieved = 0;
+    uint32_t        nodeSyncRequest = 0;
+    uint32_t        lastTimeSync = 0;
+    bool            needsNodeSync = false;
+    bool            needsTimeSync = false;
 };
 
 
@@ -85,27 +93,28 @@ public:
     //must be accessable from callback
     bool                sendMessage( uint32_t destId, meshPackageType type, String &msg );
     bool                sendMessage( uint32_t destId, meshPackageType type, const char *msg );
-    bool                broadcastMessage( meshPackageType type, const char *msg, meshConnection_t *exclude = NULL );
+    bool                broadcastMessage( meshPackageType type, const char *msg, meshConnectionType *exclude = NULL );
     
     // in easyMeshSync.cpp
     //must be accessable from callback
-    void                handleHandShake( meshConnection_t *conn, JsonObject& root );
+    void                handleHandShake( meshConnectionType *conn, JsonObject& root );
+    void                handleNodeSync( meshConnectionType *conn, JsonObject& root );
     
-    void                handleMeshSync( meshConnection_t *conn, JsonObject& root );
-    void                handleTimeSync( meshConnection_t *conn, JsonObject& root );
-    void                startTimeSync( meshConnection_t *conn );
+    void                handleMeshSync( meshConnectionType *conn, JsonObject& root );
+    void                handleTimeSync( meshConnectionType *conn, JsonObject& root );
+    void                startTimeSync( meshConnectionType *conn );
 protected:
     static void         meshSyncCallback( void *arg );
     
 public:
     // in easyMeshConnection.cpp
-    String              subConnectionJson( meshConnection_t *thisConn );
-    meshConnection_t*   findConnection( espconn *conn ); //must be accessable from callback
+    String              subConnectionJson( meshConnectionType *exclude );
+    meshConnectionType*   findConnection( espconn *conn ); //must be accessable from callback
     void                cleanDeadConnections( void ); //must be accessable from callback
     void                tcpConnect( void );     //must be accessable from callback
     bool                connectToBestAP( void );     //must be accessable from callback
     void                setControlCallback( void(*onControl)(ArduinoJson::JsonObject& control));
-    uint16_t            connectionCount( meshConnection_t *exclude );
+    uint16_t            connectionCount( meshConnectionType *exclude );
     uint16_t            jsonSubConnCount( String& subConns );
     
     
@@ -120,7 +129,7 @@ public:
     scanStatusType                  _scanStatus = IDLE;
     nodeStatusType                  _nodeStatus = INITIALIZING;
     SimpleList<bss_info>            _meshAPs;
-    SimpleList<meshConnection_t>    _connections;
+    SimpleList<meshConnectionType>    _connections;
     
     
 protected:
@@ -142,10 +151,10 @@ protected:
     static void meshRecvCb(void *arg, char *data, unsigned short length);
     static void meshDisconCb(void *arg);
     static void meshReconCb(void *arg, sint8 err);
-    meshConnection_t* findConnection( uint32_t chipId );
+    meshConnectionType* findConnection( uint32_t chipId );
     
     // in easyMeshSync.cpp
-    bool sendPackage( meshConnection_t *connection, String &package );
+    bool sendPackage( meshConnectionType *connection, String &package );
     String buildMeshPackage( uint32_t destId, meshPackageType type, String &msg );
     
     uint32_t    _chipId;
