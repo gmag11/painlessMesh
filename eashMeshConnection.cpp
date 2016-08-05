@@ -17,15 +17,14 @@ extern "C" {
 
 #include "easyMesh.h"
 
-static void (*meshControlCallback)(JsonObject& control);
+static void (*receivedCallback)( uint32_t from, String &msg);
 
 extern easyMesh* staticThis;
 
 // connection managment functions
-
 //***********************************************************************
-void easyMesh::setControlCallback( void(*onControl)(ArduinoJson::JsonObject& control) ) {
-    meshControlCallback = onControl;
+void easyMesh::setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) ) {
+    receivedCallback = onReceive;
 }
 
 //***********************************************************************
@@ -221,7 +220,6 @@ void easyMesh::meshConnectedCb(void *arg) {
     if( newConn.esp_conn->proto.tcp->local_port != MESH_PORT ) { // we are the station, send station handshake
         meshPrintDebug("meshConnectedCb(): we are the STA\n");
         String subs = staticThis->subConnectionJson( &newConn );
-        //        staticThis->sendMessage( 0, STA_HANDSHAKE, subs );
         staticThis->sendMessage( 0, NODE_SYNC_REQUEST, subs );
     }
 }
@@ -248,41 +246,31 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
         return;
     }
     
+    String msg = root["msg"];
+    
     switch( (meshPackageType)(int)root["type"] ) {
- /*       case STA_HANDSHAKE:
-        case AP_HANDSHAKE:
-            staticThis->handleHandShake( receiveConn, root );
-            break;
-        case MESH_SYNC_REQUEST:
-        case MESH_SYNC_REPLY:
-            staticThis->handleMeshSync( receiveConn, root );
-            break;
-  */
         case NODE_SYNC_REQUEST:
         case NODE_SYNC_REPLY:
             staticThis->handleNodeSync( receiveConn, root );
             break;
+        
         case TIME_SYNC:
             staticThis->handleTimeSync( receiveConn, root );
             break;
-        case CONTROL:
-        {
-            meshPrintDebug("Recvd control from %d-->%s<--\n", receiveConn->chipId, data);
-            
-            DynamicJsonBuffer jsonBuffer(50);
-            String control = root["control"];
-            JsonObject& controlObj = jsonBuffer.parseObject(control);
-            
-            staticThis->broadcastMessage( CONTROL, control.c_str(), receiveConn );
-            
-            if ( !controlObj.success() ) {
-                meshPrintDebug("meshRecvCb(): out of memory1?\n" );
-                return;
+    
+        case SINGLE:
+            if ( (uint32_t)root["dest"] == staticThis->getChipId() ) {  // msg for us!
+                receivedCallback( (uint32_t)root["from"], msg);
+            } else {                                                    // pass it along
+                staticThis->sendMessage( (uint32_t)root["from"], (uint32_t)root["dest"], SINGLE, msg );  //this is ineffiecnt
             }
-            
-            meshControlCallback( controlObj );
             break;
-        }
+        
+        case BROADCAST:
+            staticThis->broadcastMessage( (uint32_t)root["from"], BROADCAST, msg, receiveConn);
+            receivedCallback( (uint32_t)root["from"], msg);
+            break;
+     
         default:
             meshPrintDebug("meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
             return;

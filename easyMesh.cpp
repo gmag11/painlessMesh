@@ -16,6 +16,8 @@ easyMesh* staticThis;
 uint16_t  count = 0;
 
 
+
+
 // general functions
 //***********************************************************************
 void easyMesh::init( void ) {
@@ -42,8 +44,6 @@ void easyMesh::init( void ) {
     apInit();       // setup AP
     stationInit();  // setup station
     
-//    os_timer_setfn( &_meshSyncTimer, meshSyncCallback, NULL );
-//    os_timer_arm( &_meshSyncTimer, SYNC_INTERVAL, 1 );
 }
 
 //***********************************************************************
@@ -98,9 +98,13 @@ nodeStatusType easyMesh::update( void ) {
 }
 
 //***********************************************************************
-void easyMesh::setStatus( nodeStatusType newStatus ) {
-    _nodeStatus = newStatus;
+bool easyMesh::sendSingle( uint32_t &destId, String &msg ){
+    sendMessage( destId, SINGLE, msg );
 }
 
+//***********************************************************************
+bool easyMesh::sendBroadcast( String &msg ) {
+    broadcastMessage( _chipId, BROADCAST, msg );
+}
 
 

@@ -23,7 +23,7 @@ extern "C" {
 
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
-#define DEBUG_MSG( format, ...) Serial.printf( (format), ##__VA_ARGS__)
+//#define DEBUG_MSG( format, ...) Serial.printf( (format), ##__VA_ARGS__)
 //#define DEBUG_MSG(...) meshPrintDebug(__VA_ARGS__)
 
 
@@ -40,14 +40,12 @@ enum scanStatusType {
 };
 
 enum meshPackageType {
-    STA_HANDSHAKE           = 0,
-    AP_HANDSHAKE            = 1,
-    MESH_SYNC_REQUEST       = 2,
-    MESH_SYNC_REPLY         = 3,
     TIME_SYNC               = 4,
     NODE_SYNC_REQUEST       = 5,
     NODE_SYNC_REPLY         = 6,
-    CONTROL                 = 7
+    CONTROL                 = 7,  //deprecated
+    BROADCAST               = 8,  //application data for everyone
+    SINGLE                  = 9   //application data for a single node
 };
 
 
@@ -87,39 +85,37 @@ public:
     // in easyMesh.cpp
     void                init( void );
     nodeStatusType      update( void );
-    void                setStatus( nodeStatusType newStatus ); //must be accessable from callback
+    bool                sendSingle( uint32_t &destId, String &msg );
+    bool                sendBroadcast( String &msg );
+    void                setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) );
+protected:
     
     // in easyMeshComm.cpp
     //must be accessable from callback
+    bool                sendMessage( uint32_t fromId, uint32_t destId, meshPackageType type, String &msg );
     bool                sendMessage( uint32_t destId, meshPackageType type, String &msg );
-    bool                sendMessage( uint32_t destId, meshPackageType type, const char *msg );
-    bool                broadcastMessage( meshPackageType type, const char *msg, meshConnectionType *exclude = NULL );
+    bool                broadcastMessage( uint32_t fromId, meshPackageType type, String &msg, meshConnectionType *exclude = NULL );
     
     // in easyMeshSync.cpp
     //must be accessable from callback
-    void                handleHandShake( meshConnectionType *conn, JsonObject& root );
     void                handleNodeSync( meshConnectionType *conn, JsonObject& root );
-    
-    void                handleMeshSync( meshConnectionType *conn, JsonObject& root );
     void                handleTimeSync( meshConnectionType *conn, JsonObject& root );
     void                startTimeSync( meshConnectionType *conn );
-protected:
-    static void         meshSyncCallback( void *arg );
-    
-public:
+
     // in easyMeshConnection.cpp
     String              subConnectionJson( meshConnectionType *exclude );
-    meshConnectionType*   findConnection( espconn *conn ); //must be accessable from callback
-    void                cleanDeadConnections( void ); //must be accessable from callback
-    void                tcpConnect( void );     //must be accessable from callback
-    bool                connectToBestAP( void );     //must be accessable from callback
-    void                setControlCallback( void(*onControl)(ArduinoJson::JsonObject& control));
-    uint16_t            connectionCount( meshConnectionType *exclude );
+    meshConnectionType*  findConnection( espconn *conn );
+    void                cleanDeadConnections( void );
+    void                tcpConnect( void );
+    bool                connectToBestAP( void );
     uint16_t            jsonSubConnCount( String& subConns );
-    
-    
+
+
     // in easyMeshSTA.cpp
     void                manageStation( void );
+
+public:
+    uint16_t            connectionCount( meshConnectionType *exclude );
 
     // in easyMeshAP.cpp
     void                setWSockRecvCallback( void (*onMessage)(char *payloadData) );
@@ -129,7 +125,7 @@ public:
     scanStatusType                  _scanStatus = IDLE;
     nodeStatusType                  _nodeStatus = INITIALIZING;
     SimpleList<bss_info>            _meshAPs;
-    SimpleList<meshConnectionType>    _connections;
+    SimpleList<meshConnectionType>  _connections;
     
     
 protected:
@@ -155,13 +151,12 @@ protected:
     
     // in easyMeshSync.cpp
     bool sendPackage( meshConnectionType *connection, String &package );
-    String buildMeshPackage( uint32_t destId, meshPackageType type, String &msg );
+    String buildMeshPackage( uint32_t fromId, uint32_t destId, meshPackageType type, String &msg );
     
     uint32_t    _chipId;
     String      _mySSID;
     
     os_timer_t  _scanTimer;
-    os_timer_t  _meshSyncTimer;
     
     espconn     _meshServerConn;
     esp_tcp     _meshServerTcp;

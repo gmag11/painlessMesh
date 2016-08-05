@@ -102,36 +102,6 @@ void timeSync::calcAdjustment ( bool odd ) {
 
 // easyMesh Syncing functions
 //***********************************************************************
-void easyMesh::handleHandShake( meshConnectionType *conn, JsonObject& root ) {  //depricated
-    //String msg = root["msg"];
-    meshPackageType type = (meshPackageType)(int)root["type"];
-    
-    uint32_t remoteChipId = (uint32_t)root["from"];
-    if ( remoteChipId != 0 && findConnection( remoteChipId ) != NULL ) {  //drop this connection
-        meshPrintDebug("We are already connected to node %d.  Dropping new connection\n", conn->chipId);
-        espconn_disconnect( conn->esp_conn );
-        return;
-    }
-    
-    conn->chipId = remoteChipId;  //add this connection
-    
-    // valid, add subs
-    String inComingSubs = root["subs"];
-    conn->subConnections = inComingSubs;
-    _nodeStatus = CONNECTED;
-    
-    if ( type == STA_HANDSHAKE ) {
-        String outGoingSubs = subConnectionJson( conn );
-        sendMessage( conn->chipId, AP_HANDSHAKE, outGoingSubs );
-        meshPrintDebug("handleHandShake(): valid STA handshake from %d sending AP handshake\n", conn->chipId );
-    }
-    else {  // AP connection
-        meshPrintDebug("handleHandShake(): valid AP Handshake from %d\n", conn->chipId );
-        startTimeSync( conn );
-    }
-}
-
-//***********************************************************************
 void easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
     meshPackageType type = (meshPackageType)(int)root["type"];
     uint32_t        remoteChipId = (uint32_t)root["from"];
@@ -195,46 +165,6 @@ void easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
 }
 
 //***********************************************************************
-void easyMesh::handleMeshSync( meshConnectionType *conn, JsonObject& root ) { //depricated
-    meshPrintDebug("handleMeshSync(): type=%d\n", (int)root["type"] );
-    
-    String subs = root["subs"];
-    conn->subConnections = subs;
-    //    meshPrintDebug("subs=%s\n", conn->subConnections.c_str());
-    
-    if ( (meshPackageType)(int)root["type"] == MESH_SYNC_REQUEST ) {
-        String subsJson = staticThis->subConnectionJson( conn );
-        staticThis->sendMessage( conn->chipId, MESH_SYNC_REPLY, subsJson );
-        meshPrintDebug("handleMeshSync(): subJson=%s", subsJson.c_str() );
-        
-    }
-    else {
-        startTimeSync( conn );
-    }
-}
-
-//***********************************************************************
-void easyMesh::meshSyncCallback( void *arg ) {
-    //meshPrintDebug("meshSyncCallback(): entering\n");
-    
-    if ( wifi_station_get_connect_status() == STATION_GOT_IP ) {
-        // we are connected as a station find station connection
-        SimpleList<meshConnectionType>::iterator connection = staticThis->_connections.begin();
-        while ( connection != staticThis->_connections.end() ) {
-            if ( connection->esp_conn->proto.tcp->local_port != MESH_PORT ) {
-                // found station connection.  Initiate sync
-                String subsJson = staticThis->subConnectionJson( connection );
-                meshPrintDebug("meshSyncCallback(): Requesting Sync with %d subJson=%s", connection->chipId, subsJson.c_str() );
-                staticThis->sendMessage( connection->chipId, MESH_SYNC_REQUEST, subsJson );
-                break;
-            }
-            connection++;
-        }
-    }
-    //meshPrintDebug("meshSyncCallback(): leaving\n");
-}
-
-//***********************************************************************
 void easyMesh::startTimeSync( meshConnectionType *conn ) {
     //  meshPrintDebug("startTimeSync():\n");
     // since we are here, we know that we are the STA
@@ -270,7 +200,7 @@ void easyMesh::startTimeSync( meshConnectionType *conn ) {
 void easyMesh::handleTimeSync( meshConnectionType *conn, JsonObject& root ) {
     //    meshPrintDebug("handleTimeSync():\n");
     
-    String timeStamp = root["timeStamp"];
+    String timeStamp = root["msg"];
     conn->time.processTimeStamp( timeStamp );  //varifies timeStamp and updates it with a new one.
     
     if ( conn->time.num < TIME_SYNC_CYCLES ) {
