@@ -14,7 +14,7 @@ extern "C" {
 }
 
 #include "easyMeshSync.h"
-#include "easyMeshWebSocket.h"
+//#include "easyMeshWebSocket.h"
 
 #define MESH_PREFIX         "mesh"
 #define MESH_PASSWORD       "bootyboo"
@@ -104,7 +104,8 @@ protected:
 
     // in easyMeshConnection.cpp
     String              subConnectionJson( meshConnectionType *exclude );
-    meshConnectionType*  findConnection( espconn *conn );
+    meshConnectionType* findConnection( uint32_t chipId );
+    meshConnectionType* findConnection( espconn *conn );
     void                cleanDeadConnections( void );
     void                tcpConnect( void );
     bool                connectToBestAP( void );
@@ -118,9 +119,7 @@ public:
     uint16_t            connectionCount( meshConnectionType *exclude );
 
     // in easyMeshAP.cpp
-    void                setWSockRecvCallback( void (*onMessage)(char *payloadData) );
-    void                setWSockConnectionCallback( void (*onConnection)(void) );
-    
+
     // should be prototected, but public for debugging
     scanStatusType                  _scanStatus = IDLE;
     nodeStatusType                  _nodeStatus = INITIALIZING;
@@ -147,7 +146,6 @@ protected:
     static void meshRecvCb(void *arg, char *data, unsigned short length);
     static void meshDisconCb(void *arg);
     static void meshReconCb(void *arg, sint8 err);
-    meshConnectionType* findConnection( uint32_t chipId );
     
     // in easyMeshSync.cpp
     bool sendPackage( meshConnectionType *connection, String &package );
@@ -160,12 +158,6 @@ protected:
     
     espconn     _meshServerConn;
     esp_tcp     _meshServerTcp;
-    
-    espconn     _webServerConn;
-    esp_tcp     _webServerTcp;
-    
-    espconn     _webSocketConn;
-    esp_tcp     _webSocketTcp;
     
     espconn     _stationConn;
     esp_tcp     _stationTcp;

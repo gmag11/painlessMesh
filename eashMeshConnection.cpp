@@ -125,7 +125,7 @@ String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
     //adda sub for a WS connection  -- hack!!!!
     //meshPrintDebug("subConnectionJson(): countWsConnections()=%d\n", countWsConnections());
     
-    if ( countWsConnections() > 0 ) {
+  /*  if ( countWsConnections() > 0 ) {
         //meshPrintDebug("subConnectionJson(): adding WS connection\n");
         
         JsonObject& subObj = jsonBuffer.createObject();
@@ -142,6 +142,7 @@ String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
             meshPrintDebug("subConnectionJson(): ran out of memory 4");
     }
     
+   */
     String ret;
     subArray.printTo( ret );
     //meshPrintDebug("subConnectionJson(): ret=%s\n", ret.c_str());
@@ -161,10 +162,10 @@ uint16_t easyMesh::connectionCount( meshConnectionType *exclude ) {
         sub++;
     }
     
-    if ( countWsConnections() > 0 ) {  //this is a hack.  It will report multiple ws on different nodes as multiple connections
+/*    if ( countWsConnections() > 0 ) {  //this is a hack.  It will report multiple ws on different nodes as multiple connections
         count++;
     }
-    
+  */  
     //meshPrintDebug("connectionCount(): count=%d\n", count);
     return count;
 }
