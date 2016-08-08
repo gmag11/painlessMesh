@@ -20,7 +20,7 @@ uint16_t  count = 0;
 
 // general functions
 //***********************************************************************
-void easyMesh::init( void ) {
+void ICACHE_FLASH_ATTR easyMesh::init( void ) {
     // shut everything down, start with a blank slate.
     wifi_station_set_auto_connect( 0 );
     if ( wifi_station_get_connect_status() != STATION_IDLE ) {
@@ -49,19 +49,19 @@ void easyMesh::init( void ) {
 }
 
 //***********************************************************************
-void easyMesh::update( void ) {
+void ICACHE_FLASH_ATTR easyMesh::update( void ) {
     manageStation();
     manageConnections();
     return;
 }
 
 //***********************************************************************
-bool easyMesh::sendSingle( uint32_t &destId, String &msg ){
+bool ICACHE_FLASH_ATTR easyMesh::sendSingle( uint32_t &destId, String &msg ){
     sendMessage( destId, SINGLE, msg );
 }
 
 //***********************************************************************
-bool easyMesh::sendBroadcast( String &msg ) {
+bool ICACHE_FLASH_ATTR easyMesh::sendBroadcast( String &msg ) {
     broadcastMessage( _chipId, BROADCAST, msg );
 }
 

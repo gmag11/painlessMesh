@@ -20,7 +20,7 @@ extern "C" {
 
 // AP functions
 //***********************************************************************
-void easyMesh::apInit( void  ) {
+void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
     String password( MESH_PASSWORD );
     
     ip_addr ip, netmask;
@@ -67,7 +67,7 @@ void easyMesh::apInit( void  ) {
 }
 
 //***********************************************************************
-void easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port) {
+void ICACHE_FLASH_ATTR easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port) {
     serverConn.type = ESPCONN_TCP;
     serverConn.state = ESPCONN_NONE;
     serverConn.proto.tcp = &serverTcp;
@@ -81,15 +81,3 @@ void easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_co
     
     return;
 }
-
-//***********************************************************************
-/*
- void easyMesh::setWSockRecvCallback( void (*onMessage)(char *payloadData) ){
-    webSocketSetReceiveCallback( onMessage );
-}
-
-//***********************************************************************
-void easyMesh::setWSockConnectionCallback( void (*onConnection)(void) ){
-    webSocketSetConnectionCallback( onConnection );
-}
-*/

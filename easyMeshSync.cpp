@@ -10,12 +10,12 @@ uint32_t timeAdjuster = 0;
 
 // timeSync Functions
 //***********************************************************************
-uint32_t getNodeTime( void ) {
+uint32_t ICACHE_FLASH_ATTR getNodeTime( void ) {
     return system_get_time() + timeAdjuster;
 }
 
 //***********************************************************************
-String timeSync::buildTimeStamp( void ) {
+String ICACHE_FLASH_ATTR timeSync::buildTimeStamp( void ) {
     //  meshPrintDebug("buildTimeStamp(): num=%d\n", num);
     
     if ( num > TIME_SYNC_CYCLES )
@@ -37,7 +37,7 @@ String timeSync::buildTimeStamp( void ) {
 }
 
 //***********************************************************************
-bool timeSync::processTimeStamp( String &str ) {
+bool ICACHE_FLASH_ATTR timeSync::processTimeStamp( String &str ) {
     //    meshPrintDebug("processTimeStamp(): str=%s\n", str.c_str());
     
     DynamicJsonBuffer jsonBuffer(50 );
@@ -65,7 +65,7 @@ bool timeSync::processTimeStamp( String &str ) {
 }
 
 //***********************************************************************
-void timeSync::calcAdjustment ( bool odd ) {
+void ICACHE_FLASH_ATTR timeSync::calcAdjustment ( bool odd ) {
     //    meshPrintDebug("calcAdjustment(): odd=%u\n", odd);
     
     uint32_t    bestInterval = 0xFFFFFFFF;
@@ -102,7 +102,7 @@ void timeSync::calcAdjustment ( bool odd ) {
 
 // easyMesh Syncing functions
 //***********************************************************************
-void easyMesh::startNodeSync( meshConnectionType *conn ) {
+void ICACHE_FLASH_ATTR easyMesh::startNodeSync( meshConnectionType *conn ) {
     meshPrintDebug("startNodeSync(): with %u\n", conn->chipId);
 
     String subs = subConnectionJson( conn );
@@ -114,7 +114,7 @@ void easyMesh::startNodeSync( meshConnectionType *conn ) {
 }
 
 //***********************************************************************
-void easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
+void ICACHE_FLASH_ATTR easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
     meshPackageType type = (meshPackageType)(int)root["type"];
     uint32_t        remoteChipId = (uint32_t)root["from"];
     uint32_t        destId = (uint32_t)root["dest"];
@@ -174,7 +174,7 @@ void easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
 }
 
 //***********************************************************************
-void easyMesh::startTimeSync( meshConnectionType *conn ) {
+void ICACHE_FLASH_ATTR easyMesh::startTimeSync( meshConnectionType *conn ) {
     meshPrintDebug("startTimeSync(): with %d\n", conn->chipId );
     
     if ( conn->time.num > TIME_SYNC_CYCLES ) {
@@ -194,7 +194,7 @@ void easyMesh::startTimeSync( meshConnectionType *conn ) {
 }
 
 //***********************************************************************
-bool easyMesh::adoptionCalc( meshConnectionType *conn ) {
+bool ICACHE_FLASH_ATTR easyMesh::adoptionCalc( meshConnectionType *conn ) {
     // make the adoption calulation.  Figure out how many nodes I am connected to exclusive of this connection.
     uint16_t mySubCount = connectionCount( conn );  //exclude this connection.
     uint16_t remoteSubCount = jsonSubConnCount( conn->subConnections );
@@ -203,7 +203,7 @@ bool easyMesh::adoptionCalc( meshConnectionType *conn ) {
 }
 
 //***********************************************************************
-void easyMesh::handleTimeSync( meshConnectionType *conn, JsonObject& root ) {
+void ICACHE_FLASH_ATTR easyMesh::handleTimeSync( meshConnectionType *conn, JsonObject& root ) {
     
     String timeStamp = root["msg"];
 //    meshPrintDebug("handleTimeSync(): with %d in timestamp=%s\n", conn->chipId, timeStamp.c_str());

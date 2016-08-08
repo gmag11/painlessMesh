@@ -21,13 +21,13 @@ extern easyMesh* staticThis;
 
 // Station functions
 //***********************************************************************
-void easyMesh::stationInit( void ) {
+void ICACHE_FLASH_ATTR easyMesh::stationInit( void ) {
     startStationScan();
     return;
 }
 
 //***********************************************************************
-void easyMesh::manageStation( void ) {
+void ICACHE_FLASH_ATTR easyMesh::manageStation( void ) {
     
     static uint8_t previousStatus;
     uint8_t stationStatus = wifi_station_get_connect_status();
@@ -63,7 +63,7 @@ void easyMesh::manageStation( void ) {
 }
 
 //***********************************************************************
-void easyMesh::startStationScan( void ) {
+void ICACHE_FLASH_ATTR easyMesh::startStationScan( void ) {
     if ( _scanStatus != IDLE ) {
         return;
     }
@@ -78,12 +78,12 @@ void easyMesh::startStationScan( void ) {
 }
 
 //***********************************************************************
-void easyMesh::scanTimerCallback( void *arg ) {
+void ICACHE_FLASH_ATTR easyMesh::scanTimerCallback( void *arg ) {
     staticThis->startStationScan();
 }
 
 //***********************************************************************
-void easyMesh::stationScanCb(void *arg, STATUS status) {
+void ICACHE_FLASH_ATTR easyMesh::stationScanCb(void *arg, STATUS status) {
     char ssid[32];
     bss_info *bssInfo = (bss_info *)arg;
     //   meshPrintDebug("-- > scan finished @ % d < --\n", system_get_time());
@@ -105,7 +105,7 @@ void easyMesh::stationScanCb(void *arg, STATUS status) {
 }
 
 //***********************************************************************
-bool easyMesh::connectToBestAP( void ) {
+bool ICACHE_FLASH_ATTR easyMesh::connectToBestAP( void ) {
     
     // drop any _meshAP's we are already connected to
     SimpleList<bss_info>::iterator ap = _meshAPs.begin();
@@ -163,7 +163,7 @@ bool easyMesh::connectToBestAP( void ) {
 }
 
 //***********************************************************************
-void easyMesh::tcpConnect( void ) {
+void ICACHE_FLASH_ATTR easyMesh::tcpConnect( void ) {
     struct ip_info ipconfig;
     wifi_get_ip_info(STATION_IF, &ipconfig);
     

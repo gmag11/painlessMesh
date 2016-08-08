@@ -16,8 +16,8 @@ extern easyMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool easyMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg ) {
-    meshPrintDebug("In sendMessage(conn)\n");
+bool ICACHE_FLASH_ATTR easyMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg ) {
+//    meshPrintDebug("In sendMessage(conn)\n");
     
     String package = buildMeshPackage( destId, type, msg );
     
@@ -25,7 +25,7 @@ bool easyMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPacka
 }
 
 //***********************************************************************
-bool easyMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg ) {
+bool ICACHE_FLASH_ATTR easyMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg ) {
     meshPrintDebug("In sendMessage(destId, fromId)\n");
  
     meshConnectionType *conn = findConnection( destId );
@@ -40,7 +40,7 @@ bool easyMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg )
 
 
 //***********************************************************************
-bool easyMesh::broadcastMessage(uint32_t from,
+bool ICACHE_FLASH_ATTR easyMesh::broadcastMessage(uint32_t from,
                                 meshPackageType type,
                                 String &msg,
                                 meshConnectionType *exclude ) {
@@ -56,7 +56,7 @@ bool easyMesh::broadcastMessage(uint32_t from,
 }
 
 //***********************************************************************
-bool easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
+bool ICACHE_FLASH_ATTR easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
     //meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
     
     if ( package.length() > 1400 )
@@ -81,8 +81,8 @@ bool easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
 }
 
 //***********************************************************************
-String easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String &msg ) {
-    meshPrintDebug("In buildMeshPackage(): msg=%s\n", msg.c_str() );
+String ICACHE_FLASH_ATTR easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String &msg ) {
+//    meshPrintDebug("In buildMeshPackage(): msg=%s\n", msg.c_str() );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.createObject();
@@ -104,11 +104,6 @@ String easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String
         case TIME_SYNC:
             root["msg"] = jsonBuffer.parseObject( msg );
             break;
-            
-/*        case CONTROL:
-            root["msg"] = jsonBuffer.parseObject( msg );
-            break;
-  */
         default:
             root["msg"] = msg;
     }

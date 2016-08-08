@@ -24,17 +24,17 @@ extern easyMesh* staticThis;
 
 // connection managment functions
 //***********************************************************************
-void easyMesh::setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) ) {
+void ICACHE_FLASH_ATTR easyMesh::setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) ) {
     receivedCallback = onReceive;
 }
 
 //***********************************************************************
-void easyMesh::setNewConnectionCallback( void(*onNewConnection)(bool adopt) ) {
+void ICACHE_FLASH_ATTR easyMesh::setNewConnectionCallback( void(*onNewConnection)(bool adopt) ) {
     newConnectionCallback = onNewConnection;
 }
 
 //***********************************************************************
-meshConnectionType* easyMesh::closeConnection( meshConnectionType *conn ) {
+meshConnectionType* ICACHE_FLASH_ATTR easyMesh::closeConnection( meshConnectionType *conn ) {
     // It seems that more should be done here... perhas send off a packette to
     // make an attempt to tell the other node that we are closing this conneciton?
     espconn_disconnect( conn->esp_conn );
@@ -42,7 +42,7 @@ meshConnectionType* easyMesh::closeConnection( meshConnectionType *conn ) {
 }
 
 //***********************************************************************
-void easyMesh::manageConnections( void ) {
+void ICACHE_FLASH_ATTR easyMesh::manageConnections( void ) {
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection->lastRecieved + NODE_TIMEOUT < getNodeTime() ) {
@@ -101,8 +101,8 @@ void easyMesh::manageConnections( void ) {
 }
 
 //***********************************************************************
-meshConnectionType* easyMesh::findConnection( uint32_t chipId ) {
-    meshPrintDebug("In findConnection(chipId)\n");
+meshConnectionType* ICACHE_FLASH_ATTR easyMesh::findConnection( uint32_t chipId ) {
+  //  meshPrintDebug("In findConnection(chipId)\n");
     
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
@@ -121,12 +121,12 @@ meshConnectionType* easyMesh::findConnection( uint32_t chipId ) {
         
         connection++;
     }
-    meshPrintDebug("findConnection(%d): did not find connection\n", chipId );
+ //   meshPrintDebug("findConnection(%d): did not find connection\n", chipId );
     return NULL;
 }
 
 //***********************************************************************
-meshConnectionType* easyMesh::findConnection( espconn *conn ) {
+meshConnectionType* ICACHE_FLASH_ATTR easyMesh::findConnection( espconn *conn ) {
     //    meshPrintDebug("In findConnection(esp_conn) conn=0x%x\n", conn );
     
     int i=0;
@@ -144,7 +144,7 @@ meshConnectionType* easyMesh::findConnection( espconn *conn ) {
 }
  
 //***********************************************************************
-String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
+String ICACHE_FLASH_ATTR easyMesh::subConnectionJson( meshConnectionType *exclude ) {
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonArray& subArray = jsonBuffer.createArray();
     if ( !subArray.success() )
@@ -182,7 +182,7 @@ String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
 }
 
 //***********************************************************************
-uint16_t easyMesh::connectionCount( meshConnectionType *exclude ) {
+uint16_t ICACHE_FLASH_ATTR easyMesh::connectionCount( meshConnectionType *exclude ) {
     //    meshPrintDebug("connectionCount():\n");
     uint16_t count = 0;
     
@@ -199,7 +199,7 @@ uint16_t easyMesh::connectionCount( meshConnectionType *exclude ) {
 }
 
 //***********************************************************************
-uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
+uint16_t ICACHE_FLASH_ATTR easyMesh::jsonSubConnCount( String& subConns ) {
     //    meshPrintDebug("jsonSubConnCount(): subConns=%s\n", subConns.c_str() );
     
     uint16_t count = 0;
@@ -233,7 +233,7 @@ uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
 }
 
 //***********************************************************************
-void easyMesh::meshConnectedCb(void *arg) {
+void ICACHE_FLASH_ATTR easyMesh::meshConnectedCb(void *arg) {
     meshPrintDebug("meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
@@ -257,7 +257,7 @@ void easyMesh::meshConnectedCb(void *arg) {
 }
 
 //***********************************************************************
-void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
+void ICACHE_FLASH_ATTR easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnectionType *receiveConn = staticThis->findConnection( (espconn *)arg );
     
     if ( receiveConn == NULL ) {
@@ -313,7 +313,7 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
 }
 
 //***********************************************************************
-void easyMesh::meshSentCb(void *arg) {
+void ICACHE_FLASH_ATTR easyMesh::meshSentCb(void *arg) {
     //    meshPrintDebug("In meshSentCb\r\n");    //data sent successfully
     espconn *conn = (espconn*)arg;
     meshConnectionType *meshConnection = staticThis->findConnection( conn );
@@ -338,7 +338,7 @@ void easyMesh::meshSentCb(void *arg) {
     }
 }
 //***********************************************************************
-void easyMesh::meshDisconCb(void *arg) {
+void ICACHE_FLASH_ATTR easyMesh::meshDisconCb(void *arg) {
     struct espconn *disConn = (espconn *)arg;
     
     meshPrintDebug("meshDisconCb: ");
@@ -359,12 +359,12 @@ void easyMesh::meshDisconCb(void *arg) {
 }
 
 //***********************************************************************
-void easyMesh::meshReconCb(void *arg, sint8 err) {
+void ICACHE_FLASH_ATTR easyMesh::meshReconCb(void *arg, sint8 err) {
     meshPrintDebug("In meshReconCb(): err=%d\n", err );
 }
 
 //***********************************************************************
-void easyMesh::wifiEventCb(System_Event_t *event) {
+void ICACHE_FLASH_ATTR easyMesh::wifiEventCb(System_Event_t *event) {
     switch (event->event) {
         case EVENT_STAMODE_CONNECTED:
             meshPrintDebug("Event: EVENT_STAMODE_CONNECTED ssid=%s\n", (char*)event->event_info.connected.ssid );
