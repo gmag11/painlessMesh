@@ -102,72 +102,80 @@ void timeSync::calcAdjustment ( bool odd ) {
 
 // easyMesh Syncing functions
 //***********************************************************************
+void easyMesh::startNodeSync( meshConnectionType *conn ) {
+    meshPrintDebug("startNodeSync(): with %u\n", conn->chipId);
+
+    String subs = subConnectionJson( conn );
+    sendMessage( conn, conn->chipId, NODE_SYNC_REQUEST, subs );
+    conn->nodeSyncRequest = getNodeTime();
+    conn->needsNodeSync = false;
+    
+    meshPrintDebug("startNodeSync(): leaving\n");
+}
+
+//***********************************************************************
 void easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
     meshPackageType type = (meshPackageType)(int)root["type"];
     uint32_t        remoteChipId = (uint32_t)root["from"];
     uint32_t        destId = (uint32_t)root["dest"];
     bool reSyncAllSubConnections = false;
     
-    
-    if( destId == 0 ) { // this is the first NODE_SYNC_REQUEST from a station
-        if ( findConnection( remoteChipId ) != NULL ) {  //drop this connection
-            meshPrintDebug("handleNodeSync(): Already connected to node %d.  Dropping\n", conn->chipId);
-            espconn_disconnect( conn->esp_conn );
-            return;
-        }
-        conn->chipId = remoteChipId;
-        reSyncAllSubConnections = true;
+    if( (destId == 0) && (findConnection( remoteChipId ) != NULL) ) {
+        // this is the first NODE_SYNC_REQUEST from a station
+        // is we are already connected drop this connection
+        meshPrintDebug("handleNodeSync(): Already connected to node %d.  Dropping\n", conn->chipId);
+        closeConnection( conn );
+        return;
     }
 
-    if ( conn->chipId == 0 ) {
-        meshPrintDebug("handleNodeSync(): Recieved new connection %d\n", remoteChipId );
-        conn->chipId = remoteChipId;  //add this connection
-        reSyncAllSubConnections = true;
-    } else if ( conn->chipId != remoteChipId ) {
-        meshPrintDebug("handleNodeSync(): chipIds don't match? %d %d\n", conn->chipId, remoteChipId );
+    if ( conn->chipId != remoteChipId ) {
+        meshPrintDebug("handleNodeSync(): conn->chipId updated from %d to %d\n", conn->chipId, remoteChipId );
+        conn->chipId = remoteChipId;
+
     }
     
-    
-    // if we are here this is a valid request or responce.
+    // check to see if subs have changed.
     String inComingSubs = root["subs"];
     if ( !conn->subConnections.equals( inComingSubs ) ) {  // change in the network
         reSyncAllSubConnections = true;
         conn->subConnections = inComingSubs;
     }
     
-    if ( type == NODE_SYNC_REQUEST ) {
-        //meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->chipId );
-        String myOtherSubConnections = subConnectionJson( conn );
-        sendMessage( conn->chipId, NODE_SYNC_REPLY, myOtherSubConnections );
+    switch ( type ) {
+        case NODE_SYNC_REQUEST:
+        {
+            //meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->chipId );
+            String myOtherSubConnections = subConnectionJson( conn );
+            sendMessage( conn, _chipId, NODE_SYNC_REPLY, myOtherSubConnections );
+            break;
+        }
+        case NODE_SYNC_REPLY:
+            //meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->chipId );
+            conn->nodeSyncRequest = 0;  //reset nodeSyncRequest Timer  ????
+            if ( conn->lastTimeSync == 0 )
+                startTimeSync( conn );
+            break;
+        default:
+            meshPrintDebug("handleNodeSync(): weird type? %d\n", type );
     }
-    else if ( type == NODE_SYNC_REPLY ){
-        //meshPrintDebug("handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->chipId );
-        conn->nodeSyncRequest = 0;  //reset nodeSyncRequest Timer
-        if ( conn->lastTimeSync == 0 )
-            startTimeSync( conn );
-    }
-    else {
-        meshPrintDebug("handleNodeSync(): weird type? %d\n", type );
-    }
-    
-    conn->needsNodeSync = false;  // mark this connection nodeSync'd
     
     if ( reSyncAllSubConnections == true ) {
         SimpleList<meshConnectionType>::iterator connection = _connections.begin();
         while ( connection != _connections.end() ) {
-            if ( connection != conn ) {  // exclude this connection
-                connection->needsNodeSync = true;
-            }
+            connection->needsNodeSync = true;
             connection++;
         }
     }
+    
+    conn->needsNodeSync = false;  // mark this connection nodeSync'd
+
+    
     //meshPrintDebug("handleNodeSync(): leaving\n" );
 }
 
 //***********************************************************************
 void easyMesh::startTimeSync( meshConnectionType *conn ) {
-    //  meshPrintDebug("startTimeSync():\n");
-    // since we are here, we know that we are the STA
+    meshPrintDebug("startTimeSync(): with %d\n", conn->chipId );
     
     if ( conn->time.num > TIME_SYNC_CYCLES ) {
         meshPrintDebug("startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num );
@@ -175,36 +183,38 @@ void easyMesh::startTimeSync( meshConnectionType *conn ) {
     
     conn->time.num = 0;
     
-    // make the adoption calulation.  Figure out how many nodes I am connected to exclusive of this connection.
-    uint16_t mySubCount = connectionCount( conn );
-    uint16_t remoteSubCount = jsonSubConnCount( conn->subConnections );
     
-    /*    SimpleList<meshConnectionType>::iterator sub = _connections.begin();
-     while ( sub != _connections.end() ) {
-     if ( sub != conn ) {  //exclude this connection in the calc.
-     mySubCount += ( 1 + jsonSubConnCount( sub->subConnections ) );
-     }
-     sub++;
-     }
-     */
-    
-    conn->time.adopt = ( mySubCount > remoteSubCount ) ? false : true;  // do I adopt the estblished time?
+    conn->time.adopt = adoptionCalc( conn ); // do I adopt the estblished time?
     //   meshPrintDebug("startTimeSync(): remoteSubCount=%d adopt=%d\n", remoteSubCount, conn->time.adopt);
     
     String timeStamp = conn->time.buildTimeStamp();
-    staticThis->sendMessage( conn->chipId, TIME_SYNC, timeStamp );
-    //   meshPrintDebug("startTimeSync(): Leaving\n");
+    staticThis->sendMessage( conn, _chipId, TIME_SYNC, timeStamp );
+    
+    meshPrintDebug("startTimeSync(): Leaving\n");
+}
+
+//***********************************************************************
+bool easyMesh::adoptionCalc( meshConnectionType *conn ) {
+    // make the adoption calulation.  Figure out how many nodes I am connected to exclusive of this connection.
+    uint16_t mySubCount = connectionCount( conn );  //exclude this connection.
+    uint16_t remoteSubCount = jsonSubConnCount( conn->subConnections );
+    
+    return ( mySubCount > remoteSubCount ) ? false : true;
 }
 
 //***********************************************************************
 void easyMesh::handleTimeSync( meshConnectionType *conn, JsonObject& root ) {
-    //    meshPrintDebug("handleTimeSync():\n");
     
     String timeStamp = root["msg"];
+//    meshPrintDebug("handleTimeSync(): with %d in timestamp=%s\n", conn->chipId, timeStamp.c_str());
+    
     conn->time.processTimeStamp( timeStamp );  //varifies timeStamp and updates it with a new one.
+
+//    meshPrintDebug("handleTimeSync(): with %d out timestamp=%s\n", conn->chipId, timeStamp.c_str());
+
     
     if ( conn->time.num < TIME_SYNC_CYCLES ) {
-        staticThis->sendMessage( conn->chipId, TIME_SYNC, timeStamp );
+        staticThis->sendMessage( conn, _chipId, TIME_SYNC, timeStamp );
     }
     
     uint8_t odd = conn->time.num % 2;

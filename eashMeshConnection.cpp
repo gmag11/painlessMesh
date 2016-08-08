@@ -18,6 +18,7 @@ extern "C" {
 #include "easyMesh.h"
 
 static void (*receivedCallback)( uint32_t from, String &msg);
+static void (*newConnectionCallback)( bool adopt );
 
 extern easyMesh* staticThis;
 
@@ -28,8 +29,80 @@ void easyMesh::setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) 
 }
 
 //***********************************************************************
+void easyMesh::setNewConnectionCallback( void(*onNewConnection)(bool adopt) ) {
+    newConnectionCallback = onNewConnection;
+}
+
+//***********************************************************************
+meshConnectionType* easyMesh::closeConnection( meshConnectionType *conn ) {
+    // It seems that more should be done here... perhas send off a packette to
+    // make an attempt to tell the other node that we are closing this conneciton?
+    espconn_disconnect( conn->esp_conn );
+    return _connections.erase( conn );
+}
+
+//***********************************************************************
+void easyMesh::manageConnections( void ) {
+    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
+    while ( connection != _connections.end() ) {
+        if ( connection->lastRecieved + NODE_TIMEOUT < getNodeTime() ) {
+            meshPrintDebug("manageConnections(): dropping %d NODE_TIMEOUT last=%u node=%u\n", connection->chipId, connection->lastRecieved, getNodeTime() );
+ 
+            connection = closeConnection( connection );
+            continue;
+        }
+        
+        if( connection->esp_conn->state == ESPCONN_CLOSE ) {
+            meshPrintDebug("manageConnections(): dropping %d ESPCONN_CLOSE\n",connection->chipId);
+            connection = closeConnection( connection );
+            continue;
+        }
+        
+        if ( connection->needsNodeSync == true ) {           // start a nodeSync
+            meshPrintDebug("manageConnections(): start nodeSync with %d\n", connection->chipId);
+            startNodeSync( connection );
+            connection++;
+            continue;
+        }
+        
+        if ( connection->needsTimeSync == true ) {
+            meshPrintDebug("manageConnections(): starting timeSync with %d\n", connection->chipId);
+            startTimeSync( connection );
+            connection->needsTimeSync = false;
+ 
+            connection++;
+            continue;
+        }
+
+        if ( connection->newConnection == true ) {
+            newConnectionCallback( adoptionCalc( connection ) );
+            connection->newConnection = false;
+ 
+            connection++;
+            continue;
+        }
+        
+        // check to see if we've recieved something lately.  Else, flag. Stagger AP and STA
+        uint32_t nodeTime = getNodeTime();
+        if ( connection->nodeSyncRequest == 0 ) { // nodeSync not in progress
+            if (    (connection->esp_conn->proto.tcp->local_port == MESH_PORT  // we are AP
+                     &&
+                     connection->lastRecieved + ( NODE_TIMEOUT / 2 ) < nodeTime )
+                ||
+                    (connection->esp_conn->proto.tcp->local_port != MESH_PORT  // we are the STA
+                     &&
+                     connection->lastRecieved + ( NODE_TIMEOUT * 3 / 4 ) < nodeTime )
+                ) {
+                connection->needsNodeSync = true;
+            }
+        }
+        connection++;
+    }
+}
+
+//***********************************************************************
 meshConnectionType* easyMesh::findConnection( uint32_t chipId ) {
-    //    meshPrintDebug("In findConnection(chipId)\n");
+    meshPrintDebug("In findConnection(chipId)\n");
     
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
@@ -48,7 +121,7 @@ meshConnectionType* easyMesh::findConnection( uint32_t chipId ) {
         
         connection++;
     }
-    //meshPrintDebug("findConnection(%d): did not find connection\n", chipId );
+    meshPrintDebug("findConnection(%d): did not find connection\n", chipId );
     return NULL;
 }
 
@@ -69,27 +142,7 @@ meshConnectionType* easyMesh::findConnection( espconn *conn ) {
     meshPrintDebug("findConnection(espconn): Did not Find\n");
     return NULL;
 }
-
-//***********************************************************************
-void easyMesh::cleanDeadConnections( void ) {
-    meshPrintDebug("In cleanDeadConnections() size=%d\n", _connections.size() );
-    
-    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
-    while ( connection != _connections.end() ) {
-        if ( connection->esp_conn->state == ESPCONN_CLOSE ) {
-            connection = _connections.erase( connection );
-        } else {
-            connection++;
-        }
-    }
-    
-    if (_connections.empty()) {
-        meshPrintDebug("cleanDeadConnections(): empty\n");
-        _nodeStatus = SEARCHING;
-    }
-    return;
-}
-
+ 
 //***********************************************************************
 String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
@@ -122,27 +175,6 @@ String easyMesh::subConnectionJson( meshConnectionType *exclude ) {
         sub++;
     }
     
-    //adda sub for a WS connection  -- hack!!!!
-    //meshPrintDebug("subConnectionJson(): countWsConnections()=%d\n", countWsConnections());
-    
-  /*  if ( countWsConnections() > 0 ) {
-        //meshPrintDebug("subConnectionJson(): adding WS connection\n");
-        
-        JsonObject& subObj = jsonBuffer.createObject();
-        if ( !subObj.success() )
-            meshPrintDebug("subConnectionJson(): ran out of memory 5");
-        
-        subObj["chipId"] = 4444;  // something random - hack!!!
-        //        JsonArray& subs = jsonBuffer.parseArray( "[]" );
-        //      if ( !subs.success() )
-        // meshPrintDebug("subConnectionJson(): ran out of memory 6");
-        subObj["subs"] = "[]";//subs;
-        
-        if ( !subArray.add( subObj ) )
-            meshPrintDebug("subConnectionJson(): ran out of memory 4");
-    }
-    
-   */
     String ret;
     subArray.printTo( ret );
     //meshPrintDebug("subConnectionJson(): ret=%s\n", ret.c_str());
@@ -162,10 +194,6 @@ uint16_t easyMesh::connectionCount( meshConnectionType *exclude ) {
         sub++;
     }
     
-/*    if ( countWsConnections() > 0 ) {  //this is a hack.  It will report multiple ws on different nodes as multiple connections
-        count++;
-    }
-  */  
     //meshPrintDebug("connectionCount(): count=%d\n", count);
     return count;
 }
@@ -204,32 +232,39 @@ uint16_t easyMesh::jsonSubConnCount( String& subConns ) {
     return count;
 }
 
-
 //***********************************************************************
 void easyMesh::meshConnectedCb(void *arg) {
     meshPrintDebug("meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
+    espconn_set_opt( newConn.esp_conn, ESPCONN_NODELAY );  // removes nagle, low latency, but soaks up bandwidth
     newConn.lastRecieved = getNodeTime();
-    staticThis->_connections.push_back( newConn );
     
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb);
     espconn_regist_sentcb(newConn.esp_conn, meshSentCb);
     espconn_regist_reconcb(newConn.esp_conn, meshReconCb);
     espconn_regist_disconcb(newConn.esp_conn, meshDisconCb);
+
+    staticThis->_connections.push_back( newConn );
     
-    if( newConn.esp_conn->proto.tcp->local_port != MESH_PORT ) { // we are the station, send station handshake
-        meshPrintDebug("meshConnectedCb(): we are the STA\n");
-        String subs = staticThis->subConnectionJson( &newConn );
-        staticThis->sendMessage( 0, NODE_SYNC_REQUEST, subs );
+    if( newConn.esp_conn->proto.tcp->local_port != MESH_PORT ) { // we are the station, start nodeSync
+//        meshPrintDebug("meshConnectedCb():: chipId=%u chipId=%u\n", newConn.chipId, (staticThis->_connections.end() - 1) ->chipId);
+        staticThis->startNodeSync( staticThis->_connections.end() - 1 );
+        newConn.needsTimeSync = true;
     }
+    
+    meshPrintDebug("meshConnectedCb(): leaving\n");
 }
 
 //***********************************************************************
 void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnectionType *receiveConn = staticThis->findConnection( (espconn *)arg );
     
-    //meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
+    if ( receiveConn == NULL ) {
+        meshPrintDebug("meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
+        meshPrintDebug("dropping this msg... see if we recover?\n");
+        return;
+    }
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.parseObject( data );
@@ -238,15 +273,8 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
         return;
     }
     
-    if ( receiveConn == NULL ) {
-        meshPrintDebug("meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
-        uint32_t remoteId = (uint32_t)root["from"];
-        receiveConn = staticThis->findConnection( remoteId );
-        meshPrintDebug("meshRecvCb(): tried lookup by Id=%d, got this pointer 0x%x\n", remoteId, receiveConn);
-        meshPrintDebug("dropping this msg... see if we recover?\n", remoteId, receiveConn);
-        return;
-    }
-    
+    //meshPrintDebug("Recvd from %d-->%s<--\n", receiveConn->chipId, data);
+
     String msg = root["msg"];
     
     switch( (meshPackageType)(int)root["type"] ) {
@@ -263,7 +291,9 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
             if ( (uint32_t)root["dest"] == staticThis->getChipId() ) {  // msg for us!
                 receivedCallback( (uint32_t)root["from"], msg);
             } else {                                                    // pass it along
-                staticThis->sendMessage( (uint32_t)root["from"], (uint32_t)root["dest"], SINGLE, msg );  //this is ineffiecnt
+                //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
+                String tempStr( data );
+                staticThis->sendPackage( staticThis->findConnection( (uint32_t)root["dest"] ), tempStr );
             }
             break;
         
@@ -285,8 +315,28 @@ void easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
 //***********************************************************************
 void easyMesh::meshSentCb(void *arg) {
     //    meshPrintDebug("In meshSentCb\r\n");    //data sent successfully
+    espconn *conn = (espconn*)arg;
+    meshConnectionType *meshConnection = staticThis->findConnection( conn );
+    
+    if ( meshConnection == NULL ) {
+        meshPrintDebug("meshSentCb(): err did not find meshConnection? Likely it was dropped for some reason\n");
+        return;
+    }
+    
+    if ( !meshConnection->sendQueue.empty() ) {
+        String package = *meshConnection->sendQueue.begin();
+        meshConnection->sendQueue.pop_front();
+        sint8 errCode = espconn_send( meshConnection->esp_conn, (uint8*)package.c_str(), package.length() );
+        //connection->sendReady = false;
+        
+        if ( errCode != 0 ) {
+            meshPrintDebug("meshSentCb(): espconn_send Failed err=%d\n", errCode );
+        }
+    }
+    else {
+        meshConnection->sendReady = true;
+    }
 }
-
 //***********************************************************************
 void easyMesh::meshDisconCb(void *arg) {
     struct espconn *disConn = (espconn *)arg;
@@ -294,7 +344,7 @@ void easyMesh::meshDisconCb(void *arg) {
     meshPrintDebug("meshDisconCb: ");
     
     // remove this connection from _connections
-    staticThis->cleanDeadConnections();
+    //staticThis->cleanDeadConnections();
     
     //test to see if this connection was on the STATION interface by checking the local port
     if ( disConn->proto.tcp->local_port == MESH_PORT ) {
@@ -310,7 +360,7 @@ void easyMesh::meshDisconCb(void *arg) {
 
 //***********************************************************************
 void easyMesh::meshReconCb(void *arg, sint8 err) {
-    meshPrintDebug("In meshReconCb err=%d\n", err );
+    meshPrintDebug("In meshReconCb(): err=%d\n", err );
 }
 
 //***********************************************************************

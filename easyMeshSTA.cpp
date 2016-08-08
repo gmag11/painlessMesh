@@ -178,6 +178,7 @@ void easyMesh::tcpConnect( void ) {
         _stationConn.proto.tcp->remote_port = MESH_PORT;
         os_memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
         os_memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
+        //espconn_set_opt( &_stationConn, ESPCONN_NODELAY ); // low latency, but soaks up bandwidth
         
         meshPrintDebug("conn Print type=%d, state=%d, local_ip=%d.%d.%d.%d, local_port=%d, remote_ip=%d.%d.%d.%d remote_port=%d\n",
                       _stationConn.type,
@@ -201,5 +202,5 @@ void easyMesh::tcpConnect( void ) {
     else {
         meshPrintDebug("ERR: Something un expected in tcpConnect()\n");
     }
-    meshPrintDebug("leaving tcpConnect()\n");
+//    meshPrintDebug("leaving tcpConnect()\n");
 }

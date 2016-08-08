@@ -44,57 +44,15 @@ void easyMesh::init( void ) {
     apInit();       // setup AP
     stationInit();  // setup station
     
+    meshPrintDebug("init(): tcp_max_con=%u\n", espconn_tcp_get_max_con() );
+    
 }
 
 //***********************************************************************
-nodeStatusType easyMesh::update( void ) {
+void easyMesh::update( void ) {
     manageStation();
-    
-    // manage connections
-    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
-    while ( connection != _connections.end() ) {
-        if ( connection->lastRecieved + NODE_TIMEOUT < getNodeTime() ) {
-            meshPrintDebug("update(): dropping %d NODE_TIMEOUT last=%d node=%d\n", connection->chipId, connection->lastRecieved, getNodeTime() );
-            _connections.erase( connection );
-            break;
-        }
-        
-        if( connection->esp_conn->state == ESPCONN_CLOSE ) {
-            meshPrintDebug("update(): dropping %d ESPCONN_CLOSE\n", connection->chipId);
-            _connections.erase( connection );
-            break;
-        }
-        
-        
-        // check to see if we've recieved something lately.  Stagger AP and STA
-        if (    (connection->needsNodeSync) == true  ||
-                (   ( connection->lastRecieved + ( NODE_TIMEOUT / 2 ) < getNodeTime() ) &&
-                    connection->nodeSyncRequest == 0  &&
-                    connection->esp_conn->proto.tcp->local_port == MESH_PORT )  || // we are the AP
-                (   ( connection->lastRecieved + ( NODE_TIMEOUT * 3 / 4 ) < getNodeTime() ) &&
-                    connection->nodeSyncRequest == 0  &&
-                    connection->esp_conn->proto.tcp->local_port != MESH_PORT ) // we are the STA
-
-            ) {
-            // start a nodeSync
-            meshPrintDebug("update(): starting nodeSync with %d needs=%d\n", connection->chipId, connection->needsNodeSync);
-            String subs = staticThis->subConnectionJson( connection );
-            staticThis->sendMessage( connection->chipId, NODE_SYNC_REQUEST, subs );
-            connection->needsNodeSync = false;
-            break;
-        }
-        
-        if ( connection->needsTimeSync == true ) {
-            meshPrintDebug("update(): starting timeSync with %d\n", connection->chipId);
-            startTimeSync( connection );
-            connection->needsTimeSync == false;
-            break;
-        }
-        
-        connection++;
-    }
-    
-    return _nodeStatus;
+    manageConnections();
+    return;
 }
 
 //***********************************************************************

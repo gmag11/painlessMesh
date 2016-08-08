@@ -1,6 +1,6 @@
 //
 //  easyMeshComm.cpp
-//  
+//
 //
 //  Created by Bill Gray on 7/26/16.
 //
@@ -16,28 +16,29 @@ extern easyMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool easyMesh::sendMessage( uint32_t fromId, uint32_t destId, meshPackageType type, String &msg ) {
-    //meshPrintDebug("In sendMessage()\n");
+bool easyMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg ) {
+    meshPrintDebug("In sendMessage(conn)\n");
     
-    String package = buildMeshPackage( fromId, destId, type, msg );
+    String package = buildMeshPackage( destId, type, msg );
     
-    return sendPackage( findConnection( destId ), package );
+    return sendPackage( conn, package );
 }
 
 //***********************************************************************
 bool easyMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg ) {
-    
-    return sendMessage( _chipId, destId, type, msg );
+    meshPrintDebug("In sendMessage(destId, fromId)\n");
+ 
+    meshConnectionType *conn = findConnection( destId );
+    if ( conn != NULL ) {
+        return sendMessage( conn, destId, type, msg );
+    }
+    else {
+        meshPrintDebug("In sendMessage(destId, fromId): findConnection( destId ) failed\n");
+        return false;
+    }
 }
 
 
-//***********************************************************************
-/*
- bool easyMesh::sendMessage( uint32_t destId, meshPackageType type, const char *msg ) {
-    String strMsg(msg);
-    return sendMessage( destId, type, strMsg );
-}
-*/
 //***********************************************************************
 bool easyMesh::broadcastMessage(uint32_t from,
                                 meshPackageType type,
@@ -47,7 +48,7 @@ bool easyMesh::broadcastMessage(uint32_t from,
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection != exclude ) {
-            sendMessage( connection->chipId, type, msg );
+            sendMessage( connection, connection->chipId, type, msg );
         }
         connection++;
     }
@@ -58,31 +59,39 @@ bool easyMesh::broadcastMessage(uint32_t from,
 bool easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
     //meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
     
-    sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
+    if ( package.length() > 1400 )
+        meshPrintDebug("sendPackage(): err package too long length=%d\n", package.length());
     
-    if ( errCode == 0 ) {
-        //meshPrintDebug("espconn_send Suceeded\n");
-        return true;
+    if ( connection->sendReady == true ) {
+        sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
+        connection->sendReady = false;
+        
+        if ( errCode == 0 ) {
+            //meshPrintDebug("sendPackage(): espconn_send Suceeded\n");
+            return true;
+        }
+        else {
+            meshPrintDebug("sendPackage(): espconn_send Failed err=%d\n", errCode );
+            return false;
+        }
     }
     else {
-        meshPrintDebug("espconn_send Failed err=%d\n", errCode );
-        return false;
+        connection->sendQueue.push_back( package );
     }
 }
 
 //***********************************************************************
-String easyMesh::buildMeshPackage( uint32_t fromId, uint32_t destId, meshPackageType type, String &msg ) {
-    // meshPrintDebug("In buildMeshPackage(): msg=%s\n", msg.c_str() );
+String easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String &msg ) {
+    meshPrintDebug("In buildMeshPackage(): msg=%s\n", msg.c_str() );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.createObject();
-    root["from"] = fromId;
     root["dest"] = destId;
+    root["from"] = _chipId;
     root["type"] = (uint8_t)type;
     
     switch( type ) {
         case NODE_SYNC_REQUEST:
-            findConnection( destId )->nodeSyncRequest = getNodeTime();
         case NODE_SYNC_REPLY:
         {
             JsonArray& subs = jsonBuffer.parseArray( msg );
@@ -96,10 +105,10 @@ String easyMesh::buildMeshPackage( uint32_t fromId, uint32_t destId, meshPackage
             root["msg"] = jsonBuffer.parseObject( msg );
             break;
             
-        case CONTROL:
+/*        case CONTROL:
             root["msg"] = jsonBuffer.parseObject( msg );
             break;
-            
+  */
         default:
             root["msg"] = msg;
     }
