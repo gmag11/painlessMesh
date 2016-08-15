@@ -1,0 +1,14 @@
+{
+  "name": “easyMesh”,
+  "keywords": “esp8266 mesh network networking”,
+  "description": “A simple mesh networking library for esp8266.  easyMesh is very simple to implement and establishes a simple and highly adaptable mesh network for any distributed application.  Network synchronization, network mapping, time synchronization, package delivery, and dynamic network adaptation are all handled behind the scenes in the library.  Just run the init() function and set up the callbacks, then you are off to the races with a dynamic, adaptable, masterless mesh network.“,
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/Coopdis/easyMesh"
+  },
+  "version": “1.0.0”,
+  "frameworks": “*”,
+  "platforms": "esp8266"
+}
+

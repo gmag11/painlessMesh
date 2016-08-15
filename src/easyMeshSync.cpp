@@ -103,14 +103,14 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment ( bool odd ) {
 // easyMesh Syncing functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR easyMesh::startNodeSync( meshConnectionType *conn ) {
-    meshPrintDebug("startNodeSync(): with %u\n", conn->chipId);
+    //meshPrintDebug("startNodeSync(): with %u\n", conn->chipId);
 
     String subs = subConnectionJson( conn );
     sendMessage( conn, conn->chipId, NODE_SYNC_REQUEST, subs );
     conn->nodeSyncRequest = getNodeTime();
     conn->needsNodeSync = false;
     
-    meshPrintDebug("startNodeSync(): leaving\n");
+    //meshPrintDebug("startNodeSync(): leaving\n");
 }
 
 //***********************************************************************

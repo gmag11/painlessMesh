@@ -59,7 +59,7 @@ void ICACHE_FLASH_ATTR easyMesh::manageConnections( void ) {
         }
         
         if ( connection->needsNodeSync == true ) {           // start a nodeSync
-            meshPrintDebug("manageConnections(): start nodeSync with %d\n", connection->chipId);
+            //meshPrintDebug("manageConnections(): start nodeSync with %d\n", connection->chipId);
             startNodeSync( connection );
             connection++;
             continue;
