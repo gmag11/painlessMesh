@@ -96,6 +96,9 @@ public:
     void                setNewConnectionCallback( void(*onNewConnection)(bool adopt) );
     uint16_t            connectionCount( meshConnectionType *exclude = NULL );
 
+    // in easyMeshSync.cpp
+    uint32_t            getNodeTime( void );
+    
     // should be prototected, but public for debugging
     scanStatusType                  _scanStatus = IDLE;
     nodeStatusType                  _nodeStatus = INITIALIZING;

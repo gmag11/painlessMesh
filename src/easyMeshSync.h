@@ -7,7 +7,7 @@
 #define SYNC_INTERVAL       7000
 #define TIME_SYNC_CYCLES    10 // should (must?) be an even number
 
-uint32_t getNodeTime( void );
+//uint32_t getNodeTime( void );
 
 class timeSync {
 public:

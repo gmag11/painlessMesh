@@ -10,7 +10,7 @@ uint32_t timeAdjuster = 0;
 
 // timeSync Functions
 //***********************************************************************
-uint32_t ICACHE_FLASH_ATTR getNodeTime( void ) {
+uint32_t ICACHE_FLASH_ATTR easyMesh::getNodeTime( void ) {
     return system_get_time() + timeAdjuster;
 }
 
@@ -23,7 +23,7 @@ String ICACHE_FLASH_ATTR timeSync::buildTimeStamp( void ) {
     
     StaticJsonBuffer<75> jsonBuffer;
     JsonObject& timeStampObj = jsonBuffer.createObject();
-    times[num] = getNodeTime();
+    times[num] = staticThis->getNodeTime();
     timeStampObj["time"] = times[num];
     timeStampObj["num"] = num;
     bool remoteAdopt = !adopt;

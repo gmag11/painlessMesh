@@ -238,7 +238,7 @@ void ICACHE_FLASH_ATTR easyMesh::meshConnectedCb(void *arg) {
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
     espconn_set_opt( newConn.esp_conn, ESPCONN_NODELAY );  // removes nagle, low latency, but soaks up bandwidth
-    newConn.lastRecieved = getNodeTime();
+    newConn.lastRecieved = staticThis->getNodeTime();
     
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb);
     espconn_regist_sentcb(newConn.esp_conn, meshSentCb);
@@ -308,7 +308,7 @@ void ICACHE_FLASH_ATTR easyMesh::meshRecvCb(void *arg, char *data, unsigned shor
     }
     
     // record that we've gotten a valid package
-    receiveConn->lastRecieved = getNodeTime();
+    receiveConn->lastRecieved = staticThis->getNodeTime();
     return;
 }
 
