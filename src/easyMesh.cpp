@@ -1,8 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <SimpleList.h>
-#include <NeoPixelBus.h>
-#include <NeoPixelAnimator.h>
 
 extern "C" {
 #include "user_interface.h"

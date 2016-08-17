@@ -14,7 +14,6 @@ extern "C" {
 }
 
 #include "easyMeshSync.h"
-//#include "easyMeshWebSocket.h"
 
 #define MESH_PREFIX         "mesh"
 #define MESH_PASSWORD       "bootyboo"

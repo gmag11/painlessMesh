@@ -2,8 +2,6 @@
 #define   _MESH_SYNC_H_
 
 #include <Arduino.h>
-//#include <SimpleList.h>
-//#include <ArduinoJson.h>
 
 #define SCAN_INTERVAL       10000
 #define SYNC_INTERVAL       7000

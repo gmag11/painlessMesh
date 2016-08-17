@@ -14,8 +14,6 @@ extern "C" {
 }
 
 #include "easyMesh.h"
-//#include "easyMeshWebServer.h"
-//#include "easyMeshWebSocket.h"
 
 
 // AP functions
