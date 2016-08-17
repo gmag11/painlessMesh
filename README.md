@@ -24,9 +24,10 @@ Using easyMesh is easy!
 
 First include the library and create an easyMesh object like this…
 
+<code>
 #include <easyMesh.h>
-
 easyMesh  mesh;
+</code>
 
 <h1>Member Functions</h1>
 
