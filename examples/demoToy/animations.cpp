@@ -99,7 +99,7 @@ void searchingBlip(const AnimationParam& param) {
 
 void smoothBlip(const AnimationParam& param) {
   uint16_t duration = animations.AnimationDuration(param.index);
-  float progress = (float)( ( getNodeTime() / 1000 ) % duration ) / (float)duration;
+  float progress = (float)( ( mesh.getNodeTime() / 1000 ) % duration ) / (float)duration;
 
   float offsetProgress = ( abs( controllers[param.index].direction - progress ) + controllers[param.index].offset);
 
