@@ -85,3 +85,6 @@ Returns the total number of nodes connected to this mesh.
 
 ###uint32_t easyMesh::getChipId( void )
 Return the chipId of the node that we are running on.
+
+###uint32_t easyMesh::getNodeTime( void )
+Returns the mesh timebase microsecond counter.  Rolls over 71 minutes from startup of the first node.
