@@ -18,6 +18,10 @@ demoToy is currently the only example.  It is kind of complex, uses a web server
 
 https://www.youtube.com/watch?v=hqjOY8YHdlM&feature=youtu.be
 
+###Dependencies
+easyMesh makes use of the following libraries.  They can both be installed through Arduino Library Manager
+- SimpleList *** Available here... https://github.com/blackhack/ArduLibraries/tree/master/SimpleList
+- ArduinoJson *** Available here... https://github.com/bblanchon/ArduinoJson
 
 #easyMesh API
 Using easyMesh is easy!
