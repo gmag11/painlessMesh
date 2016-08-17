@@ -34,9 +34,9 @@ easyMesh  mesh;
 ###void easyMesh::init( void )
 Add this to your setup() function.
 Initialize the mesh network.  This routine does the following things…
-1. Starts a wifi network
-2. Begins searching for other wifi networks that are part of the mesh
-3. Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
+- Starts a wifi network
+- Begins searching for other wifi networks that are part of the mesh
+- Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
 
 ###void easyMesh::update( void )
 Add this to your loop() function
