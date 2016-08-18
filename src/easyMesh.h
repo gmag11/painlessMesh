@@ -1,9 +1,6 @@
 #ifndef   _EASY_MESH_H_
 #define   _EASY_MESH_H_
 
-#include <stdio.h>
-#include <stdarg.h>
-
 #include <Arduino.h>
 #include <SimpleList.h>
 #include <ArduinoJson.h>
@@ -22,9 +19,6 @@ extern "C" {
 
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
-//#define DEBUG_MSG( format, ...) Serial.printf( (format), ##__VA_ARGS__)
-//#define DEBUG_MSG(...) meshPrintDebug(__VA_ARGS__)
-
 
 enum nodeStatusType {
     INITIALIZING        = 0,
@@ -38,14 +32,36 @@ enum scanStatusType {
     SCANNING   = 1
 };
 
+enum syncStatusType {
+    NEEDED          = 0,
+    REQUESTED       = 1,
+    IN_PROGRESS     = 2,
+    COMPLETE        = 3
+};
+
 enum meshPackageType {
     DROP                    = 3,
     TIME_SYNC               = 4,
     NODE_SYNC_REQUEST       = 5,
     NODE_SYNC_REPLY         = 6,
-//    CONTROL                 = 7,  //deprecated
+    CONTROL                 = 7,  //deprecated
     BROADCAST               = 8,  //application data for everyone
     SINGLE                  = 9   //application data for a single node
+};
+
+
+
+enum debugType {
+    ERROR           = 0x0001,
+    STARTUP         = 0x0002,
+    MESH_STATUS     = 0x0004,
+    CONNECTION      = 0x0008,
+    SYNC            = 0x0010,
+    COMMUNICATION   = 0x0020,
+    GENERAL         = 0x0040,
+    MSG_TYPES       = 0x0080,
+    REMOTE          = 0x0100  // not yet implemented
+    // add types if you like, room for a total of 16 types
 };
 
 
@@ -55,28 +71,19 @@ struct meshConnectionType {
     String              subConnections;
     timeSync            time;
     uint32_t            lastRecieved = 0;
-    uint32_t            nodeSyncRequest = 0;
-    uint32_t            lastTimeSync = 0;
     bool                newConnection = true;
-    bool                needsNodeSync = true;
-    bool                needsTimeSync = false;
+
+    syncStatusType      nodeSyncStatus = NEEDED;
+    uint32_t            nodeSyncRequest = 0;
+
+    syncStatusType      timeSyncStatus = NEEDED;
+    uint32_t            lastTimeSync = 0;
+//    bool                needsNodeSync = true;
+//    bool                needsTimeSync = false;
+
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
 };
-
-
-void inline   meshPrintDebug( const char* format ... ) {
-    char str[200];
-    
-    va_list args;
-    va_start(args, format);
-
-    vsnprintf(str, sizeof(str), format, args);
-    Serial.print( str );
-//    broadcastWsMessage(str, strlen(str), OPCODE_TEXT);
-    
-    va_end(args);
-}
 
 
 class easyMesh {
@@ -84,6 +91,9 @@ public:
     //inline functions
     uint32              getChipId( void ) { return _chipId;};
    
+    // in easyMeshDebug.cpp
+    void                setDebugMsgTypes( uint16_t types );
+    void                debugMsg( debugType type, const char* format ... );
     
     // in easyMesh.cpp
     void                init( void );

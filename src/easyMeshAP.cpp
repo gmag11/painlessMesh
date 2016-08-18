@@ -30,15 +30,14 @@ void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
     ipInfo.gw = ip;
     ipInfo.netmask = netmask;
     if ( !wifi_set_ip_info( SOFTAP_IF, &ipInfo ) ) {
-        meshPrintDebug("wifi_set_ip_info() failed\n");
+        debugMsg( ERROR, "wifi_set_ip_info() failed\n");
     }
     
-    meshPrintDebug("Starting AP with SSID=%s IP=%d.%d.%d.%d GW=%d.%d.%d.%d NM=%d.%d.%d.%d\n",
+    debugMsg( STARTUP, "apInit(): Starting AP with SSID=%s IP=%d.%d.%d.%d GW=%d.%d.%d.%d NM=%d.%d.%d.%d\n",
                   _mySSID.c_str(),
                   IP2STR( &ipInfo.ip ),
                   IP2STR( &ipInfo.gw ),
                   IP2STR( &ipInfo.netmask ) );
-    
     
     softap_config apConfig;
     wifi_softap_get_config( &apConfig );
@@ -54,18 +53,19 @@ void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
     
     wifi_softap_set_config(&apConfig);// Set ESP8266 softap config .
     if ( !wifi_softap_dhcps_start() )
-        meshPrintDebug("DHCP server failed\n");
+        debugMsg( ERROR, "DHCP server failed\n");
     else
-        meshPrintDebug("DHCP server started\n");
+        debugMsg( STARTUP, "DHCP server started\n");
     
     // establish AP tcpServers
     tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, MESH_PORT );
-//    webServerInit();
-//    webSocketInit();
 }
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port) {
+    
+    debugMsg( GENERAL, "tcpServerInit():\n");
+    
     serverConn.type = ESPCONN_TCP;
     serverConn.state = ESPCONN_NONE;
     serverConn.proto.tcp = &serverTcp;
@@ -73,9 +73,9 @@ void ICACHE_FLASH_ATTR easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &ser
     espconn_regist_connectcb(&serverConn, connectCb);
     sint8 ret = espconn_accept(&serverConn);
     if ( ret == 0 )
-        meshPrintDebug("AP tcp server established on port %d\n", port );
+        debugMsg( STARTUP, "AP tcp server established on port %d\n", port );
     else
-        meshPrintDebug("AP tcp server on port %d FAILED ret=%d\n", port, ret);
+        debugMsg( ERROR, "AP tcp server on port %d FAILED ret=%d\n", port, ret);
     
     return;
 }

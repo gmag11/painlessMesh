@@ -17,7 +17,8 @@ extern easyMesh* staticThis;
 // communications functions
 //***********************************************************************
 bool ICACHE_FLASH_ATTR easyMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg ) {
-//    meshPrintDebug("In sendMessage(conn)\n");
+    debugMsg( COMMUNICATION, "sendMessage(conn): conn-chipId=%d destId=%d type=%d msg=%s\n",
+                   conn->chipId, destId, (uint8_t)type, msg.c_str());
     
     String package = buildMeshPackage( destId, type, msg );
     
@@ -26,14 +27,15 @@ bool ICACHE_FLASH_ATTR easyMesh::sendMessage( meshConnectionType *conn, uint32_t
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR easyMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg ) {
-    meshPrintDebug("In sendMessage(destId, fromId)\n");
+    debugMsg( COMMUNICATION, "In sendMessage(destId): destId=%d type=%d, msg=%s\n",
+                   destId, type, msg.c_str());
  
     meshConnectionType *conn = findConnection( destId );
     if ( conn != NULL ) {
         return sendMessage( conn, destId, type, msg );
     }
     else {
-        meshPrintDebug("In sendMessage(destId, fromId): findConnection( destId ) failed\n");
+        debugMsg( ERROR, "In sendMessage(destId): findConnection( destId ) failed\n");
         return false;
     }
 }
@@ -45,6 +47,15 @@ bool ICACHE_FLASH_ATTR easyMesh::broadcastMessage(uint32_t from,
                                 String &msg,
                                 meshConnectionType *exclude ) {
     
+    // send a message to every node on the mesh
+    
+    if ( exclude != NULL )
+        debugMsg( COMMUNICATION, "broadcastMessage(): from=%d type=%d, msg=%s exclude=%d\n",
+                   from, type, msg.c_str(), exclude->chipId);
+    else
+        debugMsg( COMMUNICATION, "broadcastMessage(): from=%d type=%d, msg=%s exclude=NULL\n",
+                   from, type, msg.c_str());
+    
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection != exclude ) {
@@ -52,26 +63,25 @@ bool ICACHE_FLASH_ATTR easyMesh::broadcastMessage(uint32_t from,
         }
         connection++;
     }
-    return true;
+    return true; // hmmm... ought to be smarter than this!
 }
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
-    //meshPrintDebug("Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
+    debugMsg( COMMUNICATION, "Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
     
     if ( package.length() > 1400 )
-        meshPrintDebug("sendPackage(): err package too long length=%d\n", package.length());
+        debugMsg( ERROR, "sendPackage(): err package too long length=%d\n", package.length());
     
     if ( connection->sendReady == true ) {
         sint8 errCode = espconn_send( connection->esp_conn, (uint8*)package.c_str(), package.length() );
         connection->sendReady = false;
         
         if ( errCode == 0 ) {
-            //meshPrintDebug("sendPackage(): espconn_send Suceeded\n");
             return true;
         }
         else {
-            meshPrintDebug("sendPackage(): espconn_send Failed err=%d\n", errCode );
+            debugMsg( ERROR, "sendPackage(): espconn_send Failed err=%d\n", errCode );
             return false;
         }
     }
@@ -82,7 +92,7 @@ bool ICACHE_FLASH_ATTR easyMesh::sendPackage( meshConnectionType *connection, St
 
 //***********************************************************************
 String ICACHE_FLASH_ATTR easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String &msg ) {
-//    meshPrintDebug("In buildMeshPackage(): msg=%s\n", msg.c_str() );
+    debugMsg( GENERAL, "In buildMeshPackage(): msg=%s\n", msg.c_str() );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.createObject();
@@ -96,7 +106,7 @@ String ICACHE_FLASH_ATTR easyMesh::buildMeshPackage( uint32_t destId, meshPackag
         {
             JsonArray& subs = jsonBuffer.parseArray( msg );
             if ( !subs.success() ) {
-                meshPrintDebug("buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!");
+                debugMsg( GENERAL, "buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!");
             }
             root["subs"] = subs;
             break;
