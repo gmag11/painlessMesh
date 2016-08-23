@@ -99,14 +99,14 @@ void ICACHE_FLASH_ATTR easyMesh::stationScanCb(void *arg, STATUS status) {
     staticThis->_meshAPs.clear();
     while (bssInfo != NULL) {
         staticThis->debugMsg( CONNECTION, "\tfound : % s, % ddBm", (char*)bssInfo->ssid, (int16_t) bssInfo->rssi );
-        if ( strncmp( (char*)bssInfo->ssid, MESH_PREFIX, strlen(MESH_PREFIX) ) == 0 ) {
-            staticThis->debugMsg( CONNECTION, " < ---");
+        if ( strncmp( (char*)bssInfo->ssid, staticThis->_meshPrefix.c_str(), staticThis->_meshPrefix.length() ) == 0 ) {
+            staticThis->debugMsg( CONNECTION, " MESH_PRE< ---");
             staticThis->_meshAPs.push_back( *bssInfo );
         }
         staticThis->debugMsg( CONNECTION, "\n");
         bssInfo = STAILQ_NEXT(bssInfo, next);
     }
-    staticThis->debugMsg( CONNECTION, "\tFound % d nodes with MESH_PREFIX = \"%s\"\n", staticThis->_meshAPs.size(), MESH_PREFIX );
+    staticThis->debugMsg( CONNECTION, "\tFound % d nodes with _meshPrefix = \"%s\"\n", staticThis->_meshAPs.size(), staticThis->_meshPrefix.c_str() );
     
     staticThis->connectToBestAP();
 }
@@ -118,7 +118,7 @@ bool ICACHE_FLASH_ATTR easyMesh::connectToBestAP( void ) {
     // drop any _meshAP's we are already connected to
     SimpleList<bss_info>::iterator ap = _meshAPs.begin();
     while( ap != _meshAPs.end() ) {
-        String apChipId = (char*)ap->ssid + strlen( MESH_PREFIX);
+        String apChipId = (char*)ap->ssid + _meshPrefix.length();
         // debugMsg( GENERAL, "connectToBestAP: sort - ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
         
         if ( findConnection( apChipId.toInt() ) != NULL )  {
@@ -163,7 +163,7 @@ bool ICACHE_FLASH_ATTR easyMesh::connectToBestAP( void ) {
     struct station_config stationConf;
     stationConf.bssid_set = 0;
     memcpy(&stationConf.ssid, bestAP->ssid, 32);
-    memcpy(&stationConf.password, MESH_PASSWORD, 64);
+    memcpy(&stationConf.password, _meshPassword.c_str(), 64);
     wifi_station_set_config(&stationConf);
     wifi_station_connect();
     
@@ -188,7 +188,7 @@ void ICACHE_FLASH_ATTR easyMesh::tcpConnect( void ) {
         _stationConn.state = ESPCONN_NONE;
         _stationConn.proto.tcp = &_stationTcp;
         _stationConn.proto.tcp->local_port = espconn_port();
-        _stationConn.proto.tcp->remote_port = MESH_PORT;
+        _stationConn.proto.tcp->remote_port = _meshPort;
         os_memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
         os_memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
         espconn_set_opt( &_stationConn, ESPCONN_NODELAY ); // low latency, but soaks up bandwidth

@@ -12,9 +12,9 @@ extern "C" {
 
 #include "easyMeshSync.h"
 
-#define MESH_PREFIX         "mesh"
-#define MESH_PASSWORD       "bootyboo"
-#define MESH_PORT           4444
+//#define MESH_PREFIX         "mesh"
+//#define MESH_PASSWORD       "bootyboo"
+//#define MESH_PORT           4444
 #define NODE_TIMEOUT        3000000  //uSecs
 
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
@@ -96,7 +96,9 @@ public:
     void                debugMsg( debugType type, const char* format ... );
     
     // in easyMesh.cpp
-    void                init( void );
+//    void                init( void );
+    void                init( String prefix, String password, uint16_t port );
+
     void                update( void );
     bool                sendSingle( uint32_t &destId, String &msg );
     bool                sendBroadcast( String &msg );
@@ -172,6 +174,9 @@ protected:
     // variables
     uint32_t    _chipId;
     String      _mySSID;
+    String      _meshPrefix;
+    String      _meshPassword;
+    uint16_t    _meshPort;
     
     os_timer_t  _scanTimer;
     

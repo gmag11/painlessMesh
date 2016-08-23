@@ -17,8 +17,7 @@ uint16_t  count = 0;
 
 // general functions
 //***********************************************************************
-//void ICACHE_FLASH_ATTR easyMesh::init( String prefix, String password ) {
-void ICACHE_FLASH_ATTR easyMesh::init( void ) {
+/*void ICACHE_FLASH_ATTR easyMesh::init( void ) {
     // shut everything down, start with a blank slate.
     debugMsg( STARTUP, "init():\n",    wifi_station_set_auto_connect( 0 ));
 
@@ -37,6 +36,36 @@ void ICACHE_FLASH_ATTR easyMesh::init( void ) {
     
     _chipId = system_get_chip_id();
     _mySSID = String( MESH_PREFIX ) + String( _chipId );
+    
+    apInit();       // setup AP
+    stationInit();  // setup station
+    
+    debugMsg( GENERAL, "init(): tcp_max_con=%u\n", espconn_tcp_get_max_con() );
+}
+*/
+//***********************************************************************
+void ICACHE_FLASH_ATTR easyMesh::init( String prefix, String password, uint16_t port ) {
+    // shut everything down, start with a blank slate.
+    debugMsg( STARTUP, "init():\n",    wifi_station_set_auto_connect( 0 ));
+    
+    if ( wifi_station_get_connect_status() != STATION_IDLE ) {
+        debugMsg( ERROR, "Station is doing something... wierd!? status=%d\n", wifi_station_get_connect_status());
+        wifi_station_disconnect();
+    }
+    wifi_softap_dhcps_stop();
+    
+    wifi_set_event_handler_cb( wifiEventCb );
+    
+    staticThis = this;  // provides a way for static callback methods to access "this" object;
+    
+    // start configuration
+    debugMsg( GENERAL, "wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode( STATIONAP_MODE ) );
+    
+    _meshPrefix = prefix;
+    _meshPassword = password;
+    _meshPort = port;
+    _chipId = system_get_chip_id();
+    _mySSID = _meshPrefix + String( _chipId );
     
     apInit();       // setup AP
     stationInit();  // setup station

@@ -19,7 +19,7 @@ extern "C" {
 // AP functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
-    String password( MESH_PASSWORD );
+//    String password( MESH_PASSWORD );
     
     ip_addr ip, netmask;
     IP4_ADDR( &ip, 192, 168, ( _chipId & 0xFF ), 1);
@@ -45,7 +45,7 @@ void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
     memset( apConfig.ssid, 0, 32 );
     memset( apConfig.password, 0, 64);
     memcpy( apConfig.ssid, _mySSID.c_str(), _mySSID.length());
-    memcpy( apConfig.password, password.c_str(), password.length() );
+    memcpy( apConfig.password, _meshPassword.c_str(), _meshPassword.length() );
     apConfig.authmode = AUTH_WPA2_PSK;
     apConfig.ssid_len = _mySSID.length();
     apConfig.beacon_interval = 100;
@@ -58,7 +58,7 @@ void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
         debugMsg( STARTUP, "DHCP server started\n");
     
     // establish AP tcpServers
-    tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, MESH_PORT );
+    tcpServerInit( _meshServerConn, _meshServerTcp, meshConnectedCb, _meshPort );
 }
 
 //***********************************************************************

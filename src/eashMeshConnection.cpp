@@ -96,11 +96,11 @@ void ICACHE_FLASH_ATTR easyMesh::manageConnections( void ) {
         // Stagger AP and STA so that they don't try to start a sync at the same time.
         uint32_t nodeTime = getNodeTime();
         if ( connection->nodeSyncRequest == 0 ) { // nodeSync not in progress
-            if (    (connection->esp_conn->proto.tcp->local_port == MESH_PORT  // we are AP
+            if (    (connection->esp_conn->proto.tcp->local_port == _meshPort  // we are AP
                      &&
                      connection->lastRecieved + ( NODE_TIMEOUT / 2 ) < nodeTime )
                 ||
-                    (connection->esp_conn->proto.tcp->local_port != MESH_PORT  // we are the STA
+                    (connection->esp_conn->proto.tcp->local_port != _meshPort  // we are the STA
                      &&
                      connection->lastRecieved + ( NODE_TIMEOUT * 3 / 4 ) < nodeTime )
                 ) {
@@ -258,7 +258,7 @@ void ICACHE_FLASH_ATTR easyMesh::meshConnectedCb(void *arg) {
 
     staticThis->_connections.push_back( newConn );
     
-    if( newConn.esp_conn->proto.tcp->local_port != MESH_PORT ) { // we are the station, start nodeSync
+    if( newConn.esp_conn->proto.tcp->local_port != staticThis->_meshPort ) { // we are the station, start nodeSync
         staticThis->debugMsg( CONNECTION, "meshConnectedCb(): we are STA, start nodeSync\n");
         staticThis->startNodeSync( staticThis->_connections.end() - 1 );
         newConn.timeSyncStatus = NEEDED;
@@ -361,7 +361,7 @@ void ICACHE_FLASH_ATTR easyMesh::meshDisconCb(void *arg) {
     staticThis->debugMsg( CONNECTION, "meshDisconCb(): ");
     
     //test to see if this connection was on the STATION interface by checking the local port
-    if ( disConn->proto.tcp->local_port == MESH_PORT ) {
+    if ( disConn->proto.tcp->local_port == staticThis->_meshPort ) {
         staticThis->debugMsg( CONNECTION, "AP connection.  No new action needed. local_port=%d\n", disConn->proto.tcp->local_port);
     }
     else {
