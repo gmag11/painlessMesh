@@ -60,7 +60,8 @@ enum debugType {
     COMMUNICATION   = 0x0020,
     GENERAL         = 0x0040,
     MSG_TYPES       = 0x0080,
-    REMOTE          = 0x0100  // not yet implemented
+    REMOTE          = 0x0100,  // not yet implemented
+    APPLICATION     = 0x0200
     // add types if you like, room for a total of 16 types
 };
 
