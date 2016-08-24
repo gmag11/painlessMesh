@@ -35,12 +35,16 @@ easyMesh  mesh;
 
 ##Member Functions
 
-###void easyMesh::init( void )
+###void easyMesh::init( String prefix, String password, uint16_t port )
 Add this to your setup() function.
 Initialize the mesh network.  This routine does the following things…
 - Starts a wifi network
 - Begins searching for other wifi networks that are part of the mesh
 - Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
+
+prefix = the name of your mesh.  The wifi ssid of this node will be prefix + chipId
+password = wifi password to your mesh
+port = the TCP port that you want the mesh server to run on
 
 ###void easyMesh::update( void )
 Add this to your loop() function
