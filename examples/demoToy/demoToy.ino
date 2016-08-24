@@ -3,32 +3,38 @@
 #include <easyMesh.h>
 #include <easyWebServer.h>
 #include <easyWebSocket.h>
-
 #include "animations.h"
 
+#define   MESH_PREFIX     "whateverYouLike"
+#define   MESH_PASSWORD   "somethingSneeky"
+#define   MESH_PORT       5555
+
+// globals
 easyMesh  mesh;  // mesh global
-
-// animation globals
-extern NeoPixelBus<NeoGrbFeature, NeoEsp8266Uart800KbpsMethod> strip;
+extern NeoPixelBus<NeoGrbFeature, NeoEsp8266Uart800KbpsMethod> strip;  // using the method that works for sparkfun thing
 extern NeoPixelAnimator animations; // NeoPixel animation management object
-extern AnimationController controllers[]; 
-
+extern AnimationController controllers[]; // array of add-on controllers for my animations
 os_timer_t  yerpTimer;
 
 void setup() {
   Serial.begin( 115200 );
 
-  mesh.init();
+  // setup mesh
+//  mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | APPLICATION ); // all types on
+  mesh.setDebugMsgTypes( ERROR | STARTUP | APPLICATION );  // set before init() so that you can see startup messages
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT);
   mesh.setReceiveCallback( &receivedCallback );
   mesh.setNewConnectionCallback( &newConnectionCallback );
 
+  // setups webServer
   webServerInit();
 
+  // setup webSocket
   webSocketInit();
   webSocketSetReceiveCallback( &wsReceiveCallback );
   webSocketSetConnectionCallback( &wsConnectionCallback );
 
-  meshPrintDebug("\nIn setup() my chipId=%d\n", mesh.getChipId());
+  mesh.debugMsg( STARTUP, "\nIn setup() my chipId=%d\n", mesh.getChipId());
 
   strip.Begin();
   strip.Show();
@@ -48,7 +54,7 @@ void loop() {
     numConnections++;
 
   if ( previousConnections != numConnections ) {
-    meshPrintDebug("loop(): numConnections=%d\n", numConnections);
+    mesh.debugMsg( GENERAL, "loop(): numConnections=%d\n", numConnections);
 
     if ( numConnections == 0 ) {
       controllers[smoothIdx].nextAnimation = searchingIdx;
@@ -75,11 +81,11 @@ void yerpCb( void *arg ) {
   String msg = "Yerp=";
   msg += yerpCount++;
 
-  meshPrintDebug("msg-->%s<-- stationStatus=%u numConnections=%u\n", msg.c_str(), wifi_station_get_connect_status(), mesh.connectionCount( NULL ) );
+  mesh.debugMsg( APPLICATION, "msg-->%s<-- stationStatus=%u numConnections=%u\n", msg.c_str(), wifi_station_get_connect_status(), mesh.connectionCount( NULL ) );
 
   SimpleList<meshConnectionType>::iterator connection = mesh._connections.begin();
   while ( connection != mesh._connections.end() ) {
-    meshPrintDebug("\tconn#%d, chipId=%d subs=%s\n", connCount++, connection->chipId, connection->subConnections.c_str() );
+    mesh.debugMsg( APPLICATION, "\tconn#%d, chipId=%d subs=%s\n", connCount++, connection->chipId, connection->subConnections.c_str() );
     connection++;
   }
 
@@ -97,14 +103,14 @@ void newConnectionCallback( bool adopt ) {
 }
 
 void receivedCallback( uint32_t from, String &msg ) {
-  meshPrintDebug("receivedCallback():\n");
+  mesh.debugMsg( APPLICATION, "receivedCallback():\n");
 
   DynamicJsonBuffer jsonBuffer(50);
   JsonObject& control = jsonBuffer.parseObject( msg );
 
   broadcastWsMessage(msg.c_str(), msg.length(), OPCODE_TEXT);
 
-  meshPrintDebug("control=%s\n", msg.c_str());
+  mesh.debugMsg( APPLICATION, "control=%s\n", msg.c_str());
 
   for ( int i = 0; i < ( mesh.connectionCount( NULL ) + 1 ); i++) {
     float hue = control[String(i)];
@@ -113,17 +119,17 @@ void receivedCallback( uint32_t from, String &msg ) {
 }
 
 void wsConnectionCallback( void ) {
-  meshPrintDebug("wsConnectionCallback():\n");
+  mesh.debugMsg( APPLICATION, "wsConnectionCallback():\n");
 }
 
 void wsReceiveCallback( char *payloadData ) {
-  meshPrintDebug("wsReceiveCallback(): payloadData=%s\n", payloadData );
+  mesh.debugMsg( APPLICATION, "wsReceiveCallback(): payloadData=%s\n", payloadData );
 
   String msg( payloadData );
   mesh.sendBroadcast( msg );
 
   if ( strcmp( payloadData, "wsOpened") == 0) {  // hack to give the browser time to get the ws up and running
-    meshPrintDebug("wsReceiveCallback(): received wsOpened\n" );
+    mesh.debugMsg( APPLICATION, "wsReceiveCallback(): received wsOpened\n" );
     sendWsControl();
     return;
   }
@@ -132,7 +138,7 @@ void wsReceiveCallback( char *payloadData ) {
   JsonObject& control = jsonBuffer.parseObject(payloadData);
 
   if (!control.success()) {   // Test if parsing succeeded.
-    meshPrintDebug("wsReceiveCallback(): parseObject() failed. payload=%s<--\n", payloadData);
+    mesh.debugMsg( APPLICATION, "wsReceiveCallback(): parseObject() failed. payload=%s<--\n", payloadData);
     return;
   }
   
@@ -148,7 +154,7 @@ void wsReceiveCallback( char *payloadData ) {
 }
 
 void sendWsControl( void ) {
-  meshPrintDebug("sendWsControl():\n");
+  mesh.debugMsg( APPLICATION, "sendWsControl():\n");
   
   String control = buildControl();
   broadcastWsMessage(control.c_str(), control.length(), OPCODE_TEXT);
@@ -156,10 +162,10 @@ void sendWsControl( void ) {
 
 String buildControl ( void ) {
   uint16_t blips = mesh.connectionCount() + 1;
-  meshPrintDebug("buildControl(): blips=%d\n", blips);
+  mesh.debugMsg( APPLICATION, "buildControl(): blips=%d\n", blips);
 
   if ( blips > 3 ) {
-    meshPrintDebug(" blips out of range =%d\n", blips);
+    mesh.debugMsg( APPLICATION, " blips out of range =%d\n", blips);
     blips = 3;
   }
 
