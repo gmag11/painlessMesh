@@ -69,7 +69,7 @@ void loop() {
 }
 
 void receivedCallback( uint32_t from, String &msg ) {
-  Serial.printf("startHere: Received from %d msg=%s\n");
+  Serial.printf("startHere: Received from %d msg=%s\n", from, msg.c_str());
 }
 
 void newConnectionCallback( bool adopt ) {
