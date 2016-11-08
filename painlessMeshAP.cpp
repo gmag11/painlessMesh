@@ -1,5 +1,5 @@
 //
-//  easyMeshAP.cpp
+//  painlessMeshAP.cpp
 //  
 //
 //  Created by Bill Gray on 7/26/16.
@@ -13,12 +13,12 @@ extern "C" {
 #include "espconn.h"
 }
 
-#include "easyMesh.h"
+#include "painlessMesh.h"
 
 
 // AP functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
+void ICACHE_FLASH_ATTR painlessMesh::apInit( void  ) {
 //    String password( MESH_PASSWORD );
     
     ip_addr ip, netmask;
@@ -62,7 +62,7 @@ void ICACHE_FLASH_ATTR easyMesh::apInit( void  ) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port) {
+void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port) {
     
     debugMsg( GENERAL, "tcpServerInit():\n");
     

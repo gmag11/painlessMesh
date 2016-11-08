@@ -10,7 +10,7 @@ extern "C" {
 #include "espconn.h"
 }
 
-#include "easyMeshSync.h"
+#include "painlessMeshSync.h"
 
 //#define MESH_PREFIX         "mesh"
 //#define MESH_PASSWORD       "bootyboo"
@@ -87,16 +87,16 @@ struct meshConnectionType {
 };
 
 
-class easyMesh {
+class painlessMesh {
 public:
     //inline functions
     uint32              getChipId( void ) { return _chipId;};
    
-    // in easyMeshDebug.cpp
+    // in painlessMeshDebug.cpp
     void                setDebugMsgTypes( uint16_t types );
     void                debugMsg( debugType type, const char* format ... );
     
-    // in easyMesh.cpp
+    // in painlessMesh.cpp
 //    void                init( void );
     void                init( String prefix, String password, uint16_t port );
 
@@ -104,12 +104,12 @@ public:
     bool                sendSingle( uint32_t &destId, String &msg );
     bool                sendBroadcast( String &msg );
     
-    // in easyMeshConnection.cpp
+    // in painlessMeshConnection.cpp
     void                setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) );
     void                setNewConnectionCallback( void(*onNewConnection)(bool adopt) );
     uint16_t            connectionCount( meshConnectionType *exclude = NULL );
 
-    // in easyMeshSync.cpp
+    // in painlessMeshSync.cpp
     uint32_t            getNodeTime( void );
     
     // should be prototected, but public for debugging
@@ -120,7 +120,7 @@ public:
     
 protected:
     
-    // in easyMeshComm.cpp
+    // in painlessMeshComm.cpp
     //must be accessable from callback
     bool                sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg );
     bool                sendMessage( uint32_t destId, meshPackageType type, String &msg );
@@ -130,7 +130,7 @@ protected:
     String buildMeshPackage(uint32_t destId, meshPackageType type, String &msg);
 
     
-    // in easyMeshSync.cpp
+    // in painlessMeshSync.cpp
     //must be accessable from callback
     void                startNodeSync( meshConnectionType *conn );
     void                handleNodeSync( meshConnectionType *conn, JsonObject& root );
@@ -138,7 +138,7 @@ protected:
     void                handleTimeSync( meshConnectionType *conn, JsonObject& root );
     bool                adoptionCalc( meshConnectionType *conn );
     
-    // in easyMeshConnection.cpp
+    // in painlessMeshConnection.cpp
     void                manageConnections( void );
     String              subConnectionJson( meshConnectionType *exclude );
     meshConnectionType* findConnection( uint32_t chipId );
@@ -149,7 +149,7 @@ protected:
     uint16_t            jsonSubConnCount( String& subConns );
     meshConnectionType* closeConnection( meshConnectionType *conn );
 
-    // in easyMeshSTA.cpp
+    // in painlessMeshSTA.cpp
     void                manageStation( void );
 
     // in ?
@@ -163,7 +163,7 @@ protected:
     void    tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
     
     // callbacks
-    // in easyMeshConnection.cpp
+    // in painlessMeshConnection.cpp
     static void wifiEventCb(System_Event_t *event);
     static void meshConnectedCb(void *arg);
     static void meshSentCb(void *arg);

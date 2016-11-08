@@ -1,5 +1,5 @@
 //
-//  easyMeshSTA.cpp
+//  painlessMeshSTA.cpp
 //  
 //
 //  Created by Bill Gray on 7/26/16.
@@ -14,22 +14,22 @@ extern "C" {
 #include "espconn.h"
 }
 
-#include "easyMesh.h"
+#include "painlessMesh.h"
 
 
 
-extern easyMesh* staticThis;
+extern painlessMesh* staticThis;
 
 // Station functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::stationInit( void ) {
+void ICACHE_FLASH_ATTR painlessMesh::stationInit( void ) {
     debugMsg( STARTUP, "stationInit():\n");
     startStationScan();
     return;
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::manageStation( void ) {
+void ICACHE_FLASH_ATTR painlessMesh::manageStation( void ) {
     debugMsg( GENERAL, "manageStation():\n");
     
     static uint8_t previousStatus;
@@ -66,7 +66,7 @@ void ICACHE_FLASH_ATTR easyMesh::manageStation( void ) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::startStationScan( void ) {
+void ICACHE_FLASH_ATTR painlessMesh::startStationScan( void ) {
     debugMsg( GENERAL, "startStationScan():\n");
 
     if ( _scanStatus != IDLE ) {
@@ -83,14 +83,14 @@ void ICACHE_FLASH_ATTR easyMesh::startStationScan( void ) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::scanTimerCallback( void *arg ) {
+void ICACHE_FLASH_ATTR painlessMesh::scanTimerCallback( void *arg ) {
     staticThis->startStationScan();
     
     // this function can be totally elimiated!
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::stationScanCb(void *arg, STATUS status) {
+void ICACHE_FLASH_ATTR painlessMesh::stationScanCb(void *arg, STATUS status) {
     char ssid[32];
     bss_info *bssInfo = (bss_info *)arg;
     staticThis->debugMsg( CONNECTION, "stationScanCb():-- > scan finished @ % d < --\n", system_get_time());
@@ -112,7 +112,7 @@ void ICACHE_FLASH_ATTR easyMesh::stationScanCb(void *arg, STATUS status) {
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::connectToBestAP( void ) {
+bool ICACHE_FLASH_ATTR painlessMesh::connectToBestAP( void ) {
     debugMsg( CONNECTION, "connectToBestAP():");
     
     // drop any _meshAP's we are already connected to
@@ -172,7 +172,7 @@ bool ICACHE_FLASH_ATTR easyMesh::connectToBestAP( void ) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::tcpConnect( void ) {
+void ICACHE_FLASH_ATTR painlessMesh::tcpConnect( void ) {
     debugMsg( GENERAL, "tcpConnect():\n");
 
     struct ip_info ipconfig;

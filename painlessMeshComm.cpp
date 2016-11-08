@@ -1,5 +1,5 @@
 //
-//  easyMeshComm.cpp
+//  painlessMeshComm.cpp
 //
 //
 //  Created by Bill Gray on 7/26/16.
@@ -10,13 +10,13 @@
 #include <ArduinoJson.h>
 #include <SimpleList.h>
 
-#include "easyMesh.h"
+#include "painlessMesh.h"
 
-extern easyMesh* staticThis;
+extern painlessMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg ) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg ) {
     debugMsg( COMMUNICATION, "sendMessage(conn): conn-chipId=%d destId=%d type=%d msg=%s\n",
                    conn->chipId, destId, (uint8_t)type, msg.c_str());
     
@@ -26,7 +26,7 @@ bool ICACHE_FLASH_ATTR easyMesh::sendMessage( meshConnectionType *conn, uint32_t
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg ) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage( uint32_t destId, meshPackageType type, String &msg ) {
     debugMsg( COMMUNICATION, "In sendMessage(destId): destId=%d type=%d, msg=%s\n",
                    destId, type, msg.c_str());
  
@@ -42,7 +42,7 @@ bool ICACHE_FLASH_ATTR easyMesh::sendMessage( uint32_t destId, meshPackageType t
 
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::broadcastMessage(uint32_t from,
+bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
                                 meshPackageType type,
                                 String &msg,
                                 meshConnectionType *exclude ) {
@@ -67,7 +67,7 @@ bool ICACHE_FLASH_ATTR easyMesh::broadcastMessage(uint32_t from,
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::sendPackage( meshConnectionType *connection, String &package ) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendPackage( meshConnectionType *connection, String &package ) {
     debugMsg( COMMUNICATION, "Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
     
     if ( package.length() > 1400 )
@@ -91,7 +91,7 @@ bool ICACHE_FLASH_ATTR easyMesh::sendPackage( meshConnectionType *connection, St
 }
 
 //***********************************************************************
-String ICACHE_FLASH_ATTR easyMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String &msg ) {
+String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage( uint32_t destId, meshPackageType type, String &msg ) {
     debugMsg( GENERAL, "In buildMeshPackage(): msg=%s\n", msg.c_str() );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );

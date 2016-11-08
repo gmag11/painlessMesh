@@ -7,17 +7,17 @@ extern "C" {
 #include "espconn.h"
 }
 
-#include "easyMesh.h"
-#include "easyMeshSync.h"
+#include "painlessMesh.h"
+#include "painlessMeshSync.h"
 
 
-easyMesh* staticThis;
+painlessMesh* staticThis;
 uint16_t  count = 0;
 
 
 // general functions
 //***********************************************************************
-/*void ICACHE_FLASH_ATTR easyMesh::init( void ) {
+/*void ICACHE_FLASH_ATTR painlessMesh::init( void ) {
     // shut everything down, start with a blank slate.
     debugMsg( STARTUP, "init():\n",    wifi_station_set_auto_connect( 0 ));
 
@@ -44,7 +44,7 @@ uint16_t  count = 0;
 }
 */
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::init( String prefix, String password, uint16_t port ) {
+void ICACHE_FLASH_ATTR painlessMesh::init( String prefix, String password, uint16_t port ) {
     // shut everything down, start with a blank slate.
     debugMsg( STARTUP, "init():\n",    wifi_station_set_auto_connect( 0 ));
     
@@ -74,20 +74,20 @@ void ICACHE_FLASH_ATTR easyMesh::init( String prefix, String password, uint16_t 
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::update( void ) {
+void ICACHE_FLASH_ATTR painlessMesh::update( void ) {
     manageStation();
     manageConnections();
     return;
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::sendSingle( uint32_t &destId, String &msg ){
+bool ICACHE_FLASH_ATTR painlessMesh::sendSingle( uint32_t &destId, String &msg ){
     debugMsg( COMMUNICATION, "sendSingle(): dest=%d msg=%s\n", destId, msg.c_str());
     sendMessage( destId, SINGLE, msg );
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::sendBroadcast( String &msg ) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast( String &msg ) {
     debugMsg( COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
     broadcastMessage( _chipId, BROADCAST, msg );
 }

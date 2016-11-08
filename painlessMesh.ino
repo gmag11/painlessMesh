@@ -12,7 +12,7 @@
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
-easyMesh  mesh;
+painlessMesh  mesh;
 
 uint32_t sendMessageTime = 0;
 

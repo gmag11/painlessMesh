@@ -15,28 +15,28 @@ extern "C" {
 #include "espconn.h"
 }
 
-#include "easyMesh.h"
+#include "painlessMesh.h"
 
 static void (*receivedCallback)( uint32_t from, String &msg);
 static void (*newConnectionCallback)( bool adopt );
 
-extern easyMesh* staticThis;
+extern painlessMesh* staticThis;
 
 // connection managment functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) ) {
+void ICACHE_FLASH_ATTR painlessMesh::setReceiveCallback( void(*onReceive)(uint32_t from, String &msg) ) {
     debugMsg( GENERAL, "setReceiveCallback():\n");
     receivedCallback = onReceive;
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::setNewConnectionCallback( void(*onNewConnection)(bool adopt) ) {
+void ICACHE_FLASH_ATTR painlessMesh::setNewConnectionCallback( void(*onNewConnection)(bool adopt) ) {
     debugMsg( GENERAL, "setNewConnectionCallback():\n");
     newConnectionCallback = onNewConnection;
 }
 
 //***********************************************************************
-meshConnectionType* ICACHE_FLASH_ATTR easyMesh::closeConnection( meshConnectionType *conn ) {
+meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnection( meshConnectionType *conn ) {
     // It seems that more should be done here... perhas send off a packette to
     // make an attempt to tell the other node that we are closing this conneciton?
     debugMsg( CONNECTION, "closeConnection(): conn-chipId=%d\n", conn->chipId );
@@ -45,7 +45,7 @@ meshConnectionType* ICACHE_FLASH_ATTR easyMesh::closeConnection( meshConnectionT
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::manageConnections( void ) {
+void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
     debugMsg( GENERAL, "manageConnections():\n");
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
@@ -112,7 +112,7 @@ void ICACHE_FLASH_ATTR easyMesh::manageConnections( void ) {
 }
 
 //***********************************************************************
-meshConnectionType* ICACHE_FLASH_ATTR easyMesh::findConnection( uint32_t chipId ) {
+meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( uint32_t chipId ) {
     debugMsg( GENERAL, "In findConnection(chipId)\n");
     
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
@@ -136,7 +136,7 @@ meshConnectionType* ICACHE_FLASH_ATTR easyMesh::findConnection( uint32_t chipId 
 }
 
 //***********************************************************************
-meshConnectionType* ICACHE_FLASH_ATTR easyMesh::findConnection( espconn *conn ) {
+meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( espconn *conn ) {
     debugMsg( GENERAL, "In findConnection(esp_conn) conn=0x%x\n", conn );
     
     int i=0;
@@ -154,7 +154,7 @@ meshConnectionType* ICACHE_FLASH_ATTR easyMesh::findConnection( espconn *conn ) 
 }
  
 //***********************************************************************
-String ICACHE_FLASH_ATTR easyMesh::subConnectionJson( meshConnectionType *exclude ) {
+String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson( meshConnectionType *exclude ) {
     debugMsg( GENERAL, "subConnectionJson(), exclude=%d\n", exclude->chipId );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
@@ -194,7 +194,7 @@ String ICACHE_FLASH_ATTR easyMesh::subConnectionJson( meshConnectionType *exclud
 }
 
 //***********************************************************************
-uint16_t ICACHE_FLASH_ATTR easyMesh::connectionCount( meshConnectionType *exclude ) {
+uint16_t ICACHE_FLASH_ATTR painlessMesh::connectionCount( meshConnectionType *exclude ) {
     uint16_t count = 0;
     
     SimpleList<meshConnectionType>::iterator sub = _connections.begin();
@@ -210,7 +210,7 @@ uint16_t ICACHE_FLASH_ATTR easyMesh::connectionCount( meshConnectionType *exclud
 }
 
 //***********************************************************************
-uint16_t ICACHE_FLASH_ATTR easyMesh::jsonSubConnCount( String& subConns ) {
+uint16_t ICACHE_FLASH_ATTR painlessMesh::jsonSubConnCount( String& subConns ) {
     debugMsg( GENERAL, "jsonSubConnCount(): subConns=%s\n", subConns.c_str() );
     
     uint16_t count = 0;
@@ -244,7 +244,7 @@ uint16_t ICACHE_FLASH_ATTR easyMesh::jsonSubConnCount( String& subConns ) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::meshConnectedCb(void *arg) {
+void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     staticThis->debugMsg( CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
@@ -270,7 +270,7 @@ void ICACHE_FLASH_ATTR easyMesh::meshConnectedCb(void *arg) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
+void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnectionType *receiveConn = staticThis->findConnection( (espconn *)arg );
 
     staticThis->debugMsg( COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn->chipId );
@@ -330,7 +330,7 @@ void ICACHE_FLASH_ATTR easyMesh::meshRecvCb(void *arg, char *data, unsigned shor
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::meshSentCb(void *arg) {
+void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
     staticThis->debugMsg( GENERAL, "meshSentCb():\n");    //data sent successfully
     espconn *conn = (espconn*)arg;
     meshConnectionType *meshConnection = staticThis->findConnection( conn );
@@ -355,7 +355,7 @@ void ICACHE_FLASH_ATTR easyMesh::meshSentCb(void *arg) {
     }
 }
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::meshDisconCb(void *arg) {
+void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
     struct espconn *disConn = (espconn *)arg;
     
     staticThis->debugMsg( CONNECTION, "meshDisconCb(): ");
@@ -374,12 +374,12 @@ void ICACHE_FLASH_ATTR easyMesh::meshDisconCb(void *arg) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::meshReconCb(void *arg, sint8 err) {
+void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, sint8 err) {
     staticThis->debugMsg( ERROR, "In meshReconCb(): err=%d\n", err );
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::wifiEventCb(System_Event_t *event) {
+void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
     switch (event->event) {
         case EVENT_STAMODE_CONNECTED:
             staticThis->debugMsg( CONNECTION, "wifiEventCb(): EVENT_STAMODE_CONNECTED ssid=%s\n", (char*)event->event_info.connected.ssid );

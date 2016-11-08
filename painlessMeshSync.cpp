@@ -2,15 +2,15 @@
 #include <SimpleList.h>
 #include <ArduinoJson.h>
 
-#include "easyMesh.h"
-#include "easyMeshSync.h"
+#include "painlessMesh.h"
+#include "painlessMeshSync.h"
 
-extern easyMesh* staticThis;
+extern painlessMesh* staticThis;
 uint32_t timeAdjuster = 0;
 
 // timeSync Functions
 //***********************************************************************
-uint32_t ICACHE_FLASH_ATTR easyMesh::getNodeTime( void ) {
+uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime( void ) {
     uint32_t ret = system_get_time() + timeAdjuster;
 
     debugMsg( GENERAL, "getNodeTime(): time=%d\n", ret);
@@ -104,9 +104,9 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment ( bool odd ) {
 }
 
 
-// easyMesh Syncing functions
+// painlessMesh Syncing functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::startNodeSync( meshConnectionType *conn ) {
+void ICACHE_FLASH_ATTR painlessMesh::startNodeSync( meshConnectionType *conn ) {
     debugMsg( SYNC, "startNodeSync(): with %u\n", conn->chipId);
 
     String subs = subConnectionJson( conn );
@@ -116,7 +116,7 @@ void ICACHE_FLASH_ATTR easyMesh::startNodeSync( meshConnectionType *conn ) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
+void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, JsonObject& root ) {
     debugMsg( SYNC, "handleNodeSync(): with %u\n", conn->chipId);
     
     meshPackageType type = (meshPackageType)(int)root["type"];
@@ -175,7 +175,7 @@ void ICACHE_FLASH_ATTR easyMesh::handleNodeSync( meshConnectionType *conn, JsonO
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::startTimeSync( meshConnectionType *conn ) {
+void ICACHE_FLASH_ATTR painlessMesh::startTimeSync( meshConnectionType *conn ) {
     debugMsg( SYNC, "startTimeSync(): with %d\n", conn->chipId );
     
     if ( conn->time.num > TIME_SYNC_CYCLES ) {
@@ -194,7 +194,7 @@ void ICACHE_FLASH_ATTR easyMesh::startTimeSync( meshConnectionType *conn ) {
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR easyMesh::adoptionCalc( meshConnectionType *conn ) {
+bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc( meshConnectionType *conn ) {
     // make the adoption calulation.  Figure out how many nodes I am connected to exclusive of this connection.
     
     uint16_t mySubCount = connectionCount( conn );  //exclude this connection.
@@ -208,7 +208,7 @@ bool ICACHE_FLASH_ATTR easyMesh::adoptionCalc( meshConnectionType *conn ) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR easyMesh::handleTimeSync( meshConnectionType *conn, JsonObject& root ) {
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync( meshConnectionType *conn, JsonObject& root ) {
     
     String timeStamp = root["msg"];
     debugMsg( SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->chipId, timeStamp.c_str());
