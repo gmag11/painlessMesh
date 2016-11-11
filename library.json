@@ -1,0 +1,19 @@
+{
+    "name": "painlessMesh",
+    "keywords": "ethernet, m2m, iot",
+    "description": "A painless way to setup a mesh",
+    "repository": {
+        "type": "git",
+        "url": "https://gitlab.com/BlackEdder/painlessMesh"
+    },
+    "version": "0.0.1",
+    "exclude": "tests",
+    "examples": "examples/*/*.ino",
+    "frameworks": "arduino",
+    "platforms": [
+        "espressif"
+    ],
+    "dependencies": [
+        "ArduinoJSON"
+    ]
+}
