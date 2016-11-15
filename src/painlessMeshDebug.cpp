@@ -37,4 +37,3 @@ void painlessMesh::debugMsg( debugType type, const char* format ... ) {
         va_end(args);
     }
 }
-

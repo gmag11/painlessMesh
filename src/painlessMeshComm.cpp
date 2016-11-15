@@ -17,8 +17,8 @@ extern painlessMesh* staticThis;
 // communications functions
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendMessage( meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg ) {
-    debugMsg( COMMUNICATION, "sendMessage(conn): conn-chipId=%d destId=%d type=%d msg=%s\n",
-                   conn->chipId, destId, (uint8_t)type, msg.c_str());
+    debugMsg( COMMUNICATION, "sendMessage(conn): conn-nodeId=%d destId=%d type=%d msg=%s\n",
+                   conn->nodeId, destId, (uint8_t)type, msg.c_str());
     
     String package = buildMeshPackage( destId, type, msg );
     
@@ -51,7 +51,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
     
     if ( exclude != NULL )
         debugMsg( COMMUNICATION, "broadcastMessage(): from=%d type=%d, msg=%s exclude=%d\n",
-                   from, type, msg.c_str(), exclude->chipId);
+                   from, type, msg.c_str(), exclude->nodeId);
     else
         debugMsg( COMMUNICATION, "broadcastMessage(): from=%d type=%d, msg=%s exclude=NULL\n",
                    from, type, msg.c_str());
@@ -59,7 +59,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         if ( connection != exclude ) {
-            sendMessage( connection, connection->chipId, type, msg );
+            sendMessage( connection, connection->nodeId, type, msg );
         }
         connection++;
     }
@@ -68,7 +68,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendPackage( meshConnectionType *connection, String &package ) {
-    debugMsg( COMMUNICATION, "Sending to %d-->%s<--\n", connection->chipId, package.c_str() );
+    debugMsg( COMMUNICATION, "Sending to %d-->%s<--\n", connection->nodeId, package.c_str() );
     
     if ( package.length() > 1400 )
         debugMsg( ERROR, "sendPackage(): err package too long length=%d\n", package.length());
@@ -97,7 +97,7 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage( uint32_t destId, meshPa
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.createObject();
     root["dest"] = destId;
-    root["from"] = _chipId;
+    root["from"] = _nodeId;
     root["type"] = (uint8_t)type;
     
     switch( type ) {

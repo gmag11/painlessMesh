@@ -3,7 +3,7 @@
 //  
 //
 //  Created by Bill Gray on 7/26/16.
-//
+// 
 //
 
 #include <Arduino.h>
@@ -22,7 +22,7 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit( void  ) {
 //    String password( MESH_PASSWORD );
     
     ip_addr ip, netmask;
-    IP4_ADDR( &ip, 192, 168, ( _chipId & 0xFF ), 1);
+    IP4_ADDR( &ip, 192, 168, ( _nodeId & 0xFF ), 1);
     IP4_ADDR( &netmask, 255, 255, 255, 0);
     
     ip_info ipInfo;
@@ -34,7 +34,7 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit( void  ) {
     }
     
     debugMsg( STARTUP, "apInit(): Starting AP with SSID=%s IP=%d.%d.%d.%d GW=%d.%d.%d.%d NM=%d.%d.%d.%d\n",
-                  _mySSID.c_str(),
+                  _meshSSID.c_str(),
                   IP2STR( &ipInfo.ip ),
                   IP2STR( &ipInfo.gw ),
                   IP2STR( &ipInfo.netmask ) );
@@ -44,12 +44,15 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit( void  ) {
     
     memset( apConfig.ssid, 0, 32 );
     memset( apConfig.password, 0, 64);
-    memcpy( apConfig.ssid, _mySSID.c_str(), _mySSID.length());
+    memcpy( apConfig.ssid, _meshSSID.c_str(), _meshSSID.length());
     memcpy( apConfig.password, _meshPassword.c_str(), _meshPassword.length() );
-    apConfig.authmode = AUTH_WPA2_PSK;
-    apConfig.ssid_len = _mySSID.length();
+
+    apConfig.authmode = _meshAuthMode; // AUTH_WPA2_PSK
+    apConfig.ssid_len = _meshSSID.length();
+    apConfig.ssid_hidden = _meshHidden;
+    apConfig.channel = _meshChannel;
     apConfig.beacon_interval = 100;
-    apConfig.max_connection = 4; // how many stations can connect to ESP8266 softAP at most.
+    apConfig.max_connection = _meshMaxConn; // how many stations can connect to ESP8266 softAP at most.
     
     wifi_softap_set_config(&apConfig);// Set ESP8266 softap config .
     if ( !wifi_softap_dhcps_start() )
