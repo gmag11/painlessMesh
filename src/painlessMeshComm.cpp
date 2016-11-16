@@ -99,6 +99,7 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage( uint32_t destId, meshPa
     root["dest"] = destId;
     root["from"] = _nodeId;
     root["type"] = (uint8_t)type;
+    root["timestamp"] = staticThis->getNodeTime();
     
     switch( type ) {
         case NODE_SYNC_REQUEST:
