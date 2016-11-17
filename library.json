@@ -6,7 +6,7 @@
         "type": "git",
         "url": "https://gitlab.com/BlackEdder/painlessMesh"
     },
-    "version": "0.0.1",
+    "version": "0.0.5",
     "exclude": "tests",
     "examples": "examples/*/*.ino",
     "frameworks": "arduino",

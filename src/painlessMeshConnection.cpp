@@ -1,5 +1,5 @@
 //
-//  eashMeshConnection.cpp
+//  painlessMeshConnection.cpp
 //
 //
 //  Created by Bill Gray on 7/26/16.
@@ -39,7 +39,7 @@ void ICACHE_FLASH_ATTR painlessMesh::setNewConnectionCallback( void(*onNewConnec
 meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnection( meshConnectionType *conn ) {
     // It seems that more should be done here... perhas send off a packette to
     // make an attempt to tell the other node that we are closing this conneciton?
-    debugMsg( CONNECTION, "closeConnection(): conn-chipId=%d\n", conn->chipId );
+    debugMsg( CONNECTION, "closeConnection(): conn-nodeId=%d\n", conn->nodeId );
     espconn_disconnect( conn->esp_conn );
     return _connections.erase( conn );
 }
@@ -47,24 +47,30 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnection( meshConnect
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
     debugMsg( GENERAL, "manageConnections():\n");
+
+    uint32_t nowNodeTime;
+    uint32_t nodeTimeOut = NODE_TIMEOUT;
+    uint32_t connLastRecieved;
+    
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
-        if ( connection->lastRecieved + NODE_TIMEOUT < getNodeTime() ) {
-            debugMsg( CONNECTION, "manageConnections(): dropping %d NODE_TIMEOUT last=%u node=%u\n", connection->chipId, connection->lastRecieved, getNodeTime() );
- 
+        nowNodeTime = getNodeTime();
+        connLastRecieved = connection->lastRecieved;
+        if ( nowNodeTime - connLastRecieved > nodeTimeOut ) {
+            debugMsg( CONNECTION, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut ); 
             connection = closeConnection( connection );
             continue;
         }
         
         if( connection->esp_conn->state == ESPCONN_CLOSE ) {
-            debugMsg( CONNECTION, "manageConnections(): dropping %d ESPCONN_CLOSE\n",connection->chipId);
+            debugMsg( CONNECTION, "manageConnections(): dropping %d ESPCONN_CLOSE\n",connection->nodeId);
             connection = closeConnection( connection );
             continue;
         }
         
         switch ( connection->nodeSyncStatus ) {
             case NEEDED:           // start a nodeSync
-                debugMsg( SYNC, "manageConnections(): start nodeSync with %d\n", connection->chipId);
+                debugMsg( SYNC, "manageConnections(): start nodeSync with %d\n", connection->nodeId);
                 startNodeSync( connection );
                 connection->nodeSyncStatus = IN_PROGRESS;
 
@@ -75,7 +81,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
         
         switch ( connection->timeSyncStatus ) {
             case NEEDED:
-                debugMsg( SYNC, "manageConnections(): starting timeSync with %d\n", connection->chipId);
+                debugMsg( SYNC, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
                 startTimeSync( connection );
                 connection->timeSyncStatus = IN_PROGRESS;
 
@@ -98,11 +104,11 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
         if ( connection->nodeSyncRequest == 0 ) { // nodeSync not in progress
             if (    (connection->esp_conn->proto.tcp->local_port == _meshPort  // we are AP
                      &&
-                     connection->lastRecieved + ( NODE_TIMEOUT / 2 ) < nodeTime )
+                     nowNodeTime - connLastRecieved > ( nodeTimeOut / 2 ) )
                 ||
                     (connection->esp_conn->proto.tcp->local_port != _meshPort  // we are the STA
                      &&
-                     connection->lastRecieved + ( NODE_TIMEOUT * 3 / 4 ) < nodeTime )
+                     nowNodeTime - connLastRecieved > ( nodeTimeOut * 3 / 4 ) )
                 ) {
                 connection->nodeSyncStatus = NEEDED;
             }
@@ -112,26 +118,26 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
 }
 
 //***********************************************************************
-meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( uint32_t chipId ) {
-    debugMsg( GENERAL, "In findConnection(chipId)\n");
+meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( uint32_t nodeId ) {
+    debugMsg( GENERAL, "In findConnection(nodeId)\n");
     
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         
-        if ( connection->chipId == chipId ) {  // check direct connections
-            debugMsg( GENERAL, "findConnection(chipId): Found Direct Connection\n");
+        if ( connection->nodeId == nodeId ) {  // check direct connections
+            debugMsg( GENERAL, "findConnection(nodeId): Found Direct Connection\n");
             return connection;
         }
         
-        String chipIdStr(chipId);
-        if ( connection->subConnections.indexOf(chipIdStr) != -1 ) { // check sub-connections
-            debugMsg( GENERAL, "findConnection(chipId): Found Sub Connection\n");
+        String nodeIdStr(nodeId);
+        if ( connection->subConnections.indexOf(nodeIdStr) != -1 ) { // check sub-connections
+            debugMsg( GENERAL, "findConnection(nodeId): Found Sub Connection\n");
             return connection;
         }
         
         connection++;
     }
-    debugMsg( CONNECTION, "findConnection(%d): did not find connection\n", chipId );
+    debugMsg( CONNECTION, "findConnection(%d): did not find connection\n", nodeId );
     return NULL;
 }
 
@@ -155,7 +161,8 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( espconn *con
  
 //***********************************************************************
 String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson( meshConnectionType *exclude ) {
-    debugMsg( GENERAL, "subConnectionJson(), exclude=%d\n", exclude->chipId );
+    if (exclude != NULL)
+        debugMsg( GENERAL, "subConnectionJson(), exclude=%d\n", exclude->nodeId );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonArray& subArray = jsonBuffer.createArray();
@@ -164,12 +171,12 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson( meshConnectionType *ex
     
     SimpleList<meshConnectionType>::iterator sub = _connections.begin();
     while ( sub != _connections.end() ) {
-        if ( sub != exclude && sub->chipId != 0 ) {  //exclude connection that we are working with & anything too new.
+        if ( sub != exclude && sub->nodeId != 0 ) {  //exclude connection that we are working with & anything too new.
             JsonObject& subObj = jsonBuffer.createObject();
             if ( !subObj.success() )
                 debugMsg( ERROR, "subConnectionJson(): ran out of memory 2");
             
-            subObj["chipId"] = sub->chipId;
+            subObj["nodeId"] = sub->nodeId;
             
             if ( sub->subConnections.length() != 0 ) {
                 //debugMsg( GENERAL, "subConnectionJson(): sub->subConnections=%s\n", sub->subConnections.c_str() );
@@ -273,7 +280,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
 void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnectionType *receiveConn = staticThis->findConnection( (espconn *)arg );
 
-    staticThis->debugMsg( COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn->chipId );
+    staticThis->debugMsg( COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn->nodeId );
     
     if ( receiveConn == NULL ) {
         staticThis->debugMsg( ERROR, "meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
@@ -282,7 +289,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     }
 
 
-    
+    String somestring(data);      //copy data before json parsing FIXME: can someone explain why this works?
+
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.parseObject( data );
     if (!root.success()) {   // Test if parsing succeeded.
@@ -290,7 +298,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         return;
     }
     
-    staticThis->debugMsg( GENERAL, "Recvd from %d-->%s<--\n", receiveConn->chipId, data);
+    staticThis->debugMsg( GENERAL, "Recvd from %d-->%s<--\n", receiveConn->nodeId, data);
 
     String msg = root["msg"];
     
@@ -305,7 +313,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
             break;
     
         case SINGLE:
-            if ( (uint32_t)root["dest"] == staticThis->getChipId() ) {  // msg for us!
+            if ( (uint32_t)root["dest"] == staticThis->getNodeId() ) {  // msg for us!
                 receivedCallback( (uint32_t)root["from"], msg);
             } else {                                                    // pass it along
                 //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
@@ -326,6 +334,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     
     // record that we've gotten a valid package
     receiveConn->lastRecieved = staticThis->getNodeTime();
+    staticThis->debugMsg( COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d\n", receiveConn->lastRecieved, receiveConn->nodeId );
     return;
 }
 
@@ -414,4 +423,3 @@ void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
             break;
     }
 }
-

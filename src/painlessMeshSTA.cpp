@@ -72,18 +72,29 @@ void ICACHE_FLASH_ATTR painlessMesh::startStationScan( void ) {
     if ( _scanStatus != IDLE ) {
         return;
     }
-    
-    if ( !wifi_station_scan(NULL, stationScanCb) ) {
+
+    char tempssid[32];
+    struct scan_config scanConfig;
+    memset( &scanConfig, 0, sizeof(scanConfig) );
+    staticThis->_meshSSID.toCharArray( tempssid, staticThis->_meshSSID.length()+1 );
+
+    scanConfig.ssid = (uint8_t *) tempssid; // limit scan to mesh ssid
+    scanConfig.bssid = 0; 
+    scanConfig.channel = staticThis->_meshChannel; // also limit scan to mesh channel to speed things up ...
+    scanConfig.show_hidden = 1; // add hidden APs ... why not? we might want to hide ...
+
+    if ( !wifi_station_scan( &scanConfig, stationScanCb ) ) {
         debugMsg( ERROR, "wifi_station_scan() failed!?\n");
         return;
     }
     _scanStatus = SCANNING;
-    debugMsg( CONNECTION, "-->scan started @ %d<--\n", system_get_time());
+    debugMsg( CONNECTION, "-->scan started @ %u<--\n", staticThis->getNodeTime() );
     return;
 }
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::scanTimerCallback( void *arg ) {
+    //os_timer_disarm(&staticThis->_scanTimer);
     staticThis->startStationScan();
     
     // this function can be totally elimiated!
@@ -93,20 +104,18 @@ void ICACHE_FLASH_ATTR painlessMesh::scanTimerCallback( void *arg ) {
 void ICACHE_FLASH_ATTR painlessMesh::stationScanCb(void *arg, STATUS status) {
     char ssid[32];
     bss_info *bssInfo = (bss_info *)arg;
-    staticThis->debugMsg( CONNECTION, "stationScanCb():-- > scan finished @ % d < --\n", system_get_time());
+    staticThis->debugMsg( CONNECTION, "stationScanCb():-- > scan finished @ %u < --\n", staticThis->getNodeTime() );
     staticThis->_scanStatus = IDLE;
     
     staticThis->_meshAPs.clear();
     while (bssInfo != NULL) {
         staticThis->debugMsg( CONNECTION, "\tfound : % s, % ddBm", (char*)bssInfo->ssid, (int16_t) bssInfo->rssi );
-        if ( strncmp( (char*)bssInfo->ssid, staticThis->_meshPrefix.c_str(), staticThis->_meshPrefix.length() ) == 0 ) {
-            staticThis->debugMsg( CONNECTION, " MESH_PRE< ---");
-            staticThis->_meshAPs.push_back( *bssInfo );
-        }
+        staticThis->debugMsg( CONNECTION, " MESH< ---");
+        staticThis->_meshAPs.push_back( *bssInfo );
         staticThis->debugMsg( CONNECTION, "\n");
         bssInfo = STAILQ_NEXT(bssInfo, next);
     }
-    staticThis->debugMsg( CONNECTION, "\tFound % d nodes with _meshPrefix = \"%s\"\n", staticThis->_meshAPs.size(), staticThis->_meshPrefix.c_str() );
+    staticThis->debugMsg( CONNECTION, "\tFound % d nodes with _meshSSID = \"%s\"\n", staticThis->_meshAPs.size(), staticThis->_meshSSID.c_str() );
     
     staticThis->connectToBestAP();
 }
@@ -114,14 +123,15 @@ void ICACHE_FLASH_ATTR painlessMesh::stationScanCb(void *arg, STATUS status) {
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::connectToBestAP( void ) {
     debugMsg( CONNECTION, "connectToBestAP():");
+    uint32_t apNodeId = 0;
     
     // drop any _meshAP's we are already connected to
     SimpleList<bss_info>::iterator ap = _meshAPs.begin();
     while( ap != _meshAPs.end() ) {
-        String apChipId = (char*)ap->ssid + _meshPrefix.length();
-        // debugMsg( GENERAL, "connectToBestAP: sort - ssid=%s, apChipId=%s", ap->ssid, apChipId.c_str());
+        apNodeId = encodeNodeId(ap->bssid);
+        // debugMsg( GENERAL, "connectToBestAP: sort - ssid=%s, apNodeId=%d", ap->ssid, apNodeId);
         
-        if ( findConnection( apChipId.toInt() ) != NULL )  {
+        if ( findConnection( apNodeId ) != NULL )  {
             ap = _meshAPs.erase( ap );
             //                debugMsg( GENERAL, "<--already connected\n");
         }
@@ -159,9 +169,10 @@ bool ICACHE_FLASH_ATTR painlessMesh::connectToBestAP( void ) {
     }
     
     // connect to bestAP
-    debugMsg( CONNECTION, "connectToBestAP(): Best AP is %s<---\n", (char*)bestAP->ssid );
+    debugMsg( CONNECTION, "connectToBestAP(): Best AP is %d<---\n", encodeNodeId( bestAP->bssid ));
     struct station_config stationConf;
-    stationConf.bssid_set = 0;
+    stationConf.bssid_set = 1;
+    memcpy(&stationConf.bssid, bestAP->bssid, 6);
     memcpy(&stationConf.ssid, bestAP->ssid, 32);
     memcpy(&stationConf.password, _meshPassword.c_str(), 64);
     wifi_station_set_config(&stationConf);
@@ -215,4 +226,15 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect( void ) {
     else {
         debugMsg( ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");
     }
+}
+//***********************************************************************
+uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId( uint8_t *hwaddr ) {
+    debugMsg( GENERAL, "encodeNodeId():\n");
+    uint32 value = 0;
+
+    value |= hwaddr[2] << 24; //Big endian (aka "network order"):
+    value |= hwaddr[3] << 16;
+    value |= hwaddr[4] << 8;
+    value |= hwaddr[5];
+    return value;
 }

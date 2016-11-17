@@ -12,11 +12,10 @@ extern "C" {
 
 #include "painlessMeshSync.h"
 
-//#define MESH_PREFIX         "mesh"
+//#define MESH_SSID           "mesh"
 //#define MESH_PASSWORD       "bootyboo"
 //#define MESH_PORT           4444
 #define NODE_TIMEOUT        3000000  //uSecs
-
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
 
@@ -68,7 +67,7 @@ enum debugType {
 
 struct meshConnectionType {
     espconn             *esp_conn;
-    uint32_t            chipId = 0;
+    uint32_t            nodeId = 0;
     String              subConnections;
     timeSync            time;
     uint32_t            lastRecieved = 0;
@@ -90,7 +89,7 @@ struct meshConnectionType {
 class painlessMesh {
 public:
     //inline functions
-    uint32              getChipId( void ) { return _chipId;};
+    uint32_t            getNodeId( void ) { return _nodeId;};
    
     // in painlessMeshDebug.cpp
     void                setDebugMsgTypes( uint16_t types );
@@ -98,8 +97,7 @@ public:
     
     // in painlessMesh.cpp
 //    void                init( void );
-    void                init( String prefix, String password, uint16_t port );
-
+    void                init( String ssid, String password, uint16_t port, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4 );
     void                update( void );
     bool                sendSingle( uint32_t &destId, String &msg );
     bool                sendBroadcast( String &msg );
@@ -118,6 +116,7 @@ public:
     SimpleList<bss_info>            _meshAPs;
     SimpleList<meshConnectionType>  _connections;
     
+    String              subConnectionJson( meshConnectionType *exclude = NULL );
 protected:
     
     // in painlessMeshComm.cpp
@@ -126,8 +125,8 @@ protected:
     bool                sendMessage( uint32_t destId, meshPackageType type, String &msg );
     bool                broadcastMessage( uint32_t fromId, meshPackageType type, String &msg, meshConnectionType *exclude = NULL );
     
-    bool sendPackage( meshConnectionType *connection, String &package );
-    String buildMeshPackage(uint32_t destId, meshPackageType type, String &msg);
+    bool                sendPackage( meshConnectionType *connection, String &package );
+    String              buildMeshPackage(uint32_t destId, meshPackageType type, String &msg);
 
     
     // in painlessMeshSync.cpp
@@ -140,8 +139,7 @@ protected:
     
     // in painlessMeshConnection.cpp
     void                manageConnections( void );
-    String              subConnectionJson( meshConnectionType *exclude );
-    meshConnectionType* findConnection( uint32_t chipId );
+    meshConnectionType* findConnection( uint32_t nodeId );
     meshConnectionType* findConnection( espconn *conn );
     void                cleanDeadConnections( void );
     void                tcpConnect( void );
@@ -151,34 +149,37 @@ protected:
 
     // in painlessMeshSTA.cpp
     void                manageStation( void );
+    static void         stationScanCb(void *arg, STATUS status);
+    static void         scanTimerCallback( void *arg );
+    void                stationInit( void );
+    bool                stationConnect( void );
+    void                startStationScan( void );
+    uint32_t            encodeNodeId( uint8_t *hwaddr );
 
-    // in ?
-    static void stationScanCb(void *arg, STATUS status);
-    static void scanTimerCallback( void *arg );
-    void    stationInit( void );
-    bool    stationConnect( void );
-    void    startStationScan( void );
-
-    void    apInit( void );
-    void    tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
+    // in painlessMeshAP.cpp
+    void                apInit( void );
+    void                tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
     
     // callbacks
     // in painlessMeshConnection.cpp
-    static void wifiEventCb(System_Event_t *event);
-    static void meshConnectedCb(void *arg);
-    static void meshSentCb(void *arg);
-    static void meshRecvCb(void *arg, char *data, unsigned short length);
-    static void meshDisconCb(void *arg);
-    static void meshReconCb(void *arg, sint8 err);
+    static void         wifiEventCb(System_Event_t *event);
+    static void         meshConnectedCb(void *arg);
+    static void         meshSentCb(void *arg);
+    static void         meshRecvCb(void *arg, char *data, unsigned short length);
+    static void         meshDisconCb(void *arg);
+    static void         meshReconCb(void *arg, sint8 err);
     
 
     // variables
-    uint32_t    _chipId;
-    String      _mySSID;
-    String      _meshPrefix;
+    uint32_t    _nodeId;
+    String      _meshSSID;
     String      _meshPassword;
     uint16_t    _meshPort;
-    
+    uint8_t     _meshChannel;
+    _auth_mode  _meshAuthMode;
+    uint8_t	_meshHidden;
+    uint8_t	_meshMaxConn;
+
     os_timer_t  _scanTimer;
     
     espconn     _meshServerConn;
@@ -190,4 +191,3 @@ protected:
 
 
 #endif //   _EASY_MESH_H_
-
