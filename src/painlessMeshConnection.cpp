@@ -161,7 +161,8 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( espconn *con
  
 //***********************************************************************
 String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson( meshConnectionType *exclude ) {
-    debugMsg( GENERAL, "subConnectionJson(), exclude=%d\n", exclude->nodeId );
+    if (exclude != NULL)
+        debugMsg( GENERAL, "subConnectionJson(), exclude=%d\n", exclude->nodeId );
     
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonArray& subArray = jsonBuffer.createArray();
