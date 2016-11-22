@@ -7,14 +7,12 @@
         "url": "https://gitlab.com/BlackEdder/painlessMesh"
     },
     "version": "0.0.5",
-    "exclude": "tests",
-    "examples": "examples/*/*.ino",
     "frameworks": "arduino",
     "platforms": [
-        "espressif"
+        "espressif8266"
     ],
     "dependencies": [
-        "ArduinoJSON"
+        { "name": "ArduinoJSON" }
     ],
     "authors": [
         { "name": "Scotty Franzyshen" }, 
