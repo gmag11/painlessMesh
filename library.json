@@ -15,5 +15,10 @@
     ],
     "dependencies": [
         "ArduinoJSON"
+    ],
+    "authors": [
+        { "name": "Scotty Franzyshen" }, 
+        { "url": "https://github.com/Coopdis"}, 
+        { "name": "Edwin van Leeuwen" }
     ]
 }
