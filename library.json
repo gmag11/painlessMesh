@@ -12,7 +12,7 @@
         "espressif8266"
     ],
     "dependencies": [
-        { "name": "ArduinoJSON" }
+        { "name": "ArduinoJson" }
     ],
     "authors": [
         { "name": "Scotty Franzyshen" }, 
