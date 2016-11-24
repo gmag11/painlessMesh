@@ -1,0 +1,8 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq python-pip
+  - pip install platformio
+  
+linux:
+  script:
+    - platformio ci --lib="." --board=nodemcuv2 examples/sensor/sensor.ino
+    - platformio ci --lib="." --board=nodemcuv2 examples/startHere/startHere.ino
