@@ -70,7 +70,7 @@ struct meshConnectionType {
     uint32_t            nodeId = 0;
     String              subConnections;
     timeSync            time;
-    uint32_t            lastRecieved = 0;
+    uint32_t            lastReceived = 0;
     bool                newConnection = true;
 
     syncStatusType      nodeSyncStatus = NEEDED;

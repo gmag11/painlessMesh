@@ -55,7 +55,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while ( connection != _connections.end() ) {
         nowNodeTime = getNodeTime();
-        connLastRecieved = connection->lastRecieved;
+        connLastRecieved = connection->lastReceived;
         if ( nowNodeTime - connLastRecieved > nodeTimeOut ) {
             debugMsg( CONNECTION, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut ); 
             connection = closeConnection( connection );
@@ -256,7 +256,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
     espconn_set_opt( newConn.esp_conn, ESPCONN_NODELAY );  // removes nagle, low latency, but soaks up bandwidth
-    newConn.lastRecieved = staticThis->getNodeTime();
+    newConn.lastReceived = staticThis->getNodeTime();
     
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb);
     espconn_regist_sentcb(newConn.esp_conn, meshSentCb);
@@ -333,8 +333,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     }
     
     // record that we've gotten a valid package
-    receiveConn->lastRecieved = staticThis->getNodeTime();
-    staticThis->debugMsg( COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d\n", receiveConn->lastRecieved, receiveConn->nodeId );
+    receiveConn->lastReceived = staticThis->getNodeTime();
+    staticThis->debugMsg( COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d\n", receiveConn->lastReceived, receiveConn->nodeId );
     return;
 }
 
