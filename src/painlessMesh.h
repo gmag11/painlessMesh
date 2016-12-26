@@ -60,7 +60,8 @@ enum debugType {
     GENERAL         = 0x0040,
     MSG_TYPES       = 0x0080,
     REMOTE          = 0x0100,  // not yet implemented
-    APPLICATION     = 0x0200
+    APPLICATION     = 0x0200,
+	DEBUG           = 0x0400
     // add types if you like, room for a total of 16 types
 };
 
@@ -111,7 +112,7 @@ public:
     uint32_t            getNodeTime( void );
     
     // should be prototected, but public for debugging
-    scanStatusType                  _scanStatus = IDLE;
+    scanStatusType                  _scanStatus = IDLE; // STA scanning status
     nodeStatusType                  _nodeStatus = INITIALIZING;
     SimpleList<bss_info>            _meshAPs;
     SimpleList<meshConnectionType>  _connections;

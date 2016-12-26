@@ -21,22 +21,25 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime( void ) {
 //***********************************************************************
 String ICACHE_FLASH_ATTR timeSync::buildTimeStamp( void ) {
     staticThis->debugMsg( SYNC, "buildTimeStamp(): num=%d\n", num);
+	staticThis->debugMsg(DEBUG, "buildTimeStamp(): num=%d\n", num);
     
-    if ( num > TIME_SYNC_CYCLES )
+    if ( num > TIME_SYNC_CYCLES ) // German Martin: I don't know why this TIME_SYNC_CYCLES is needed, yet
         staticThis->debugMsg( ERROR, "buildTimeStamp(): timeSync not started properly\n");
     
     StaticJsonBuffer<75> jsonBuffer;
     JsonObject& timeStampObj = jsonBuffer.createObject();
     times[num] = staticThis->getNodeTime();
+	staticThis->debugMsg(DEBUG, "buildTimeStamp(): Hora antes de sincronizar: %l\n", times[num]);
     timeStampObj["time"] = times[num];
     timeStampObj["num"] = num;
-    bool remoteAdopt = !adopt;
+    bool remoteAdopt = !adopt; // remote_adopt = !local_adopt
     timeStampObj["adopt"] = remoteAdopt;
     
     String timeStampStr;
     timeStampObj.printTo( timeStampStr );
     
     staticThis->debugMsg( SYNC, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str() );
+	staticThis->debugMsg(DEBUG, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
     return timeStampStr;
 }
 
@@ -56,8 +59,8 @@ bool ICACHE_FLASH_ATTR timeSync::processTimeStamp( String &str ) {
     
     times[num] = timeStampObj.get<uint32_t>("time");
     adopt = timeStampObj.get<bool>("adopt");
-    
-    num++;
+	staticThis->debugMsg(DEBUG, "Se decodifica el TimeStamp recibido. num=%d, time=%l, adopt=%s\n", num, times[num], adopt?"true":"false");
+    num++; // Increment time sync iteration
     
     if ( num < TIME_SYNC_CYCLES ) {
         str = buildTimeStamp();
@@ -71,8 +74,9 @@ bool ICACHE_FLASH_ATTR timeSync::processTimeStamp( String &str ) {
 //***********************************************************************
 void ICACHE_FLASH_ATTR timeSync::calcAdjustment( bool odd ) {
     staticThis->debugMsg( SYNC, "calcAdjustment(): odd=%u\n", odd);
+	staticThis->debugMsg(DEBUG, "calcAdjustment(): odd=%u\n", odd);
     
-    uint32_t    bestInterval = 0xFFFFFFFF;
+    uint32_t    bestInterval = 0xFFFFFFFF; // Max 32 bit value
     uint8_t     bestIndex;
     uint32_t    temp;
     
@@ -156,8 +160,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, J
         case NODE_SYNC_REPLY:
             debugMsg( SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->nodeId );
             conn->nodeSyncRequest = 0;  //reset nodeSyncRequest Timer  ????
-            if ( conn->lastTimeSync == 0 )
-                startTimeSync( conn );
+			if (conn->lastTimeSync == 0) {
+				debugMsg(DEBUG, "Se inicia la sincronizacion de la hora\n");
+				startTimeSync(conn);
+			}
             break;
         default:
             debugMsg( ERROR, "handleNodeSync(): weird type? %d\n", type );
@@ -177,12 +183,13 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, J
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync( meshConnectionType *conn ) {
     debugMsg( SYNC, "startTimeSync(): with %d\n", conn->nodeId );
+	debugMsg(DEBUG, "startTimeSync(): con %d\n", conn->nodeId);
     
     if ( conn->time.num > TIME_SYNC_CYCLES ) {
         debugMsg( ERROR, "startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num );
     }
     
-    conn->time.num = 0;
+    conn->time.num = 0; // First time num is 0.
     
     conn->time.adopt = adoptionCalc( conn ); // do I adopt the estblished time?
     //   debugMsg( GENERAL, "startTimeSync(): remoteSubCount=%d adopt=%d\n", remoteSubCount, conn->time.adopt);
@@ -203,6 +210,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc( meshConnectionType *conn ) {
     bool ret = ( mySubCount > remoteSubCount ) ? false : true;
     
     debugMsg( GENERAL, "adoptionCalc(): mySubCount=%d remoteSubCount=%d ret = %d\n", mySubCount, remoteSubCount, ret );
+	debugMsg(DEBUG, "adoptionCalc(): Subconexiones locales %d. Subconexiones remotas %d. Resultado = %s\n", mySubCount, remoteSubCount, ret ? "true":"false");
     
     return ret;
 }
@@ -212,21 +220,23 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync( meshConnectionType *conn, J
     
     String timeStamp = root["msg"];
     debugMsg( SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
+	debugMsg(DEBUG, "Recibido mensaje TIME_SYNC desde %d con timestamp local = %l\n", conn->nodeId, getNodeTime());
     
-    conn->time.processTimeStamp( timeStamp );  //varifies timeStamp and updates it with a new one.
+    conn->time.processTimeStamp( timeStamp );  //verifies timeStamp and UPDATES it with a new one.
 
     debugMsg( SYNC, "handleTimeSync(): with %d out timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
+	debugMsg(DEBUG, "handleTimeSync(): con %d timestamp remoto=%s\n", conn->nodeId, timeStamp.c_str());
 
     
-    if ( conn->time.num < TIME_SYNC_CYCLES ) {
+    if ( conn->time.num < TIME_SYNC_CYCLES ) { // I understand what this makes but, why this is needed? :-|
         staticThis->sendMessage( conn, conn->nodeId, TIME_SYNC, timeStamp );
     }
     
-    uint8_t odd = conn->time.num % 2;
+    uint8_t odd = conn->time.num % 2; // 1 if num is odd, 0 if even
     
     if ( (conn->time.num + odd) >= TIME_SYNC_CYCLES ) {   // timeSync completed
-        if ( conn->time.adopt ) {
-            conn->time.calcAdjustment( odd );
+        if ( conn->time.adopt ) { // if I have to adopt
+            conn->time.calcAdjustment(odd);
             
             // flag all connections for re-timeSync
             SimpleList<meshConnectionType>::iterator connection = _connections.begin();

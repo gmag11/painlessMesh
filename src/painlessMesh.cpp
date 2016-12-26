@@ -47,15 +47,15 @@ uint16_t  count = 0;
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::init( String ssid, String password, uint16_t port, _auth_mode authmode, uint8_t channel, phy_mode_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn ) {
     // shut everything down, start with a blank slate.
-    debugMsg( STARTUP, "init():\n",    wifi_station_set_auto_connect( 0 ));
+    debugMsg( STARTUP, "init():\n",    wifi_station_set_auto_connect( 0 )); // Disable autoconnect
     
-    if ( wifi_station_get_connect_status() != STATION_IDLE ) {
+    if ( wifi_station_get_connect_status() != STATION_IDLE ) { // Check if WiFi is idle
         debugMsg( ERROR, "Station is doing something... wierd!? status=%d\n", wifi_station_get_connect_status());
         wifi_station_disconnect();
     }
-    wifi_softap_dhcps_stop();
+    wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
     
-    wifi_set_event_handler_cb( wifiEventCb );
+    wifi_set_event_handler_cb( wifiEventCb ); // Register Wi-Fi event handler
 
     wifi_set_phy_mode( phymode ); // allow setting PHY_MODE_11G / PHY_MODE_11B
     system_phy_set_max_tpw( maxtpw ); //maximum value of RF Tx Power, unit : 0.25dBm, range [0,82]

@@ -118,6 +118,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
 }
 
 //***********************************************************************
+// Search for a connection to a given nodeID
 meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( uint32_t nodeId ) {
     debugMsg( GENERAL, "In findConnection(nodeId)\n");
     
@@ -126,7 +127,7 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection( uint32_t nod
         
         if ( connection->nodeId == nodeId ) {  // check direct connections
             debugMsg( GENERAL, "findConnection(nodeId): Found Direct Connection\n");
-            return connection;
+            return connection; 
         }
         
         String nodeIdStr(nodeId);
@@ -251,6 +252,9 @@ uint16_t ICACHE_FLASH_ATTR painlessMesh::jsonSubConnCount( String& subConns ) {
 }
 
 //***********************************************************************
+// callback which will be called on successful TCP connection (server or client)
+// If we are the station party a node time sync is started
+
 void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     staticThis->debugMsg( CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
@@ -258,16 +262,16 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     espconn_set_opt( newConn.esp_conn, ESPCONN_NODELAY );  // removes nagle, low latency, but soaks up bandwidth
     newConn.lastReceived = staticThis->getNodeTime();
     
-    espconn_regist_recvcb(newConn.esp_conn, meshRecvCb);
-    espconn_regist_sentcb(newConn.esp_conn, meshSentCb);
-    espconn_regist_reconcb(newConn.esp_conn, meshReconCb);
-    espconn_regist_disconcb(newConn.esp_conn, meshDisconCb);
+    espconn_regist_recvcb(newConn.esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
+    espconn_regist_sentcb(newConn.esp_conn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
+    espconn_regist_reconcb(newConn.esp_conn, meshReconCb); // This callback is entered when an error occurs, TCP connection broken
+    espconn_regist_disconcb(newConn.esp_conn, meshDisconCb); // Register disconnection function which will be called back under successful TCP disconnection
 
     staticThis->_connections.push_back( newConn );
     
     if( newConn.esp_conn->proto.tcp->local_port != staticThis->_meshPort ) { // we are the station, start nodeSync
         staticThis->debugMsg( CONNECTION, "meshConnectedCb(): we are STA, start nodeSync\n");
-        staticThis->startNodeSync( staticThis->_connections.end() - 1 );
+        staticThis->startNodeSync( staticThis->_connections.end() - 1 ); // Sync with the last connected node
         newConn.timeSyncStatus = NEEDED;
     }
     else
@@ -388,6 +392,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, sint8 err) {
 }
 
 //***********************************************************************
+// Wifi event handler
 void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
     switch (event->event) {
         case EVENT_STAMODE_CONNECTED:
@@ -395,14 +400,14 @@ void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
             break;
         case EVENT_STAMODE_DISCONNECTED:
             staticThis->debugMsg( CONNECTION, "wifiEventCb(): EVENT_STAMODE_DISCONNECTED\n");
-            staticThis->connectToBestAP();
+            staticThis->connectToBestAP(); // Search for APs and connect to the best one
             break;
         case EVENT_STAMODE_AUTHMODE_CHANGE:
             staticThis->debugMsg( CONNECTION, "wifiEventCb(): EVENT_STAMODE_AUTHMODE_CHANGE\n");
             break;
         case EVENT_STAMODE_GOT_IP:
             staticThis->debugMsg( CONNECTION, "wifiEventCb(): EVENT_STAMODE_GOT_IP\n");
-            staticThis->tcpConnect();
+            staticThis->tcpConnect(); // Connect to TCP port
             break;
             
         case EVENT_SOFTAPMODE_STACONNECTED:

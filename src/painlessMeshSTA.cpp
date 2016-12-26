@@ -66,10 +66,11 @@ void ICACHE_FLASH_ATTR painlessMesh::manageStation( void ) {
 }
 
 //***********************************************************************
+// Starts scan for APs whose name is Mesh SSID
 void ICACHE_FLASH_ATTR painlessMesh::startStationScan( void ) {
     debugMsg( GENERAL, "startStationScan():\n");
 
-    if ( _scanStatus != IDLE ) {
+    if ( _scanStatus != IDLE ) { // Already scanning
         return;
     }
 
@@ -93,6 +94,7 @@ void ICACHE_FLASH_ATTR painlessMesh::startStationScan( void ) {
 }
 
 //***********************************************************************
+// Starts AP scan, triggered by a timer every SCAN_INTERVAL ms
 void ICACHE_FLASH_ATTR painlessMesh::scanTimerCallback( void *arg ) {
     //os_timer_disarm(&staticThis->_scanTimer);
     staticThis->startStationScan();
@@ -101,6 +103,7 @@ void ICACHE_FLASH_ATTR painlessMesh::scanTimerCallback( void *arg ) {
 }
 
 //***********************************************************************
+// Station scan callback
 void ICACHE_FLASH_ATTR painlessMesh::stationScanCb(void *arg, STATUS status) {
     char ssid[32];
     bss_info *bssInfo = (bss_info *)arg;
@@ -142,7 +145,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::connectToBestAP( void ) {
     }
     
     uint8 statusCode = wifi_station_get_connect_status();
-    if ( statusCode != STATION_IDLE ) {
+    if ( statusCode != STATION_IDLE ) { 
         debugMsg( CONNECTION, "connectToBestAP(): station not idle.  code=%d\n", statusCode);
         return false;
     }
@@ -172,7 +175,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::connectToBestAP( void ) {
     debugMsg( CONNECTION, "connectToBestAP(): Best AP is %d<---\n", encodeNodeId( bestAP->bssid ));
     struct station_config stationConf;
     stationConf.bssid_set = 1;
-    memcpy(&stationConf.bssid, bestAP->bssid, 6);
+    memcpy(&stationConf.bssid, bestAP->bssid, 6); // Connect to this specific HW Address
     memcpy(&stationConf.ssid, bestAP->ssid, 32);
     memcpy(&stationConf.password, _meshPassword.c_str(), 64);
     wifi_station_set_config(&stationConf);
@@ -195,11 +198,11 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect( void ) {
         debugMsg( CONNECTION, "tcpConnect(): Dest IP=%d.%d.%d.%d\n", IP2STR( &ipconfig.gw ) );
         
         // establish tcp connection
-        _stationConn.type = ESPCONN_TCP;
+        _stationConn.type = ESPCONN_TCP; // TCP Connection
         _stationConn.state = ESPCONN_NONE;
         _stationConn.proto.tcp = &_stationTcp;
-        _stationConn.proto.tcp->local_port = espconn_port();
-        _stationConn.proto.tcp->remote_port = _meshPort;
+        _stationConn.proto.tcp->local_port = espconn_port(); // Get an available port
+        _stationConn.proto.tcp->remote_port = _meshPort; // Global mesh port
         os_memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
         os_memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
         espconn_set_opt( &_stationConn, ESPCONN_NODELAY ); // low latency, but soaks up bandwidth
@@ -212,11 +215,11 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect( void ) {
                       IP2STR(_stationConn.proto.tcp->remote_ip),
                       _stationConn.proto.tcp->remote_port );
         
-        espconn_regist_connectcb(&_stationConn, meshConnectedCb);
-        espconn_regist_recvcb(&_stationConn, meshRecvCb);
-        espconn_regist_sentcb(&_stationConn, meshSentCb);
-        espconn_regist_reconcb(&_stationConn, meshReconCb);
-        espconn_regist_disconcb(&_stationConn, meshDisconCb);
+        espconn_regist_connectcb(&_stationConn, meshConnectedCb); // Register a connected callback which will be called on successful TCP connection (server or client)
+        espconn_regist_recvcb(&_stationConn, meshRecvCb); // Register data receive function which will be called back when data are received
+        espconn_regist_sentcb(&_stationConn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
+        espconn_regist_reconcb(&_stationConn, meshReconCb); // This callback is entered when an error occurs, TCP connection broken
+        espconn_regist_disconcb(&_stationConn, meshDisconCb); // Register disconnection function which will be called back under successful TCP disconnection
         
         sint8  errCode = espconn_connect(&_stationConn);
         if ( errCode != 0 ) {
@@ -228,6 +231,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect( void ) {
     }
 }
 //***********************************************************************
+// Calculate NodeID from a hardware MAC address
 uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId( uint8_t *hwaddr ) {
     debugMsg( GENERAL, "encodeNodeId():\n");
     uint32 value = 0;
