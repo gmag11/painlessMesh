@@ -232,12 +232,15 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync( meshConnectionType *conn, J
     
     String timeStamp = root["msg"];
     debugMsg( SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
-	debugMsg(DEBUG, "Recibido mensaje TIME_SYNC desde %d con timestamp local = %l\n", conn->nodeId, getNodeTime());
+	debugMsg(DEBUG, "Recibido mensaje TIME_SYNC desde %d con timestamp local = %u\n", conn->nodeId, getNodeTime());
+	debugMsg(DEBUG, "timeStamp = %s\n", timeStamp.c_str());
+	debugMsg(DEBUG, "ip_local: %d.%d.%d.%d, puerto local = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
+	debugMsg(DEBUG, "ip_remota: %d.%d.%d.%d, puerto remoto = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
     
     conn->time.processTimeStamp( conn->timeSyncStatus, timeStamp , conn->esp_conn->proto.tcp->local_port == _meshPort);  //verifies timeStamp and UPDATES it with a new one.
 
     debugMsg( SYNC, "handleTimeSync(): with %d out timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
-	debugMsg(DEBUG, "handleTimeSync(): con %d timestamp remoto=%s\n", conn->nodeId, timeStamp.c_str());
+	debugMsg(DEBUG, "handleTimeSync(): con %d. Timestamp remoto=%u\n", conn->nodeId, conn->time.times[conn->time.num]);
 
     
     if ( conn->time.num < TIME_SYNC_CYCLES ) { // I understand what this makes but, why this is needed? :-|
@@ -255,6 +258,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync( meshConnectionType *conn, J
             while ( connection != _connections.end() ) {
                 if ( connection != conn ) {  // exclude this connection
                     connection->timeSyncStatus = NEEDED;
+					staticThis->debugMsg(DEBUG, "handleTimeSync(): timeSyncStatus changed to NEEDED\n");
                 }
                 connection++;
             }

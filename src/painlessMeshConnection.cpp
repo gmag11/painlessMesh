@@ -82,6 +82,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
         switch ( connection->timeSyncStatus ) {
             case NEEDED:
                 debugMsg( SYNC, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
+				debugMsg(DEBUG, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
                 startTimeSync( connection );
                 connection->timeSyncStatus = IN_PROGRESS;
 
@@ -273,6 +274,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
         staticThis->debugMsg( CONNECTION, "meshConnectedCb(): we are STA, start nodeSync\n");
         staticThis->startNodeSync( staticThis->_connections.end() - 1 ); // Sync with the last connected node
         newConn.timeSyncStatus = NEEDED;
+		staticThis->debugMsg(DEBUG, "meshConnectedCb(): timeSyncStatus changed to NEEDED\n");
     }
     else
         staticThis->debugMsg( CONNECTION, "meshConnectedCb(): we are AP\n");
