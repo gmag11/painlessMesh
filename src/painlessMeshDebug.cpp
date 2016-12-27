@@ -16,7 +16,7 @@ uint16_t types = 0;
 void painlessMesh::setDebugMsgTypes( uint16_t newTypes ) {
     // set the different kinds of debug messages you want to generate.
     types = newTypes;
-    Serial.printf("setDebugTypes 0x%x\n", types);
+    Serial.printf("\nsetDebugTypes 0x%x\n", types);
 }
 
 void painlessMesh::debugMsg( debugType type, const char* format ... ) {

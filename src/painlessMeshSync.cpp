@@ -29,7 +29,7 @@ String ICACHE_FLASH_ATTR timeSync::buildTimeStamp( void ) {
     StaticJsonBuffer<75> jsonBuffer;
     JsonObject& timeStampObj = jsonBuffer.createObject();
     times[num] = staticThis->getNodeTime();
-	staticThis->debugMsg(DEBUG, "buildTimeStamp(): Hora antes de sincronizar: %l\n", times[num]);
+	staticThis->debugMsg(DEBUG, "buildTimeStamp(): Hora antes de sincronizar: %u\n", times[num]);
     timeStampObj["time"] = times[num];
     timeStampObj["num"] = num;
     bool remoteAdopt = !adopt; // remote_adopt = !local_adopt
@@ -44,31 +44,36 @@ String ICACHE_FLASH_ATTR timeSync::buildTimeStamp( void ) {
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR timeSync::processTimeStamp( String &str ) {
+bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &str, bool ap ) {
     staticThis->debugMsg( SYNC, "processTimeStamp(): str=%s\n", str.c_str());
     
     DynamicJsonBuffer jsonBuffer(50 );
     JsonObject& timeStampObj = jsonBuffer.parseObject(str);
-    
+	staticThis->debugMsg(DEBUG, "Objeto JSON creado: %s\n", str.c_str());
     if ( !timeStampObj.success() ) {
         staticThis->debugMsg( ERROR, "processTimeStamp(): out of memory1?\n" );
         return false;
     }
-    
-    num = timeStampObj.get<uint32_t>("num");
-    
-    times[num] = timeStampObj.get<uint32_t>("time");
-    adopt = timeStampObj.get<bool>("adopt");
-	staticThis->debugMsg(DEBUG, "Se decodifica el TimeStamp recibido. num=%d, time=%l, adopt=%s\n", num, times[num], adopt?"true":"false");
-    num++; // Increment time sync iteration
-    
-    if ( num < TIME_SYNC_CYCLES ) {
-        str = buildTimeStamp();
-        return true;
-    }
-    else {
-        return false;
-    }
+	int8_t numTemp = timeStampObj.get<uint32_t>("num");
+	staticThis->debugMsg(DEBUG, "processTimeStamp(): num local: %d. num recibido %d. timeSyncStatus: %d. AP: %s\n", num, numTemp, timeSyncStatus, ap?"true":"false");
+	if (!((timeSyncStatus == 2) && (num == numTemp) && !ap)) { // Discard colliding messages if I'm STA
+		num = numTemp;
+		times[num] = timeStampObj.get<uint32_t>("time");
+		adopt = timeStampObj.get<bool>("adopt");
+		staticThis->debugMsg(DEBUG, "processTimeStamp(): Se decodifica el TimeStamp recibido. num=%d, time=%u, adopt=%s\n", num, times[num], adopt ? "true" : "false");
+		num++; // Increment time sync iteration
+
+		if (num < TIME_SYNC_CYCLES) {
+			str = buildTimeStamp();
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+	else {
+		staticThis->debugMsg(DEBUG, "processTimeStamp(): Message discarded\n");
+	}
 }
 
 //***********************************************************************
@@ -82,18 +87,24 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment( bool odd ) {
     
     for (int i = 0; i < TIME_SYNC_CYCLES; i++) {
         //      debugMsg( GENERAL, "times[%d]=%u\n", i, times[i]);
-        
+		staticThis->debugMsg(DEBUG, "times[%d] --> %u. Condition = %s\n", i, times[i], (i % 2 == odd)?"true":"false");
+
         if ( i % 2 == odd ) {
-            temp = times[i + 2] - times[i];
-            
-            if ( i < TIME_SYNC_CYCLES - 2 ){
+			temp = times[i + 1] - times[i]; // �?
+			staticThis->debugMsg(DEBUG, "calcAdjustment(): %d is %s\n", i, odd?"odd":"even");
+
+            //if ( i < TIME_SYNC_CYCLES - 2 ){ // If TIME_SYNC_CYCLES is 2 this never happens
+			if (i < TIME_SYNC_CYCLES - 1) {
                 //            debugMsg( GENERAL, "\tinterval=%u\n", temp);
-                
+
                 if ( temp < bestInterval ) {
                     bestInterval = temp;
                     bestIndex = i;
                 }
+				staticThis->debugMsg(DEBUG, "calcAdjustment(): best interval calculation. Value so far %u\n", bestInterval);
+
             }
+			
         }
     }
     staticThis->debugMsg( SYNC, "best interval=%u, best index=%u\n", bestInterval, bestIndex);
@@ -111,12 +122,12 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment( bool odd ) {
 // painlessMesh Syncing functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::startNodeSync( meshConnectionType *conn ) {
-    debugMsg( SYNC, "startNodeSync(): with %d\n", conn->nodeId );
 
-    String subs = subConnectionJson( conn );
-    sendMessage( conn, conn->nodeId, NODE_SYNC_REQUEST, subs );
-    conn->nodeSyncRequest = getNodeTime();
-    conn->nodeSyncStatus = IN_PROGRESS;
+    debugMsg( SYNC, "startNodeSync(): with %d\n", conn->nodeId);
+	String subs = subConnectionJson( conn );
+	sendMessage( conn, conn->nodeId, NODE_SYNC_REQUEST, subs );
+	conn->nodeSyncRequest = getNodeTime();
+	conn->nodeSyncStatus = IN_PROGRESS;
 }
 
 //***********************************************************************
@@ -163,6 +174,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, J
 			if (conn->lastTimeSync == 0) {
 				debugMsg(DEBUG, "Se inicia la sincronizacion de la hora\n");
 				startTimeSync(conn);
+				conn->timeSyncStatus = IN_PROGRESS;
 			}
             break;
         default:
@@ -183,21 +195,21 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, J
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync( meshConnectionType *conn ) {
     debugMsg( SYNC, "startTimeSync(): with %d\n", conn->nodeId );
-	debugMsg(DEBUG, "startTimeSync(): con %d\n", conn->nodeId);
-    
-    if ( conn->time.num > TIME_SYNC_CYCLES ) {
-        debugMsg( ERROR, "startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num );
-    }
-    
-    conn->time.num = 0; // First time num is 0.
-    
-    conn->time.adopt = adoptionCalc( conn ); // do I adopt the estblished time?
-    //   debugMsg( GENERAL, "startTimeSync(): remoteSubCount=%d adopt=%d\n", remoteSubCount, conn->time.adopt);
-    
-    String timeStamp = conn->time.buildTimeStamp();
-    staticThis->sendMessage( conn, conn->nodeId, TIME_SYNC, timeStamp );
-    
-    conn->timeSyncStatus = IN_PROGRESS;
+	debugMsg(DEBUG, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
+
+	if (conn->time.num > TIME_SYNC_CYCLES) {
+		debugMsg(ERROR, "startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num);
+	}
+
+	conn->time.num = 0; // First time num is 0.
+
+	conn->time.adopt = adoptionCalc(conn); // do I adopt the estblished time?
+	//   debugMsg( GENERAL, "startTimeSync(): remoteSubCount=%d adopt=%d\n", remoteSubCount, conn->time.adopt);
+
+	String timeStamp = conn->time.buildTimeStamp();
+	conn->timeSyncStatus = IN_PROGRESS;
+	staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
+	debugMsg(DEBUG, "startTimeSync(): Enviado mensaje %s a %u. timeSyncStatus: %d\n", timeStamp.c_str(), conn->nodeId, conn->timeSyncStatus);
 }
 
 //***********************************************************************
@@ -222,7 +234,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync( meshConnectionType *conn, J
     debugMsg( SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
 	debugMsg(DEBUG, "Recibido mensaje TIME_SYNC desde %d con timestamp local = %l\n", conn->nodeId, getNodeTime());
     
-    conn->time.processTimeStamp( timeStamp );  //verifies timeStamp and UPDATES it with a new one.
+    conn->time.processTimeStamp( conn->timeSyncStatus, timeStamp , conn->esp_conn->proto.tcp->local_port == _meshPort);  //verifies timeStamp and UPDATES it with a new one.
 
     debugMsg( SYNC, "handleTimeSync(): with %d out timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
 	debugMsg(DEBUG, "handleTimeSync(): con %d timestamp remoto=%s\n", conn->nodeId, timeStamp.c_str());
