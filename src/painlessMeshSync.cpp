@@ -90,7 +90,7 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment( bool odd ) {
 		staticThis->debugMsg(DEBUG, "times[%d] --> %u. Condition = %s\n", i, times[i], (i % 2 == odd)?"true":"false");
 
         if ( i % 2 == odd ) {
-			temp = times[i + 1] - times[i]; // �?
+			temp = times[i + 1] - times[i]; // ??
 			staticThis->debugMsg(DEBUG, "calcAdjustment(): %d is %s\n", i, odd?"odd":"even");
 
             //if ( i < TIME_SYNC_CYCLES - 2 ){ // If TIME_SYNC_CYCLES is 2 this never happens
