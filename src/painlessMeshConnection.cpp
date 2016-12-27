@@ -18,7 +18,7 @@ extern "C" {
 #include "painlessMesh.h"
 
 static void (*receivedCallback)( uint32_t from, String &msg);
-static void (*newConnectionCallback)( bool adopt );
+static void (*newConnectionCallback)( uint32_t from, bool adopt );
 
 extern painlessMesh* staticThis;
 
@@ -30,7 +30,7 @@ void ICACHE_FLASH_ATTR painlessMesh::setReceiveCallback( void(*onReceive)(uint32
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::setNewConnectionCallback( void(*onNewConnection)(bool adopt) ) {
+void ICACHE_FLASH_ATTR painlessMesh::setNewConnectionCallback( void(*onNewConnection)(uint32_t from, bool adopt) ) {
     debugMsg( GENERAL, "setNewConnectionCallback():\n");
     newConnectionCallback = onNewConnection;
 }
@@ -91,7 +91,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
         }
 
         if ( connection->newConnection == true ) {  // we should only get here once first nodeSync and timeSync are complete
-            newConnectionCallback( adoptionCalc( connection ) );
+            newConnectionCallback( connection->nodeId, adoptionCalc( connection ) );
             connection->newConnection = false;
  
             connection++;
