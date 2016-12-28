@@ -117,7 +117,7 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment( bool odd ) {
     //uint32_t adopterTime = times[ bestIndex ] + (bestInterval / 2);
     //uint32_t adjustment = times[ bestIndex + 1 ] - adopterTime;
 	uint32_t adjustment = bestInterval;
-    timeAdjuster += adjustment - 100000;
+    timeAdjuster += adjustment - 80000;  // calculation delay aprox. 160000. Should calculate this automatically
 
 	//staticThis->debugMsg( SYNC, "new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
 	staticThis->debugMsg(DEBUG, "calcAdjustment(): new time=%u\n", staticThis->getNodeTime());
