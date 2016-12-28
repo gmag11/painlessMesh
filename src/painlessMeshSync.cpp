@@ -191,9 +191,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, J
     
     if ( reSyncAllSubConnections == true ) {
         SimpleList<meshConnectionType>::iterator connection = _connections.begin();
-        while ( connection != _connections.end() ) {
-            connection->nodeSyncStatus = NEEDED;
-            connection++;
+		while (connection != _connections.end()) {
+			if (connection != conn) { // Exclude current
+				connection->nodeSyncStatus = NEEDED;
+			}
+			connection++;
         }
     }
     
