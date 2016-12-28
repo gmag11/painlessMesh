@@ -49,7 +49,7 @@ bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &st
     
     DynamicJsonBuffer jsonBuffer(50 );
     JsonObject& timeStampObj = jsonBuffer.parseObject(str);
-	staticThis->debugMsg(DEBUG, "Objeto JSON creado: %s\n", str.c_str());
+	staticThis->debugMsg(DEBUG, "processTimeStamp(): Objeto JSON creado: %s\n", str.c_str());
     if ( !timeStampObj.success() ) {
         staticThis->debugMsg( ERROR, "processTimeStamp(): out of memory1?\n" );
         return false;
@@ -241,10 +241,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync( meshConnectionType *conn, J
     
     String timeStamp = root["msg"];
     debugMsg( SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
-	debugMsg(DEBUG, "Recibido mensaje TIME_SYNC desde %d con timestamp local = %u\n", conn->nodeId, getNodeTime());
-	debugMsg(DEBUG, "timeStamp = %s\n", timeStamp.c_str());
-	debugMsg(DEBUG, "ip_local: %d.%d.%d.%d, puerto local = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
-	debugMsg(DEBUG, "ip_remota: %d.%d.%d.%d, puerto remoto = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
+	debugMsg(DEBUG, "handleTimeSync(): Recibido mensaje TIME_SYNC desde %d con timestamp local = %u\n", conn->nodeId, getNodeTime());
+	debugMsg(DEBUG, "handleTimeSync(): timeStamp = %s\n", timeStamp.c_str());
+	debugMsg(DEBUG, "handleTimeSync(): ip_local: %d.%d.%d.%d, puerto local = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
+	debugMsg(DEBUG, "handleTimeSync(): ip_remota: %d.%d.%d.%d, puerto remoto = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
     
     bool shouldAnswer = conn->time.processTimeStamp( conn->timeSyncStatus, timeStamp , conn->esp_conn->proto.tcp->local_port == _meshPort );  //verifies timeStamp and UPDATES it with a new one.
 
