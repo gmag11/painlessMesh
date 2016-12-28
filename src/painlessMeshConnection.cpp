@@ -82,7 +82,6 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
         switch ( connection->timeSyncStatus ) {
             case NEEDED:
                 debugMsg( SYNC, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
-				debugMsg(DEBUG, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
 				startTimeSync(connection);
 
             case IN_PROGRESS:
@@ -111,6 +110,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
                      nowNodeTime - connLastRecieved > ( nodeTimeOut * 3 / 4 ) )
                 ) {
                 connection->nodeSyncStatus = NEEDED;
+				debugMsg(SYNC, "manageConnections(): %u nodeSyncStatus changed to NEEDED\n", staticThis->getNodeTime());
             }
         }
         connection++;
@@ -273,7 +273,6 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
         staticThis->debugMsg( CONNECTION, "meshConnectedCb(): we are STA, start nodeSync\n");
         staticThis->startNodeSync( staticThis->_connections.end() - 1 ); // Sync with the last connected node
         newConn.timeSyncStatus = NEEDED;
-		staticThis->debugMsg(DEBUG, "meshConnectedCb(): timeSyncStatus changed to NEEDED\n");
     }
     else
         staticThis->debugMsg( CONNECTION, "meshConnectedCb(): we are AP\n");
@@ -289,7 +288,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     
     if ( receiveConn == NULL ) {
         staticThis->debugMsg( ERROR, "meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
-        staticThis->debugMsg( ERROR, "dropping this msg... see if we recover?\n");
+        staticThis->debugMsg( ERROR, "meshRecvCb(): dropping this msg... see if we recover?\n");
         return;
     }
 
@@ -299,11 +298,11 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     DynamicJsonBuffer jsonBuffer( JSON_BUFSIZE );
     JsonObject& root = jsonBuffer.parseObject( data );
     if (!root.success()) {   // Test if parsing succeeded.
-        staticThis->debugMsg( ERROR, "meshRecvCb: parseObject() failed. data=%s<--\n", data);
+        staticThis->debugMsg( ERROR, "meshRecvCb(): parseObject() failed. data=%s<--\n", data);
         return;
     }
     
-    staticThis->debugMsg( GENERAL, "Recvd from %d-->%s<--\n", receiveConn->nodeId, data);
+    staticThis->debugMsg( GENERAL, "meshRecvCb(): Recvd from %d-->%s<--\n", receiveConn->nodeId, data);
 
     String msg = root["msg"];
     
