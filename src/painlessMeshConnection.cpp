@@ -83,8 +83,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections( void ) {
             case NEEDED:
                 debugMsg( SYNC, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
 				debugMsg(DEBUG, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
-                startTimeSync( connection );
-                connection->timeSyncStatus = IN_PROGRESS;
+				startTimeSync(connection);
 
             case IN_PROGRESS:
                 connection++;

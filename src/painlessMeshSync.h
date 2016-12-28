@@ -16,7 +16,7 @@ public:
     bool            adopt;
 
     String buildTimeStamp( void );
-    bool processTimeStamp( int timeSyncStatus, String &str, bool ap);
+    bool processTimeStamp( int timeSyncStatus, String &str, bool ap );
     void calcAdjustment ( bool even );
 };
 

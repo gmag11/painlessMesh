@@ -73,6 +73,7 @@ bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &st
 	}
 	else {
 		staticThis->debugMsg(DEBUG, "processTimeStamp(): Message discarded\n");
+		return false;
 	}
 }
 
@@ -86,11 +87,14 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment( bool odd ) {
     uint32_t    temp;
     
     for (int i = 0; i < TIME_SYNC_CYCLES; i++) {
-        //      debugMsg( GENERAL, "times[%d]=%u\n", i, times[i]);
-		staticThis->debugMsg(DEBUG, "times[%d] --> %u. Condition = %s\n", i, times[i], (i % 2 == odd)?"true":"false");
+        //      debugMsg( GENERAL, "calcAdjustment(): times[%d]=%u\n", i, times[i]);
+		staticThis->debugMsg(DEBUG, "calcAdjustment(): times[%d] --> %u. Odd = %s\n", i, times[i], (i % 2 == odd)?"true":"false");
 
         if ( i % 2 == odd ) {
-			temp = times[i + 1] - times[i]; // ??
+			if (odd)
+				temp = times[i - 1] - times[i]; // ??
+			else
+				temp = times[i + 1] - times[i]; // ??
 			staticThis->debugMsg(DEBUG, "calcAdjustment(): %d is %s\n", i, odd?"odd":"even");
 
             //if ( i < TIME_SYNC_CYCLES - 2 ){ // If TIME_SYNC_CYCLES is 2 this never happens
@@ -107,15 +111,17 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment( bool odd ) {
 			
         }
     }
-    staticThis->debugMsg( SYNC, "best interval=%u, best index=%u\n", bestInterval, bestIndex);
-    
+    staticThis->debugMsg( SYNC, "calcAdjustment(): best interval=%u, best index=%u\n", bestInterval, bestIndex);
+	staticThis->debugMsg(DEBUG, "calcAdjustment(): best interval=%u, best index=%u\n", bestInterval, bestIndex);
     // find number that turns local time into remote time
-    uint32_t adopterTime = times[ bestIndex ] + (bestInterval / 2);
-    uint32_t adjustment = times[ bestIndex + 1 ] - adopterTime;
-    
-    staticThis->debugMsg( SYNC, "new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
-    
-    timeAdjuster += adjustment;
+    //uint32_t adopterTime = times[ bestIndex ] + (bestInterval / 2);
+    //uint32_t adjustment = times[ bestIndex + 1 ] - adopterTime;
+	uint32_t adjustment = bestInterval;
+    timeAdjuster += adjustment - 100000;
+
+	//staticThis->debugMsg( SYNC, "new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
+	staticThis->debugMsg(DEBUG, "calcAdjustment(): new time=%u\n", staticThis->getNodeTime());
+
 }
 
 
@@ -170,11 +176,13 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, J
         }
         case NODE_SYNC_REPLY:
             debugMsg( SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->nodeId );
+			debugMsg(DEBUG, "handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->nodeId);
             conn->nodeSyncRequest = 0;  //reset nodeSyncRequest Timer  ????
 			if (conn->lastTimeSync == 0) {
-				debugMsg(DEBUG, "Se inicia la sincronizacion de la hora\n");
-				startTimeSync(conn);
-				conn->timeSyncStatus = IN_PROGRESS;
+				debugMsg(DEBUG, "handleNodeSync(): timeSyncStatus changed to NEEDED\n");
+				//startTimeSync(conn);
+				//conn->timeSyncStatus = IN_PROGRESS;
+				conn->timeSyncStatus = NEEDED;
 			}
             break;
         default:
@@ -196,6 +204,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync( meshConnectionType *conn, J
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync( meshConnectionType *conn ) {
     debugMsg( SYNC, "startTimeSync(): with %d\n", conn->nodeId );
 	debugMsg(DEBUG, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
+	debugMsg(DEBUG, "startTimeSync(): timeSyncStatus changed to IN_PROGRESS\n", conn->nodeId);
+	conn->timeSyncStatus = IN_PROGRESS;
 
 	if (conn->time.num > TIME_SYNC_CYCLES) {
 		debugMsg(ERROR, "startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num);
@@ -203,11 +213,10 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync( meshConnectionType *conn ) {
 
 	conn->time.num = 0; // First time num is 0.
 
-	conn->time.adopt = adoptionCalc(conn); // do I adopt the estblished time?
+	conn->time.adopt = adoptionCalc(conn); // should I adopt other party's time?
 	//   debugMsg( GENERAL, "startTimeSync(): remoteSubCount=%d adopt=%d\n", remoteSubCount, conn->time.adopt);
 
 	String timeStamp = conn->time.buildTimeStamp();
-	conn->timeSyncStatus = IN_PROGRESS;
 	staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
 	debugMsg(DEBUG, "startTimeSync(): Enviado mensaje %s a %u. timeSyncStatus: %d\n", timeStamp.c_str(), conn->nodeId, conn->timeSyncStatus);
 }
@@ -237,19 +246,21 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync( meshConnectionType *conn, J
 	debugMsg(DEBUG, "ip_local: %d.%d.%d.%d, puerto local = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
 	debugMsg(DEBUG, "ip_remota: %d.%d.%d.%d, puerto remoto = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
     
-    conn->time.processTimeStamp( conn->timeSyncStatus, timeStamp , conn->esp_conn->proto.tcp->local_port == _meshPort);  //verifies timeStamp and UPDATES it with a new one.
+    bool shouldAnswer = conn->time.processTimeStamp( conn->timeSyncStatus, timeStamp , conn->esp_conn->proto.tcp->local_port == _meshPort );  //verifies timeStamp and UPDATES it with a new one.
 
     debugMsg( SYNC, "handleTimeSync(): with %d out timestamp=%s\n", conn->nodeId, timeStamp.c_str() );
 	debugMsg(DEBUG, "handleTimeSync(): con %d. Timestamp remoto=%u\n", conn->nodeId, conn->time.times[conn->time.num]);
 
     
-    if ( conn->time.num < TIME_SYNC_CYCLES ) { // I understand what this makes but, why this is needed? :-|
+    if ( conn->time.num < TIME_SYNC_CYCLES && shouldAnswer ) { // Answer last valid message is sync cycles are still missing
+		debugMsg(DEBUG, "startTimeSync(): Enviado mensaje %s a %u. timeSyncStatus: %d\n", timeStamp.c_str(), conn->nodeId, conn->timeSyncStatus);
         staticThis->sendMessage( conn, conn->nodeId, TIME_SYNC, timeStamp );
     }
     
     uint8_t odd = conn->time.num % 2; // 1 if num is odd, 0 if even
     
     if ( (conn->time.num + odd) >= TIME_SYNC_CYCLES ) {   // timeSync completed
+		staticThis->debugMsg(DEBUG, "handleTimeSync(): timeSync completed. num = %d\n", conn->time.num);
         if ( conn->time.adopt ) { // if I have to adopt
             conn->time.calcAdjustment(odd);
             
