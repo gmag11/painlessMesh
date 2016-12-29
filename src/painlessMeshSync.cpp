@@ -52,7 +52,7 @@ bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &st
 	}
 	int8_t numTemp = timeStampObj.get<uint32_t>("num");
 	staticThis->debugMsg(SYNC, "processTimeStamp(): local num: %d. recvd num %d. timeSyncStatus: %d. AP: %s\n", num, numTemp, timeSyncStatus, ap ? "true" : "false");
-	if (!((timeSyncStatus == 2) && (num == numTemp) && !ap)) { // Discard colliding messages if I'm STA
+	if (!((timeSyncStatus == IN_PROGRESS) && (num == numTemp) && !ap)) { // Discard colliding messages if I'm STA
 		num = numTemp;
 		times[num] = timeStampObj.get<uint32_t>("time");
 		adopt = timeStampObj.get<bool>("adopt");
