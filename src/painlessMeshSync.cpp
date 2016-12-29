@@ -22,7 +22,8 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
 String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(void) {
 	staticThis->debugMsg(SYNC, "buildTimeStamp(): num=%d\n", num);
 
-	if (num > TIME_SYNC_CYCLES) // German Martin: I don't know why this TIME_SYNC_CYCLES is needed, yet
+	if (num > TIME_SYNC_CYCLES) 
+		// TIME_SYNC_CYCLES should be the same in all nodes. It defines length of times array
 		staticThis->debugMsg(ERROR, "buildTimeStamp(): timeSync not started properly\n");
 
 	StaticJsonBuffer<75> jsonBuffer;
@@ -228,6 +229,28 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
 	return ret;
 }
 
+//***********************************************************************
+//* Time sync protocol is used to let all nodes in the mesh share a common
+//* clock, in order to be able to do synchronized tasks.
+//*
+//* - A node builds a timestamp with its local system clock and order 0.
+//*    Then it sends it to AP.
+//* - It adds a flag indicating if receving peer should update its clock.
+//*    The flag will be true for the node with less connections and
+//*    subconnections. In case of an equal value, the node acting as STA
+//*    will update its clock.
+//* - When timestamp is received order (num) is increased and a new timestamp
+//*    is generated
+//* - If num is less than TIME_SYNC_CYCLES then it sends new generated
+//*    timestamp.
+//* - An even value of num is asigned to requests and orders are assigned
+//*    with an odd value.
+//* - If TIME_SYNC_CYCLES is reached, or TIME_SYNC_CYCLES in case of a
+//*    received request, the node that has been assigned to adopt new time
+//*    will search in the time structure the lower difference into consecutive
+//*    values.
+//* - This value will be added to timeAdjuster variable, that is added to
+//*    local system clock every time meshClock is asked.
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root) {
 
