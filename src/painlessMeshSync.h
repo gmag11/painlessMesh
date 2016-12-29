@@ -5,8 +5,8 @@
 
 #define SCAN_INTERVAL       10000
 #define SYNC_INTERVAL       7000
-#define TIME_SYNC_CYCLES    10 // should (must?) be an even number
 #define TIME_SYNC_INTERVAL  5000000
+#define TIME_SYNC_CYCLES    2 // should (must?) be an even number
 
 //uint32_t getNodeTime( void );
 
