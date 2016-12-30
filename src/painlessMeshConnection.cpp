@@ -113,9 +113,20 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
                 debugMsg(SYNC, "manageConnections(): %u nodeSyncStatus changed to NEEDED\n", staticThis->getNodeTime());
             }
         }
-        if (nodeTime - connection->lastTimeSync > TIME_SYNC_INTERVAL) {
-            debugMsg(SYNC, "manageConnections(): %u Sync needed due to interval timeout\n", nodeTime);
-            connection->timeSyncStatus == NEEDED;
+
+        // Start time sync periodically with a random delay 0,65 to 1.35 times TIME_SYNC_INTERVAL
+        if ((int32_t)nodeTime - (int32_t)connection->nextTimeSync > 0) {
+            if (connection->nextTimeSync != 0) { // Do not resync first time
+                debugMsg(SYNC, "manageConnections(): %u Sync needed due to interval timeout\n", nodeTime);
+                connection->timeSyncStatus = NEEDED;
+            }
+
+            // Add random delay to avoid collisions
+            float randomDelay = (float)(random(650, 1350)) / 1000;
+            connection->nextTimeSync = getNodeTime() + (TIME_SYNC_INTERVAL*randomDelay);
+
+            //debugMsg(DEBUG, "manageConnections(): Random delay = %f sec\n", (TIME_SYNC_INTERVAL*randomDelay) / 1000000);
+
         }
         connection++;
     }

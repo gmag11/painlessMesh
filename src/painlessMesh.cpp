@@ -49,6 +49,8 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     // shut everything down, start with a blank slate.
     debugMsg(STARTUP, "init():\n", wifi_station_set_auto_connect(0)); // Disable autoconnect
 
+    randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
+
     if (wifi_station_get_connect_status() != STATION_IDLE) { // Check if WiFi is idle
         debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", wifi_station_get_connect_status());
         wifi_station_disconnect();
