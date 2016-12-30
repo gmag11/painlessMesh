@@ -19,6 +19,8 @@ void painlessMesh::setDebugMsgTypes(uint16_t newTypes) {
     Serial.printf("\nsetDebugTypes 0x%x\n", types);
 }
 
+// To assign a debug message to several type use | (bitwise or) operator
+// Example: debugMsg( GENERAL | CONNECTION , "Debug message");
 void painlessMesh::debugMsg(debugType type, const char* format ...) {
 
     if (type & types) {  //Print only the message types set for output

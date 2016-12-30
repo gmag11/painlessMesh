@@ -49,8 +49,21 @@ enum meshPackageType {
 };
 
 
+typedef int debugType;
 
-enum debugType {
+#define ERROR 1
+#define STARTUP 1<<1
+#define MESH_STATUS 1<<2
+#define CONNECTION 1<<3
+#define SYNC 1<<4
+#define COMMUNICATION 1<<5
+#define GENERAL 1<<6
+#define MSG_TYPES 1<<7
+#define REMOTE 1<<8  // not yet implemented
+#define APPLICATION 1<<9
+#define DEBUG 1<<10
+
+/*enum debugType {
     ERROR = 0x0001,
     STARTUP = 0x0002,
     MESH_STATUS = 0x0004,
@@ -63,7 +76,7 @@ enum debugType {
     APPLICATION = 0x0200,
     DEBUG = 0x0400
     // add types if you like, room for a total of 16 types
-};
+};*/
 
 
 struct meshConnectionType {
