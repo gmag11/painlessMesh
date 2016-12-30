@@ -92,7 +92,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         if (connection->newConnection == true) {  // we should only get here once first nodeSync and timeSync are complete
             newConnectionCallback(adoptionCalc(connection));
             connection->newConnection = false;
-
+            debugMsg(SYNC, "connection->newConnection. True --> false\n");
             connection++;
             continue;
         }

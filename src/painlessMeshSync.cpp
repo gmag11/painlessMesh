@@ -73,7 +73,7 @@ bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &st
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR timeSync::calcAdjustment(bool odd) {
-    staticThis->debugMsg(SYNC, "calcAdjustment(): odd=%u\n", odd);
+    staticThis->debugMsg(DEBUG, "calcAdjustment(): odd=%u\n", odd);
 
     uint32_t    bestInterval = 0xFFFFFFFF; // Max 32 bit value
     uint8_t     bestIndex;
@@ -104,7 +104,6 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment(bool odd) {
 
         }
     }
-    staticThis->debugMsg(SYNC, "calcAdjustment(): best interval=%u, best index=%u\n", bestInterval, bestIndex);
     staticThis->debugMsg(DEBUG, "calcAdjustment(): best interval=%u, best index=%u\n", bestInterval, bestIndex);
     // find number that turns local time into remote time
     //uint32_t adopterTime = times[ bestIndex ] + (bestInterval / 2);
@@ -219,10 +218,11 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
 
     uint16_t mySubCount = connectionCount(conn);  //exclude this connection.
     uint16_t remoteSubCount = jsonSubConnCount(conn->subConnections);
+    bool ap = conn->esp_conn->proto.tcp->local_port == _meshPort;
 
     bool ret = (mySubCount > remoteSubCount) ? false : true;
 
-    debugMsg(GENERAL, "adoptionCalc(): mySubCount=%d remoteSubCount=%d ret = %d\n", mySubCount, remoteSubCount, ret ? "true" : "false");
+    debugMsg(GENERAL, "adoptionCalc(): mySubCount=%d remoteSubCount=%d role=%s adopt=%s\n", mySubCount, remoteSubCount, ap ? "AP" : "STA", ret ? "true" : "false");
 
     return ret;
 }
@@ -268,7 +268,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
     uint8_t odd = conn->time.num % 2; // 1 if num is odd, 0 if even
 
     if ((conn->time.num + odd) >= TIME_SYNC_CYCLES) {   // timeSync completed
-        staticThis->debugMsg(SYNC, "handleTimeSync(): timeSync completed. num = %d\n", conn->time.num);
+        debugMsg(SYNC, "handleTimeSync(): timeSync completed. num = %d\n", conn->time.num);
         if (conn->time.adopt) { // if I have to adopt
             conn->time.calcAdjustment(odd);
 
@@ -277,13 +277,15 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
             while (connection != _connections.end()) {
                 if (connection != conn) {  // exclude this connection
                     connection->timeSyncStatus = NEEDED;
-                    staticThis->debugMsg(SYNC, "handleTimeSync(): timeSyncStatus with %u changed to NEEDED\n", connection->nodeId);
+                    debugMsg(SYNC, "handleTimeSync(): timeSyncStatus with %u changed to NEEDED\n", connection->nodeId);
                 }
                 connection++;
             }
         }
         conn->lastTimeSync = getNodeTime();
         conn->timeSyncStatus = COMPLETE;
+        debugMsg(SYNC, "handleTimeSync(): timeSyncStatus changed to COMPLETE\n");
+        debugMsg(SYNC, "handleTimeSync(): ----------------------------------\n");
     }
 }
 
