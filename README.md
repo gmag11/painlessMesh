@@ -20,7 +20,9 @@ painlessMesh does not create a TCP/IP network of nodes. Rather each of the nodes
 
 ### Examples
 
-demoToy is currently the only example.  It is kind of complex, uses a web server, web sockets, and neopixel animations, so it is not really a great entry level example.  That said, it does some pretty cools stuff… here is a video of the demo.
+StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh.
+
+demoToy is kind of complex, uses a web server, web sockets, and neopixel animations, so it is not really a great entry level example.  That said, it does some pretty cools stuff… here is a video of the demo.
 
 https://www.youtube.com/watch?v=hqjOY8YHdlM&feature=youtu.be
 
@@ -103,10 +105,20 @@ returns true if everything works, false if not.  Prints an error message to Seri
 
 Returns the total number of nodes connected to this mesh.
 
-### uint32_t painlessMesh::getChipId( void )
+### uint32_t painlessMesh::getNodeId( void )
 
 Return the chipId of the node that we are running on.
 
 ### uint32_t painlessMesh::getNodeTime( void )
 
 Returns the mesh timebase microsecond counter.  Rolls over 71 minutes from startup of the first node.
+
+Nodes try to keep a common time base synchronizing to each other using this procedure:
+- On a new connection. STA initiates time synchronisation
+- It decides if it is the one that has to change time or is AP. It uses number of subconnections. Peer with the lower number of subconnections has to adopt other peer's time. In case of drawback AP wins.
+- A timestamp is sent by initiator, including time adoption flag for receiving peer.
+- The other party answer with its own generated timestamp
+- Offset is calculated as the difference between two timestamps
+- This is repeated periodically to keep clocks in sync
+
+Currently we are working to improve sync precission. In the future a NTP like algorithm is planned.
