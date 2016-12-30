@@ -273,7 +273,7 @@ uint16_t ICACHE_FLASH_ATTR painlessMesh::jsonSubConnCount(String& subConns) {
 void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     staticThis->debugMsg(CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
-    newConn.esp_conn = (espconn *) arg;
+    newConn.esp_conn = (espconn *)arg;
     espconn_set_opt(newConn.esp_conn, ESPCONN_NODELAY);  // removes nagle, low latency, but soaks up bandwidth
     newConn.lastReceived = staticThis->getNodeTime();
 
@@ -296,7 +296,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
-    meshConnectionType *receiveConn = staticThis->findConnection((espconn *) arg);
+    meshConnectionType *receiveConn = staticThis->findConnection((espconn *)arg);
 
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn->nodeId);
 
@@ -320,7 +320,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 
     String msg = root["msg"];
 
-    switch ((meshPackageType) (int) root["type"]) {
+    switch ((meshPackageType)(int)root["type"]) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
         staticThis->handleNodeSync(receiveConn, root);
@@ -331,22 +331,22 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         break;
 
     case SINGLE:
-        if ((uint32_t) root["dest"] == staticThis->getNodeId()) {  // msg for us!
-            receivedCallback((uint32_t) root["from"], msg);
+        if ((uint32_t)root["dest"] == staticThis->getNodeId()) {  // msg for us!
+            receivedCallback((uint32_t)root["from"], msg);
         } else {                                                    // pass it along
          //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
             String tempStr(data);
-            staticThis->sendPackage(staticThis->findConnection((uint32_t) root["dest"]), tempStr);
+            staticThis->sendPackage(staticThis->findConnection((uint32_t)root["dest"]), tempStr);
         }
         break;
 
     case BROADCAST:
-        staticThis->broadcastMessage((uint32_t) root["from"], BROADCAST, msg, receiveConn);
-        receivedCallback((uint32_t) root["from"], msg);
+        staticThis->broadcastMessage((uint32_t)root["from"], BROADCAST, msg, receiveConn);
+        receivedCallback((uint32_t)root["from"], msg);
         break;
 
     default:
-        staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int) root["type"]);
+        staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
         return;
     }
 
@@ -359,7 +359,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
     staticThis->debugMsg(GENERAL, "meshSentCb():\n");    //data sent successfully
-    espconn *conn = (espconn*) arg;
+    espconn *conn = (espconn*)arg;
     meshConnectionType *meshConnection = staticThis->findConnection(conn);
 
     if (meshConnection == NULL) {
@@ -370,7 +370,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
     if (!meshConnection->sendQueue.empty()) {
         String package = *meshConnection->sendQueue.begin();
         meshConnection->sendQueue.pop_front();
-        sint8 errCode = espconn_send(meshConnection->esp_conn, (uint8*) package.c_str(), package.length());
+        sint8 errCode = espconn_send(meshConnection->esp_conn, (uint8*)package.c_str(), package.length());
         //connection->sendReady = false;
 
         if (errCode != 0) {
@@ -382,7 +382,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
 }
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
-    struct espconn *disConn = (espconn *) arg;
+    struct espconn *disConn = (espconn *)arg;
 
     staticThis->debugMsg(CONNECTION, "meshDisconCb(): ");
 
@@ -408,7 +408,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, sint8 err) {
 void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
     switch (event->event) {
     case EVENT_STAMODE_CONNECTED:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_CONNECTED ssid=%s\n", (char*) event->event_info.connected.ssid);
+        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_CONNECTED ssid=%s\n", (char*)event->event_info.connected.ssid);
         break;
     case EVENT_STAMODE_DISCONNECTED:
         staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_DISCONNECTED\n");
