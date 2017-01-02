@@ -165,12 +165,12 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
 bool ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     staticThis->debugMsg(SYNC, "calcAdjustment()\n");
 
-    if (times[0] == 0 || times[1] || times[2] || times[3]) {
+    if (times[0] || times[1] || times[2] || times[3]) {
         staticThis->debugMsg(SYNC, "calcAdjustment(): TimeStamp error. \n");
         return false;
     }
 
-    // This calculation algorithm is got from NTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+    // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
     timeAdjuster += ((times[1] - times[0]) + (times[2] - times[3])) / 2;
 
     return true;
