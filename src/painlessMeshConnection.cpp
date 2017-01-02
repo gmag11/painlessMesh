@@ -298,6 +298,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
 void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnectionType *receiveConn = staticThis->findConnection((espconn *)arg);
 
+    uint32_t receivedAt = staticThis->getNodeTime();
+
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn->nodeId);
 
     if (receiveConn == NULL) {
@@ -327,7 +329,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         break;
 
     case TIME_SYNC:
-        staticThis->handleTimeSync(receiveConn, root);
+        staticThis->handleTimeSync(receiveConn, root, receivedAt);
         break;
 
     case SINGLE:
@@ -351,7 +353,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     }
 
     // record that we've gotten a valid package
-    receiveConn->lastReceived = staticThis->getNodeTime();
+    receiveConn->lastReceived = receivedAt;
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d\n", receiveConn->lastReceived, receiveConn->nodeId);
     return;
 }
