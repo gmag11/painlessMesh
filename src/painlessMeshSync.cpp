@@ -166,12 +166,18 @@ bool ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     staticThis->debugMsg(SYNC, "calcAdjustment()\n");
 
     if (times[0] || times[1] || times[2] || times[3]) {
-        staticThis->debugMsg(SYNC, "calcAdjustment(): TimeStamp error. \n");
+        // if any value is 0 
+        staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error. \n");
         return false;
     }
 
+    staticThis->debugMsg(SYNC, "calcAdjustment(): Start calculation. t0 = %d, t1 = %d, t2 = %d, t3 = %d\n", times[0], times[1], times[2], times[3]);
     // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
-    timeAdjuster += ((times[1] - times[0]) + (times[2] - times[3])) / 2;
+    uint32_t offset = ((times[1] - times[0]) + (times[2] - times[3])) / 2;
+    uint32_t tripDelay = (times[3] - times[0]) - (times[2] - times[1]);
+
+    timeAdjuster += offset;
+    staticThis->debugMsg(SYNC, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
 
     return true;
 }
@@ -397,7 +403,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
     } else if (timeSyncMessageType == TIME_RESPONSE) {
 
         conn->time.times[3] = receivedAt;
-        debugMsg(SYNC, "handleTimeSync(): TIME RESPONSE received. T0 = %d, T1 = %d, T2 = %d, T3 = %d\n", conn->time.times[0], conn->time.times[1], conn->time.times[2], conn->time.times[3]);
+        debugMsg(SYNC, "handleTimeSync(): TIME RESPONSE received.");
 
         conn->time.calcAdjustment();
 
