@@ -19,7 +19,7 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
 }
 
 //***********************************************************************
-String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(void) {
+/*String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(void) {
     staticThis->debugMsg(SYNC, "buildTimeStamp(): num=%d\n", num);
 
     if (num > TIME_SYNC_CYCLES)
@@ -38,6 +38,26 @@ String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(void) {
     timeStampObj.printTo(timeStampStr);
 
     staticThis->debugMsg(SYNC, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
+    return timeStampStr;
+}*/
+
+//***********************************************************************
+String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS, uint32_t receiveTS, uint32_t transmitTS) {
+    staticThis->debugMsg(SYNC, "buildTimeStamp(): Type = %d, t0 = %d, t1 = %d, t2 = %d\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
+    StaticJsonBuffer<75> jsonBuffer;
+    JsonObject& timeStampObj = jsonBuffer.createObject();
+    timeStampObj["type"] = timeSyncMessageType;
+    if (originateTS > 0)
+        timeStampObj["t0"] = originateTS;
+    if (receiveTS > 0)
+        timeStampObj["t1"] = receiveTS;
+    if (transmitTS > 0)
+        timeStampObj["t2"] = transmitTS;
+    
+    String timeStampStr;
+    timeStampObj.printTo(timeStampStr);
+    staticThis->debugMsg(SYNC, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
+
     return timeStampStr;
 }
 

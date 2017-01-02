@@ -22,7 +22,7 @@ public:
     int8_t          num = -1;
     bool            adopt;
 
-    String buildTimeStamp(void);
+    String buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
     bool processTimeStamp(int timeSyncStatus, String &str, bool ap);
     void calcAdjustment(bool even);
 };
