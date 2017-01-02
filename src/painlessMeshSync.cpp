@@ -104,7 +104,7 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
         return TIME_SYNC_ERROR;
     }
 
-    ret = timeStampObj.get<timeSyncMessageType_t>("type");
+    ret = static_cast<timeSyncMessageType_t>(timeStampObj.get<int>("type"));
     if (ret == TIME_REQUEST || ret == TIME_RESPONSE) {
         times[0]= timeStampObj.get<uint32_t>("t0");
     }
