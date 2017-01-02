@@ -62,7 +62,7 @@ String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSync
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &str, bool ap) {
+/*bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &str, bool ap) {
     staticThis->debugMsg(SYNC, "processTimeStamp(): str=%s\n", str.c_str());
 
     DynamicJsonBuffer jsonBuffer(50);
@@ -89,6 +89,31 @@ bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &st
         staticThis->debugMsg(SYNC, "processTimeStamp(): Message collision. Discarded\n");
         return false;
     }
+}*/
+
+//***********************************************************************
+timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) {
+    timeSyncMessageType_t ret = TIME_SYNC_ERROR;
+
+    staticThis->debugMsg(SYNC, "processTimeStamp(): str=%s\n", str.c_str());
+
+    DynamicJsonBuffer jsonBuffer(75);
+    JsonObject& timeStampObj = jsonBuffer.parseObject(str);
+    if (!timeStampObj.success()) {
+        staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
+        return TIME_SYNC_ERROR;
+    }
+
+    ret = timeStampObj.get<timeSyncMessageType_t>("type");
+    if (ret == TIME_REQUEST || ret == TIME_RESPONSE) {
+        times[0]= timeStampObj.get<uint32_t>("t0");
+    }
+    if (ret == TIME_RESPONSE) {
+        times[1] = timeStampObj.get<uint32_t>("t1");
+        times[2] = timeStampObj.get<uint32_t>("t2");
+    }
+    return ret;
+
 }
 
 //***********************************************************************
@@ -236,6 +261,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boolean checkAdopt) {
     boolean adopt = true;
     String timeStamp;
+
+    //conn->time.adopt = true;
 
     debugMsg(SYNC, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
     debugMsg(SYNC, "startTimeSync(): timeSyncStatus changed to IN_PROGRESS\n", conn->nodeId);
