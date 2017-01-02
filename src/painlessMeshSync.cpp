@@ -194,7 +194,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn) {
+/*void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn) {
     debugMsg(SYNC, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
     debugMsg(SYNC, "startTimeSync(): timeSyncStatus changed to IN_PROGRESS\n", conn->nodeId);
     conn->timeSyncStatus = IN_PROGRESS;
@@ -210,6 +210,26 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn) {
 
     String timeStamp = conn->time.buildTimeStamp();
     staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
+}*/
+
+//***********************************************************************
+void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boolean checkAdopt) {
+    boolean adopt = true;
+    String timeStamp;
+
+    debugMsg(SYNC, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
+    debugMsg(SYNC, "startTimeSync(): timeSyncStatus changed to IN_PROGRESS\n", conn->nodeId);
+    conn->timeSyncStatus = IN_PROGRESS;
+
+    if (checkAdopt){
+        adopt = adoptionCalc(conn);
+    }
+    if (adopt) {
+        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());
+    } else {
+        timeStamp = conn->time.buildTimeStamp(TIME_SYNC_REQUEST);
+    }
+    sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
 }
 
 //***********************************************************************

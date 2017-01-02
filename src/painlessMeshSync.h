@@ -8,6 +8,12 @@
 #define TIME_SYNC_INTERVAL  60000000
 #define TIME_SYNC_CYCLES    2 // should (must?) be an even number
 
+enum timeSyncMessageType_t {
+    TIME_SYNC_REQUEST,
+    TIME_REQUEST,
+    TIME_RESPONSE
+};
+
 //uint32_t getNodeTime( void );
 
 class timeSync {

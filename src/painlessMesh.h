@@ -148,7 +148,7 @@ protected:
     //must be accessable from callback
     void                startNodeSync(meshConnectionType *conn);
     void                handleNodeSync(meshConnectionType *conn, JsonObject& root);
-    void                startTimeSync(meshConnectionType *conn);
+    void                startTimeSync(meshConnectionType *conn, boolean checkAdopt = true);
     void                handleTimeSync(meshConnectionType *conn, JsonObject& root);
     bool                adoptionCalc(meshConnectionType *conn);
 
