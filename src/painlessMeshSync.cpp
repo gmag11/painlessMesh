@@ -117,7 +117,7 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR timeSync::calcAdjustment(bool odd) {
+/*void ICACHE_FLASH_ATTR timeSync::calcAdjustment(bool odd) {
     staticThis->debugMsg(DEBUG, "calcAdjustment(): odd=%u\n", odd);
 
     uint32_t    bestInterval = 0xFFFFFFFF; // Max 32 bit value
@@ -159,6 +159,21 @@ void ICACHE_FLASH_ATTR timeSync::calcAdjustment(bool odd) {
     //staticThis->debugMsg( SYNC, "new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
     staticThis->debugMsg(DEBUG, "calcAdjustment(): new time=%u\n", staticThis->getNodeTime());
 
+}*/
+
+//***********************************************************************
+bool ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
+    staticThis->debugMsg(SYNC, "calcAdjustment()\n");
+
+    if (times[0] == 0 || times[1] || times[2] || times[3]) {
+        staticThis->debugMsg(SYNC, "calcAdjustment(): TimeStamp error. \n");
+        return false;
+    }
+
+    // This calculation algorithm is got from NTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+    timeAdjuster += ((times[1] - times[0]) + (times[2] - times[3])) / 2;
+
+    return true;
 }
 
 

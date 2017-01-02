@@ -25,8 +25,8 @@ public:
     //bool            adopt;
 
     String buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
-    void calcAdjustment(bool even);
     timeSyncMessageType_t processTimeStamp(String &str);
+    bool calcAdjustment();
 };
 
 #endif //   _MESH_SYNC_H_
