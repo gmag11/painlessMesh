@@ -289,8 +289,8 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
 //*    values.
 //* - This value will be added to timeAdjuster variable, that is added to
 //*    local system clock every time meshClock is asked.
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root) {
+/*//***********************************************************************
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
 
     String timeStamp = root["msg"];
     debugMsg(SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str());
@@ -327,6 +327,55 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
         debugMsg(SYNC, "handleTimeSync(): timeSyncStatus changed to COMPLETE\n");
         debugMsg(SYNC, "handleTimeSync(): ----------------------------------\n");
     }
+}*/
+
+//***********************************************************************
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
+    String timeStamp = root["msg"];
+    debugMsg(SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str());
+    debugMsg(SYNC, "handleTimeSync(): ip_local: %d.%d.%d.%d, puerto local = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
+    debugMsg(SYNC, "handleTimeSync(): ip_remota: %d.%d.%d.%d, puerto remoto = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
+
+    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp);
+
+    if (timeSyncMessageType == TIME_SYNC_REQUEST) {
+        debugMsg(SYNC, "handleTimeSync(): startTimeSync\n");
+        startTimeSync(conn, false);
+
+    } else if (timeSyncMessageType == TIME_REQUEST) {
+
+        conn->timeSyncStatus == IN_PROGRESS;
+        String timeStamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime());
+        debugMsg(SYNC, "handleTimeSync(): TIME REQUEST received. T0 = %d\n", conn->time.times[0]);
+        staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
+        debugMsg(SYNC, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", conn->nodeId);
+        conn->timeSyncStatus == COMPLETE;
+
+
+    } else if (timeSyncMessageType == TIME_RESPONSE) {
+
+        conn->time.times[3] = receivedAt;
+        debugMsg(SYNC, "handleTimeSync(): TIME RESPONSE received. T0 = %d, T1 = %d, T2 = %d, T3 = %d\n", conn->time.times[0], conn->time.times[1], conn->time.times[2], conn->time.times[3]);
+
+        conn->time.calcAdjustment();
+
+        // flag all connections for re-timeSync
+        SimpleList<meshConnectionType>::iterator connection = _connections.begin();
+        while (connection != _connections.end()) {
+            if (connection != conn) {  // exclude this connection
+                connection->timeSyncStatus = NEEDED;
+                debugMsg(SYNC, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED\n", connection->nodeId);
+            }
+            connection++;
+        }
+
+        conn->timeSyncStatus = COMPLETE;
+        conn->lastTimeSync = getNodeTime();
+
+    }
+
+    debugMsg(SYNC, "handleTimeSync(): ----------------------------------\n");
+
 }
 
 

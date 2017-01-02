@@ -149,7 +149,7 @@ protected:
     void                startNodeSync(meshConnectionType *conn);
     void                handleNodeSync(meshConnectionType *conn, JsonObject& root);
     void                startTimeSync(meshConnectionType *conn, boolean checkAdopt = true);
-    void                handleTimeSync(meshConnectionType *conn, JsonObject& root);
+    void                handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt);
     bool                adoptionCalc(meshConnectionType *conn);
 
     // in painlessMeshConnection.cpp
