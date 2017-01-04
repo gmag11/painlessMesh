@@ -43,10 +43,10 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
 
 //***********************************************************************
 String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS, uint32_t receiveTS, uint32_t transmitTS) {
-    staticThis->debugMsg(S_TIME, "buildTimeStamp(): Type = %d, t0 = %d, t1 = %d, t2 = %d\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
+    staticThis->debugMsg(S_TIME, "buildTimeStamp(): Type = %u, t0 = %u, t1 = %u, t2 = %u\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
     StaticJsonBuffer<75> jsonBuffer;
     JsonObject& timeStampObj = jsonBuffer.createObject();
-    timeStampObj["type"] = timeSyncMessageType;
+    timeStampObj["type"] = (int)timeSyncMessageType;
     if (originateTS > 0)
         timeStampObj["t0"] = originateTS;
     if (receiveTS > 0)
@@ -163,21 +163,22 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
-    staticThis->debugMsg(S_TIME, "calcAdjustment()\n");
+    staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
 
-    if (times[0] || times[1] || times[2] || times[3]) {
+    if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
         // if any value is 0 
         staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error. \n");
         return false;
     }
 
-    staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %d, t1 = %d, t2 = %d, t3 = %d\n", times[0], times[1], times[2], times[3]);
+   
     // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
-    uint32_t offset = ((times[1] - times[0]) + (times[2] - times[3])) / 2;
-    uint32_t tripDelay = (times[3] - times[0]) - (times[2] - times[1]);
+    int32_t offset = (int32_t)((times[1] - times[0]) + (times[2] - times[3])) / 2;
+    int32_t tripDelay = (int32_t)(times[3] - times[0]) - (times[2] - times[1]);
 
     timeAdjuster += offset;
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
+    staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
 
     return true;
 }
@@ -311,7 +312,10 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
     uint16_t remoteSubCount = jsonSubConnCount(conn->subConnections);
     bool ap = conn->esp_conn->proto.tcp->local_port == _meshPort;
 
+    // ToDo. Simplify this logic
     bool ret = (mySubCount > remoteSubCount) ? false : true;
+    if (mySubCount == remoteSubCount && ap)
+        ret = false;
 
     debugMsg(S_TIME, "adoptionCalc(): mySubCount=%d remoteSubCount=%d role=%s adopt=%s\n", mySubCount, remoteSubCount, ap ? "AP" : "STA", ret ? "true" : "false");
 
@@ -390,8 +394,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
     timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp);
 
     if (timeSyncMessageType == TIME_SYNC_REQUEST) {
-        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync\n");
-        startTimeSync(conn, false);
+        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync. Status = %d\n",conn->timeSyncStatus);
+        if (conn->timeSyncStatus != IN_PROGRESS) {
+            startTimeSync(conn, false);
+        }
 
     } else if (timeSyncMessageType == TIME_REQUEST) {
 
@@ -421,6 +427,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
             connection++;
         }
 
+        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", connection->nodeId);
         conn->timeSyncStatus = COMPLETE;
         conn->lastTimeSync = getNodeTime();
 
