@@ -388,8 +388,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
     String timeStamp = root["msg"];
     debugMsg(S_TIME, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str());
-    debugMsg(S_TIME, "handleTimeSync(): ip_local: %d.%d.%d.%d, puerto local = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
-    debugMsg(S_TIME, "handleTimeSync(): ip_remota: %d.%d.%d.%d, puerto remoto = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
+    debugMsg(S_TIME, "handleTimeSync(): local ip: %d.%d.%d.%d, local port = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
+    debugMsg(S_TIME, "handleTimeSync(): remote ip: %d.%d.%d.%d, remote port = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
 
     timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp);
 
