@@ -56,12 +56,13 @@ typedef int debugType;
 #define MESH_STATUS 1<<2
 #define CONNECTION 1<<3
 #define SYNC 1<<4
-#define COMMUNICATION 1<<5
-#define GENERAL 1<<6
-#define MSG_TYPES 1<<7
-#define REMOTE 1<<8  // not yet implemented
-#define APPLICATION 1<<9
-#define DEBUG 1<<10
+#define S_TIME 1<<5
+#define COMMUNICATION 1<<6
+#define GENERAL 1<<7
+#define MSG_TYPES 1<<8
+#define REMOTE 1<<9  // not yet implemented
+#define APPLICATION 1<<10
+#define DEBUG 1<<11
 
 /*enum debugType {
     ERROR = 0x0001,
