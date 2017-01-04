@@ -54,10 +54,12 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while (connection != _connections.end()) {
-        nowNodeTime = getNodeTime();
+        //nowNodeTime = getNodeTime();
+        nowNodeTime = system_get_time();
         connLastRecieved = connection->lastReceived;
+        
         if (nowNodeTime - connLastRecieved > nodeTimeOut) {
-            debugMsg(CONNECTION, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
+            debugMsg(CONNECTION | DEBUG, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
             connection = closeConnection(connection);
             continue;
         }
@@ -70,7 +72,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 
         switch (connection->nodeSyncStatus) {
         case NEEDED:           // start a nodeSync
-            debugMsg(SYNC, "manageConnections(): start nodeSync with %d\n", connection->nodeId);
+            debugMsg(SYNC | DEBUG, "manageConnections(): start nodeSync with %d\n", connection->nodeId);
             startNodeSync(connection);
             connection->nodeSyncStatus = IN_PROGRESS;
 
@@ -271,11 +273,12 @@ uint16_t ICACHE_FLASH_ATTR painlessMesh::jsonSubConnCount(String& subConns) {
 // If we are the station party a node time sync is started
 
 void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
-    staticThis->debugMsg(CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
+    staticThis->debugMsg(CONNECTION | DEBUG, "meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
     espconn_set_opt(newConn.esp_conn, ESPCONN_NODELAY);  // removes nagle, low latency, but soaks up bandwidth
-    newConn.lastReceived = staticThis->getNodeTime();
+    //newConn.lastReceived = staticThis->getNodeTime();
+    newConn.lastReceived = system_get_time();
 
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
     espconn_regist_sentcb(newConn.esp_conn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
@@ -321,8 +324,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     staticThis->debugMsg(GENERAL, "meshRecvCb(): Recvd from %d-->%s<--\n", receiveConn->nodeId, data);
 
     String msg = root["msg"];
+    meshPackageType t_message = (meshPackageType)(int)root["type"];
 
-    switch ((meshPackageType)(int)root["type"]) {
+    switch (t_message) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
         staticThis->handleNodeSync(receiveConn, root);
@@ -353,8 +357,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     }
 
     // record that we've gotten a valid package
-    receiveConn->lastReceived = receivedAt;
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d\n", receiveConn->lastReceived, receiveConn->nodeId);
+    //receiveConn->lastReceived = receivedAt;
+    receiveConn->lastReceived = system_get_time();
+    staticThis->debugMsg(COMMUNICATION | DEBUG, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", receiveConn->lastReceived, receiveConn->nodeId, t_message);
     return;
 }
 
@@ -386,7 +391,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
 void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
     struct espconn *disConn = (espconn *)arg;
 
-    staticThis->debugMsg(CONNECTION, "meshDisconCb(): ");
+    staticThis->debugMsg(CONNECTION | DEBUG, "meshDisconCb(): ");
 
     //test to see if this connection was on the STATION interface by checking the local port
     if (disConn->proto.tcp->local_port == staticThis->_meshPort) {

@@ -198,7 +198,7 @@ void ICACHE_FLASH_ATTR painlessMesh::startNodeSync(meshConnectionType *conn) {
 void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, JsonObject& root) {
     debugMsg(SYNC, "handleNodeSync(): with %d\n", conn->nodeId);
 
-    meshPackageType type = (meshPackageType) (int) root["type"];
+    meshPackageType message_type = (meshPackageType) (int) root["type"];
     uint32_t        remoteNodeId = (uint32_t) root["from"];
     uint32_t        destId = (uint32_t) root["dest"];
     bool            reSyncAllSubConnections = false;
@@ -223,8 +223,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
         reSyncAllSubConnections = true;
         conn->subConnections = inComingSubs;
     }
+    String tempstr;
+    root.printTo(tempstr);
+    debugMsg(SYNC | DEBUG, "handleNodeSync(): json = %s\n", tempstr.c_str());
 
-    switch (type) {
+    switch (message_type) {
     case NODE_SYNC_REQUEST:
     {
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->nodeId);
@@ -243,7 +246,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
         }
         break;
     default:
-        debugMsg(ERROR, "handleNodeSync(): weird type? %d\n", type);
+        debugMsg(ERROR, "handleNodeSync(): weird type? %d\n", message_type);
     }
 
     if (reSyncAllSubConnections == true) {
