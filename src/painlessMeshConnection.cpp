@@ -83,10 +83,16 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 
         switch (connection->timeSyncStatus) {
         case NEEDED:
-            debugMsg(SYNC, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
+            //debugMsg(S_TIME, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
             startTimeSync(connection);
 
         case IN_PROGRESS:
+            if (system_get_time() - connection->timeSyncLastRequested > TIME_RESPONSE_TIMEOUT) {
+                connection->timeSyncStatus = COMPLETE;
+                debugMsg(ERROR, "manageConnections(): timeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
+            //} else {
+                //debugMsg(S_TIME | DEBUG, "manageConnections(): timeSync IN_PROGRESS\n", connection->nodeId);
+            }
             connection++;
             continue;
         }
