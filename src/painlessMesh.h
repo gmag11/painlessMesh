@@ -114,7 +114,7 @@ public:
 
     // in painlessMesh.cpp
 //    void                init( void );
-    void                init(String ssid, String password, uint16_t port, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+    void                init(String ssid, String password, uint16_t port = 5555, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
