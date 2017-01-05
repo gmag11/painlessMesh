@@ -40,6 +40,7 @@ String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSync
 
 //***********************************************************************
 timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) {
+    // Extracts and fills timestamp values from json
     timeSyncMessageType_t ret = TIME_SYNC_ERROR;
 
     staticThis->debugMsg(S_TIME, "processTimeStamp(): str=%s\n", str.c_str());
@@ -59,7 +60,7 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
         times[1] = timeStampObj.get<uint32_t>("t1");
         times[2] = timeStampObj.get<uint32_t>("t2");
     }
-    return ret;
+    return ret; // return type of sync message
 
 }
 
@@ -73,12 +74,12 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
         return 0x7FFFFFFF; // return max value
     }
 
-   
-    // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
-    int32_t offset = (int32_t)((times[1] - times[0]) + (times[2] - times[3])) / 2;
-    int32_t tripDelay = (int32_t)(times[3] - times[0]) - (times[2] - times[1]);
 
-    timeAdjuster += offset;
+    // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+    int32_t offset = (int32_t)((times[1] - times[0]) + (times[2] - times[3])) / 2; // Must be signed because offset can be negative
+    int32_t tripDelay = (int32_t)(times[3] - times[0]) - (times[2] - times[1]); // Can be unsigned, but such a long delay is not possible
+
+    timeAdjuster += offset; // Accumulate offset
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
     staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
 
@@ -167,7 +168,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boolean checkAdopt) {
-    boolean adopt = true;
+    boolean adopt = true; // default, adopt time
     String timeStamp;
 
     debugMsg(S_TIME, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
@@ -178,9 +179,9 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boo
         adopt = adoptionCalc(conn);
     }
     if (adopt) {
-        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());
+        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
     } else {
-        timeStamp = conn->time.buildTimeStamp(TIME_SYNC_REQUEST);
+        timeStamp = conn->time.buildTimeStamp(TIME_SYNC_REQUEST); // Tell other party to ask me the time
     }
     sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
 }
@@ -195,8 +196,9 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
 
     // ToDo. Simplify this logic
     bool ret = (mySubCount > remoteSubCount) ? false : true;
-    if (mySubCount == remoteSubCount && ap)
+    if (mySubCount == remoteSubCount && ap) { // in case of withdraw, ap wins
         ret = false;
+    }
 
     debugMsg(S_TIME, "adoptionCalc(): mySubCount=%d remoteSubCount=%d role=%s adopt=%s\n", mySubCount, remoteSubCount, ap ? "AP" : "STA", ret ? "true" : "false");
 
@@ -210,29 +212,33 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
     debugMsg(S_TIME, "handleTimeSync(): local ip: %d.%d.%d.%d, local port = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
     debugMsg(S_TIME, "handleTimeSync(): remote ip: %d.%d.%d.%d, remote port = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
 
-    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp);
+    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp); // Extract timestamps and get type of message
 
-    if (timeSyncMessageType == TIME_SYNC_REQUEST) {
-        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync. Status = %d\n",conn->timeSyncStatus);
+    if (timeSyncMessageType == TIME_SYNC_REQUEST) { // Other party request me to ask it for time
+        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync. Status = %d\n", conn->timeSyncStatus);
         if (conn->timeSyncStatus != IN_PROGRESS) {
-            startTimeSync(conn, false);
+            startTimeSync(conn, false); // Start time sync only if I was not syncing yet
         }
 
     } else if (timeSyncMessageType == TIME_REQUEST) {
 
         conn->timeSyncStatus == IN_PROGRESS;
         debugMsg(S_TIME, "handleTimeSync(): TIME REQUEST received. T0 = %d\n", conn->time.times[0]);
-        String timeStamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime());
+
+        // Build time response
+        String timeStamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime()); 
         staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
 
         debugMsg(S_TIME, "handleTimeSync(): Response sent %s\n", timeStamp.c_str());
         debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", conn->nodeId);
+        
+        // After response is sent I assume sync is completed
         conn->timeSyncStatus == COMPLETE;
 
 
     } else if (timeSyncMessageType == TIME_RESPONSE) {
 
-        conn->time.times[3] = receivedAt;
+        conn->time.times[3] = receivedAt; // Calculate fourth timestamp (response received time)
         debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE received.");
 
         int offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset

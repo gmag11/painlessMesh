@@ -3,10 +3,10 @@
 
 #include <Arduino.h>
 
-#define SCAN_INTERVAL       10000
-#define SYNC_INTERVAL       7000
-#define TIME_SYNC_INTERVAL  60000000
-#define NUMBER_OF_TIMESTAMS 4
+#define SCAN_INTERVAL       10000 // AP scan period in ms
+//#define SYNC_INTERVAL       7000    // not used
+#define TIME_SYNC_INTERVAL  60000000  // Time resync period, in us
+#define NUMBER_OF_TIMESTAMS 4   // 4 timestamps are needed for time offset calculation
 #define MIN_ACCURACY        10000 // Minimum time sync accuracy
 
 enum timeSyncMessageType_t {
@@ -18,7 +18,7 @@ enum timeSyncMessageType_t {
 
 class timeSync {
 public:
-    uint32_t        times[NUMBER_OF_TIMESTAMS];
+    uint32_t        times[NUMBER_OF_TIMESTAMS]; // timestamp array
 
     String buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
     timeSyncMessageType_t processTimeStamp(String &str);
