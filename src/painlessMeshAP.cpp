@@ -22,7 +22,7 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     //    String password( MESH_PASSWORD );
 
     ip_addr ip, netmask;
-    IP4_ADDR(&ip, 192, 169, (_nodeId & 0xFF), 1);
+    IP4_ADDR(&ip, 10, (_nodeId & 0xFF00) >> 8, (_nodeId & 0xFF), 1);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
 
     ip_info ipInfo;
