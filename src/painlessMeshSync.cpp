@@ -226,7 +226,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
     }
     String tempstr;
     root.printTo(tempstr);
-    debugMsg(SYNC | DEBUG, "handleNodeSync(): json = %s\n", tempstr.c_str());
+    debugMsg(SYNC, "handleNodeSync(): json = %s\n", tempstr.c_str());
 
     switch (message_type) {
     case NODE_SYNC_REQUEST:

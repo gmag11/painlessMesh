@@ -59,7 +59,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         connLastRecieved = connection->lastReceived;
         
         if (nowNodeTime - connLastRecieved > nodeTimeOut) {
-            debugMsg(CONNECTION | DEBUG, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
+            debugMsg(CONNECTION, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
             connection = closeConnection(connection);
             continue;
         }
@@ -72,7 +72,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 
         switch (connection->nodeSyncStatus) {
         case NEEDED:           // start a nodeSync
-            debugMsg(SYNC | DEBUG, "manageConnections(): start nodeSync with %d\n", connection->nodeId);
+            debugMsg(SYNC, "manageConnections(): start nodeSync with %d\n", connection->nodeId);
             startNodeSync(connection);
             connection->nodeSyncStatus = IN_PROGRESS;
 
@@ -273,7 +273,7 @@ uint16_t ICACHE_FLASH_ATTR painlessMesh::jsonSubConnCount(String& subConns) {
 // If we are the station party a node time sync is started
 
 void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
-    staticThis->debugMsg(CONNECTION | DEBUG, "meshConnectedCb(): new meshConnection !!!\n");
+    staticThis->debugMsg(CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
     espconn_set_opt(newConn.esp_conn, ESPCONN_NODELAY);  // removes nagle, low latency, but soaks up bandwidth
@@ -359,7 +359,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     // record that we've gotten a valid package
     //receiveConn->lastReceived = receivedAt;
     receiveConn->lastReceived = system_get_time();
-    staticThis->debugMsg(COMMUNICATION | DEBUG, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", receiveConn->lastReceived, receiveConn->nodeId, t_message);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", receiveConn->lastReceived, receiveConn->nodeId, t_message);
     return;
 }
 
@@ -391,7 +391,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
 void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
     struct espconn *disConn = (espconn *)arg;
 
-    staticThis->debugMsg(CONNECTION | DEBUG, "meshDisconCb(): ");
+    staticThis->debugMsg(CONNECTION, "meshDisconCb(): ");
 
     //test to see if this connection was on the STATION interface by checking the local port
     if (disConn->proto.tcp->local_port == staticThis->_meshPort) {
