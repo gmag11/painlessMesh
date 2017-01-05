@@ -218,6 +218,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
         debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync. Status = %d\n", conn->timeSyncStatus);
         if (conn->timeSyncStatus != IN_PROGRESS) {
             startTimeSync(conn, false); // Start time sync only if I was not syncing yet
+        } else {
+            debugMsg(S_TIME, "handleTimeSync(): Already syncing. Request ignored\n");
         }
 
     } else if (timeSyncMessageType == TIME_REQUEST) {
