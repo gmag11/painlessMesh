@@ -162,13 +162,13 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
 }*/
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
+int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
 
     if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
         // if any value is 0 
         staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error. \n");
-        return false;
+        return 0x7FFFFFFF; // return max value
     }
 
    
@@ -180,7 +180,7 @@ bool ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
     staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
 
-    return true;
+    return offset; // return offset to decide if sync is OK
 }
 
 
@@ -415,7 +415,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
         conn->time.times[3] = receivedAt;
         debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE received.");
 
-        conn->time.calcAdjustment();
+        int offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset
 
         // flag all connections for re-timeSync
         SimpleList<meshConnectionType>::iterator connection = _connections.begin();
@@ -427,8 +427,16 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
             connection++;
         }
 
-        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", connection->nodeId);
-        conn->timeSyncStatus = COMPLETE;
+        if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
+            // mark complete only if offset was less than 10 ms
+            conn->timeSyncStatus = COMPLETE; 
+            debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", connection->nodeId);
+        } else {
+            // Iterate sync procedure if accuracy was not enough
+            conn->timeSyncStatus = NEEDED;
+            debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED\n", connection->nodeId);
+
+        }
         conn->lastTimeSync = getNodeTime();
 
     }
