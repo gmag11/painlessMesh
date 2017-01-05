@@ -92,9 +92,9 @@ struct meshConnectionType {
     uint32_t            nodeSyncRequest = 0;
 
     syncStatusType      timeSyncStatus = NEEDED;
-    uint32_t            timeSyncLastRequested = 0;
-    uint32_t            lastTimeSync = 0;
-    uint32_t            nextTimeSync = 0;
+    uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
+    uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
+    uint32_t            nextTimeSync = 0; // 
     //    bool                needsNodeSync = true;
     //    bool                needsTimeSync = false;
 

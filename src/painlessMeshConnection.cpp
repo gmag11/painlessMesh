@@ -88,6 +88,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 
         case IN_PROGRESS:
             if (system_get_time() - connection->timeSyncLastRequested > TIME_RESPONSE_TIMEOUT) {
+                // A time sync response did not arrive within maximum time out.
                 connection->timeSyncStatus = COMPLETE;
                 debugMsg(ERROR, "manageConnections(): timeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
             //} else {
