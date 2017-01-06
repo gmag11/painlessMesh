@@ -77,14 +77,12 @@ struct meshConnectionType {
     bool                newConnection = true;
 
     syncStatusType      nodeSyncStatus = NEEDED;
-    uint32_t            nodeSyncRequest = 0;
+    uint32_t            nodeSyncLastRequested = 0;
 
     syncStatusType      timeSyncStatus = NEEDED;
     uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
     uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
     uint32_t            nextTimeSync = 0; // 
-    //    bool                needsNodeSync = true;
-    //    bool                needsTimeSync = false;
 
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
@@ -117,12 +115,6 @@ public:
     uint32_t            getNodeTime(void);
 
 protected:
-    // should be prototected, but public for debugging
-    scanStatusType                  _scanStatus = IDLE; // STA scanning status
-    nodeStatusType                  _nodeStatus = INITIALIZING;
-    SimpleList<bss_info>            _meshAPs;
-    SimpleList<meshConnectionType>  _connections;
-
     // in painlessMeshComm.cpp
     //must be accessable from callback
     bool                sendMessage(meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg);
@@ -145,7 +137,7 @@ protected:
     void                manageConnections(void);
     meshConnectionType* findConnection(uint32_t nodeId);
     meshConnectionType* findConnection(espconn *conn);
-    void                cleanDeadConnections(void);
+    void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
     bool                connectToBestAP(void);
     uint16_t            jsonSubConnCount(String& subConns);
@@ -156,7 +148,7 @@ protected:
     static void         stationScanCb(void *arg, STATUS status);
     static void         scanTimerCallback(void *arg);
     void                stationInit(void);
-    bool                stationConnect(void);
+    bool                stationConnect(void); // Not implemented. Needed?
     void                startStationScan(void);
     uint32_t            encodeNodeId(uint8_t *hwaddr);
 
@@ -183,6 +175,11 @@ protected:
     _auth_mode  _meshAuthMode;
     uint8_t	_meshHidden;
     uint8_t	_meshMaxConn;
+
+    scanStatusType                  _scanStatus = IDLE; // STA scanning status
+    nodeStatusType                  _nodeStatus = INITIALIZING;
+    SimpleList<bss_info>            _meshAPs;
+    SimpleList<meshConnectionType>  _connections;
 
     os_timer_t  _scanTimer;
 
