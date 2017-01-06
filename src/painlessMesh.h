@@ -1,6 +1,11 @@
 #ifndef   _EASY_MESH_H_
 #define   _EASY_MESH_H_
 
+#ifndef ESP8266
+#error Only ESP8266 platform is allowed
+#endif // !ESP8266
+
+
 #include <Arduino.h>
 #include <SimpleList.h>
 #include <ArduinoJson.h>
@@ -47,7 +52,6 @@ enum meshPackageType {
     BROADCAST = 8,  //application data for everyone
     SINGLE = 9   //application data for a single node
 };
-
 
 typedef int debugType;
 
