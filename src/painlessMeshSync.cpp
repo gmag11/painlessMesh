@@ -142,7 +142,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
     }
     case NODE_SYNC_REPLY:
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->nodeId);
-        conn->nodeSyncLastRequested = 0;  //reset nodeSyncLastRequested Timer  ????
+        conn->nodeSyncLastRequested = 0;  //reset nodeSyncLastRequested Timer
         if (conn->lastTimeSync == 0) {
             debugMsg(SYNC, "handleNodeSync(): timeSyncStatus changed to NEEDED\n");
             //startTimeSync(conn);
