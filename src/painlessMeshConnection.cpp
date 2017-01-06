@@ -77,7 +77,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
             //connection->nodeSyncStatus = IN_PROGRESS; // Not needed, already done in startNodeSync()
 
         case IN_PROGRESS:
-            if (system_get_time() - connection->nodeSyncLastRequested > TIME_RESPONSE_TIMEOUT) {
+            if (system_get_time() - connection->nodeSyncLastRequested > SYNC_RESPONSE_TIMEOUT) {
                 // A time sync response did not arrive within maximum time out.
                 connection->nodeSyncStatus = COMPLETE;
                 debugMsg(ERROR, "manageConnections(): nodeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
@@ -94,7 +94,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
             startTimeSync(connection);
 
         case IN_PROGRESS:
-            if (system_get_time() - connection->timeSyncLastRequested > TIME_RESPONSE_TIMEOUT) {
+            if (system_get_time() - connection->timeSyncLastRequested > SYNC_RESPONSE_TIMEOUT) {
                 // A time sync response did not arrive within maximum time out.
                 connection->timeSyncStatus = COMPLETE;
                 debugMsg(ERROR, "manageConnections(): timeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
