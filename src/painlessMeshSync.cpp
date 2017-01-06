@@ -94,7 +94,8 @@ void ICACHE_FLASH_ATTR painlessMesh::startNodeSync(meshConnectionType *conn) {
     debugMsg(SYNC, "startNodeSync(): with %d\n", conn->nodeId);
     String subs = subConnectionJson(conn);
     sendMessage(conn, conn->nodeId, NODE_SYNC_REQUEST, subs);
-    conn->nodeSyncRequest = getNodeTime();
+    //conn->nodeSyncRequest = getNodeTime();
+    conn->nodeSyncRequest = system_get_time();
     conn->nodeSyncStatus = IN_PROGRESS;
 }
 
