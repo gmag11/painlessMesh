@@ -19,7 +19,7 @@ extern "C" {
 
 //#define MESH_SSID           "mesh"
 //#define MESH_PASSWORD       "bootyboo"
-//#define MESH_PORT           4444
+#define MESH_PORT           5555
 #define NODE_TIMEOUT        6000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
@@ -68,22 +68,6 @@ typedef int debugType;
 #define APPLICATION 1<<10
 #define DEBUG 1<<11
 
-/*enum debugType {
-    ERROR = 0x0001,
-    STARTUP = 0x0002,
-    MESH_STATUS = 0x0004,
-    CONNECTION = 0x0008,
-    SYNC = 0x0010,
-    COMMUNICATION = 0x0020,
-    GENERAL = 0x0040,
-    MSG_TYPES = 0x0080,
-    REMOTE = 0x0100,  // not yet implemented
-    APPLICATION = 0x0200,
-    DEBUG = 0x0400
-    // add types if you like, room for a total of 16 types
-};*/
-
-
 struct meshConnectionType {
     espconn             *esp_conn;
     uint32_t            nodeId = 0;
@@ -118,7 +102,7 @@ public:
 
     // in painlessMesh.cpp
 //    void                init( void );
-    void                init(String ssid, String password, uint16_t port = 5555, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+    void                init(String ssid, String password, uint16_t port = MESH_PORT, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
@@ -127,18 +111,17 @@ public:
     void                setReceiveCallback(void(*onReceive)(uint32_t from, String &msg));
     void                setNewConnectionCallback(void(*onNewConnection)(bool adopt));
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
+    String              subConnectionJson(meshConnectionType *exclude = NULL);
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
 
+protected:
     // should be prototected, but public for debugging
     scanStatusType                  _scanStatus = IDLE; // STA scanning status
     nodeStatusType                  _nodeStatus = INITIALIZING;
     SimpleList<bss_info>            _meshAPs;
     SimpleList<meshConnectionType>  _connections;
-
-    String              subConnectionJson(meshConnectionType *exclude = NULL);
-protected:
 
     // in painlessMeshComm.cpp
     //must be accessable from callback
