@@ -138,7 +138,10 @@ public:
     SimpleList<meshConnectionType>  _connections;
 
     String              subConnectionJson(meshConnectionType *exclude = NULL);
+
+#ifndef UNIT_TEST // Make everything public in unit test mode
 protected:
+#endif
 
     // in painlessMeshComm.cpp
     //must be accessable from callback
