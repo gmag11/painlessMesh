@@ -15,7 +15,7 @@ extern "C" {
 //#define MESH_SSID           "mesh"
 //#define MESH_PASSWORD       "bootyboo"
 //#define MESH_PORT           4444
-#define NODE_TIMEOUT        3000000  //uSecs
+#define NODE_TIMEOUT        6000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
 
@@ -56,12 +56,13 @@ typedef int debugType;
 #define MESH_STATUS 1<<2
 #define CONNECTION 1<<3
 #define SYNC 1<<4
-#define COMMUNICATION 1<<5
-#define GENERAL 1<<6
-#define MSG_TYPES 1<<7
-#define REMOTE 1<<8  // not yet implemented
-#define APPLICATION 1<<9
-#define DEBUG 1<<10
+#define S_TIME 1<<5
+#define COMMUNICATION 1<<6
+#define GENERAL 1<<7
+#define MSG_TYPES 1<<8
+#define REMOTE 1<<9  // not yet implemented
+#define APPLICATION 1<<10
+#define DEBUG 1<<11
 
 /*enum debugType {
     ERROR = 0x0001,
@@ -91,8 +92,9 @@ struct meshConnectionType {
     uint32_t            nodeSyncRequest = 0;
 
     syncStatusType      timeSyncStatus = NEEDED;
-    uint32_t            lastTimeSync = 0;
-    uint32_t            nextTimeSync = 0;
+    uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
+    uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
+    uint32_t            nextTimeSync = 0; // 
     //    bool                needsNodeSync = true;
     //    bool                needsTimeSync = false;
 
@@ -112,7 +114,7 @@ public:
 
     // in painlessMesh.cpp
 //    void                init( void );
-    void                init(String ssid, String password, uint16_t port, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+    void                init(String ssid, String password, uint16_t port = 5555, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
@@ -148,8 +150,8 @@ protected:
     //must be accessable from callback
     void                startNodeSync(meshConnectionType *conn);
     void                handleNodeSync(meshConnectionType *conn, JsonObject& root);
-    void                startTimeSync(meshConnectionType *conn);
-    void                handleTimeSync(meshConnectionType *conn, JsonObject& root);
+    void                startTimeSync(meshConnectionType *conn, boolean checkAdopt = true);
+    void                handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt);
     bool                adoptionCalc(meshConnectionType *conn);
 
     // in painlessMeshConnection.cpp

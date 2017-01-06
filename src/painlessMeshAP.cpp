@@ -52,7 +52,7 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     apConfig.ssid_hidden = _meshHidden;
     apConfig.channel = _meshChannel;
     apConfig.beacon_interval = 100;
-    apConfig.max_connection = _meshMaxConn; // how many stations can connect to ESP8266 softAP at most.
+    apConfig.max_connection = _meshMaxConn; // how many stations can connect to ESP8266 softAP at most, max is 4
 
     wifi_softap_set_config(&apConfig);// Set ESP8266 softap config .
     if (!wifi_softap_dhcps_start())

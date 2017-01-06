@@ -54,8 +54,10 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while (connection != _connections.end()) {
-        nowNodeTime = getNodeTime();
+        //nowNodeTime = getNodeTime();
+        nowNodeTime = system_get_time();
         connLastRecieved = connection->lastReceived;
+        
         if (nowNodeTime - connLastRecieved > nodeTimeOut) {
             debugMsg(CONNECTION, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
             connection = closeConnection(connection);
@@ -81,10 +83,17 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 
         switch (connection->timeSyncStatus) {
         case NEEDED:
-            debugMsg(SYNC, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
+            //debugMsg(S_TIME, "manageConnections(): starting timeSync with %d\n", connection->nodeId);
             startTimeSync(connection);
 
         case IN_PROGRESS:
+            if (system_get_time() - connection->timeSyncLastRequested > TIME_RESPONSE_TIMEOUT) {
+                // A time sync response did not arrive within maximum time out.
+                connection->timeSyncStatus = COMPLETE;
+                debugMsg(ERROR, "manageConnections(): timeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
+            //} else {
+                //debugMsg(S_TIME | DEBUG, "manageConnections(): timeSync IN_PROGRESS\n", connection->nodeId);
+            }
             connection++;
             continue;
         }
@@ -275,7 +284,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
     espconn_set_opt(newConn.esp_conn, ESPCONN_NODELAY);  // removes nagle, low latency, but soaks up bandwidth
-    newConn.lastReceived = staticThis->getNodeTime();
+    //newConn.lastReceived = staticThis->getNodeTime();
+    newConn.lastReceived = system_get_time();
 
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
     espconn_regist_sentcb(newConn.esp_conn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
@@ -298,6 +308,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
 void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
     meshConnectionType *receiveConn = staticThis->findConnection((espconn *)arg);
 
+    uint32_t receivedAt = staticThis->getNodeTime();
+
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn->nodeId);
 
     if (receiveConn == NULL) {
@@ -319,15 +331,16 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     staticThis->debugMsg(GENERAL, "meshRecvCb(): Recvd from %d-->%s<--\n", receiveConn->nodeId, data);
 
     String msg = root["msg"];
+    meshPackageType t_message = (meshPackageType)(int)root["type"];
 
-    switch ((meshPackageType)(int)root["type"]) {
+    switch (t_message) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
         staticThis->handleNodeSync(receiveConn, root);
         break;
 
     case TIME_SYNC:
-        staticThis->handleTimeSync(receiveConn, root);
+        staticThis->handleTimeSync(receiveConn, root, receivedAt);
         break;
 
     case SINGLE:
@@ -351,8 +364,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     }
 
     // record that we've gotten a valid package
-    receiveConn->lastReceived = staticThis->getNodeTime();
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d\n", receiveConn->lastReceived, receiveConn->nodeId);
+    //receiveConn->lastReceived = receivedAt;
+    receiveConn->lastReceived = system_get_time();
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", receiveConn->lastReceived, receiveConn->nodeId, t_message);
     return;
 }
 

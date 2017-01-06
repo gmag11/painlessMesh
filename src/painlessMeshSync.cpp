@@ -19,101 +19,71 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
 }
 
 //***********************************************************************
-String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(void) {
-    staticThis->debugMsg(SYNC, "buildTimeStamp(): num=%d\n", num);
-
-    if (num > TIME_SYNC_CYCLES)
-        // TIME_SYNC_CYCLES should be the same in all nodes. It defines length of times array
-        staticThis->debugMsg(ERROR, "buildTimeStamp(): timeSync not started properly\n");
-
+String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS, uint32_t receiveTS, uint32_t transmitTS) {
+    staticThis->debugMsg(S_TIME, "buildTimeStamp(): Type = %u, t0 = %u, t1 = %u, t2 = %u\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
     StaticJsonBuffer<75> jsonBuffer;
     JsonObject& timeStampObj = jsonBuffer.createObject();
-    times[num] = staticThis->getNodeTime();
-    timeStampObj["time"] = times[num];
-    timeStampObj["num"] = num;
-    bool remoteAdopt = !adopt; // remote_adopt = !local_adopt
-    timeStampObj["adopt"] = remoteAdopt;
+    timeStampObj["type"] = (int)timeSyncMessageType;
+    if (originateTS > 0)
+        timeStampObj["t0"] = originateTS;
+    if (receiveTS > 0)
+        timeStampObj["t1"] = receiveTS;
+    if (transmitTS > 0)
+        timeStampObj["t2"] = transmitTS;
 
     String timeStampStr;
     timeStampObj.printTo(timeStampStr);
+    staticThis->debugMsg(S_TIME, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
 
-    staticThis->debugMsg(SYNC, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
     return timeStampStr;
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR timeSync::processTimeStamp(int timeSyncStatus, String &str, bool ap) {
-    staticThis->debugMsg(SYNC, "processTimeStamp(): str=%s\n", str.c_str());
+timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) {
+    // Extracts and fills timestamp values from json
+    timeSyncMessageType_t ret = TIME_SYNC_ERROR;
 
-    DynamicJsonBuffer jsonBuffer(50);
+    staticThis->debugMsg(S_TIME, "processTimeStamp(): str=%s\n", str.c_str());
+
+    DynamicJsonBuffer jsonBuffer(75);
     JsonObject& timeStampObj = jsonBuffer.parseObject(str);
     if (!timeStampObj.success()) {
         staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
-        return false;
+        return TIME_SYNC_ERROR;
     }
-    int8_t numTemp = timeStampObj.get<uint32_t>("num");
-    staticThis->debugMsg(SYNC, "processTimeStamp(): local num: %d. recvd num %d. timeSyncStatus: %d. AP: %s\n", num, numTemp, timeSyncStatus, ap ? "true" : "false");
-    if (!((timeSyncStatus == IN_PROGRESS) && (num == numTemp) && !ap)) { // Discard colliding messages if I'm STA
-        num = numTemp;
-        times[num] = timeStampObj.get<uint32_t>("time");
-        adopt = timeStampObj.get<bool>("adopt");
-        num++; // Increment time sync iteration
 
-        if (num < TIME_SYNC_CYCLES) {
-            str = buildTimeStamp();
-            return true;
-        } else {
-            return false;
-        }
-    } else {
-        staticThis->debugMsg(SYNC, "processTimeStamp(): Message collision. Discarded\n");
-        return false;
+    ret = static_cast<timeSyncMessageType_t>(timeStampObj.get<int>("type"));
+    if (ret == TIME_REQUEST || ret == TIME_RESPONSE) {
+        times[0] = timeStampObj.get<uint32_t>("t0");
     }
+    if (ret == TIME_RESPONSE) {
+        times[1] = timeStampObj.get<uint32_t>("t1");
+        times[2] = timeStampObj.get<uint32_t>("t2");
+    }
+    return ret; // return type of sync message
+
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR timeSync::calcAdjustment(bool odd) {
-    staticThis->debugMsg(DEBUG, "calcAdjustment(): odd=%u\n", odd);
+int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
+    staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
 
-    uint32_t    bestInterval = 0xFFFFFFFF; // Max 32 bit value
-    uint8_t     bestIndex;
-    uint32_t    temp;
-
-    for (int i = 0; i < TIME_SYNC_CYCLES; i++) {
-        //      debugMsg( GENERAL, "calcAdjustment(): times[%d]=%u\n", i, times[i]);
-        staticThis->debugMsg(DEBUG, "calcAdjustment(): times[%d] --> %u. Odd = %s\n", i, times[i], (i % 2 == odd) ? "true" : "false");
-
-        if (i % 2 == odd) {
-            if (odd)
-                temp = times[i - 1] - times[i]; // ??
-            else
-                temp = times[i + 1] - times[i]; // ??
-            staticThis->debugMsg(DEBUG, "calcAdjustment(): %d is %s\n", i, odd ? "odd" : "even");
-
-            //if ( i < TIME_SYNC_CYCLES - 2 ){ // If TIME_SYNC_CYCLES is 2 this never happens
-            if (i < TIME_SYNC_CYCLES - 1) {
-                //            debugMsg( GENERAL, "\tinterval=%u\n", temp);
-
-                if (temp < bestInterval) {
-                    bestInterval = temp;
-                    bestIndex = i;
-                }
-                staticThis->debugMsg(DEBUG, "calcAdjustment(): best interval calculation. Value so far %u\n", bestInterval);
-
-            }
-
-        }
+    if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
+        // if any value is 0 
+        staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error. \n");
+        return 0x7FFFFFFF; // return max value
     }
-    staticThis->debugMsg(DEBUG, "calcAdjustment(): best interval=%u, best index=%u\n", bestInterval, bestIndex);
-    // find number that turns local time into remote time
-    //uint32_t adopterTime = times[ bestIndex ] + (bestInterval / 2);
-    //uint32_t adjustment = times[ bestIndex + 1 ] - adopterTime;
-    uint32_t adjustment = bestInterval;
-    timeAdjuster += adjustment - 80000;  // calculation delay aprox. 160000. Should calculate this automatically
 
-    //staticThis->debugMsg( SYNC, "new calc time=%u, adoptedTime=%u\n", adopterTime + adjustment, times[ bestIndex + 1 ]);
-    staticThis->debugMsg(DEBUG, "calcAdjustment(): new time=%u\n", staticThis->getNodeTime());
 
+    // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+    int32_t offset = (int32_t)((times[1] - times[0]) + (times[2] - times[3])) / 2; // Must be signed because offset can be negative
+    int32_t tripDelay = (int32_t)(times[3] - times[0]) - (times[2] - times[1]); // Can be unsigned, but such a long delay is not possible
+
+    timeAdjuster += offset; // Accumulate offset
+    staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
+    staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
+
+    return offset; // return offset to decide if sync is OK
 }
 
 
@@ -132,9 +102,9 @@ void ICACHE_FLASH_ATTR painlessMesh::startNodeSync(meshConnectionType *conn) {
 void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, JsonObject& root) {
     debugMsg(SYNC, "handleNodeSync(): with %d\n", conn->nodeId);
 
-    meshPackageType type = (meshPackageType) (int) root["type"];
-    uint32_t        remoteNodeId = (uint32_t) root["from"];
-    uint32_t        destId = (uint32_t) root["dest"];
+    meshPackageType message_type = (meshPackageType)(int)root["type"];
+    uint32_t        remoteNodeId = (uint32_t)root["from"];
+    uint32_t        destId = (uint32_t)root["dest"];
     bool            reSyncAllSubConnections = false;
 
     if ((destId == 0) && (findConnection(remoteNodeId) != NULL)) {
@@ -157,8 +127,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
         reSyncAllSubConnections = true;
         conn->subConnections = inComingSubs;
     }
+    String tempstr;
+    root.printTo(tempstr);
+    debugMsg(SYNC, "handleNodeSync(): json = %s\n", tempstr.c_str());
 
-    switch (type) {
+    switch (message_type) {
     case NODE_SYNC_REQUEST:
     {
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->nodeId);
@@ -177,7 +150,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
         }
         break;
     default:
-        debugMsg(ERROR, "handleNodeSync(): weird type? %d\n", type);
+        debugMsg(ERROR, "handleNodeSync(): weird type? %d\n", message_type);
     }
 
     if (reSyncAllSubConnections == true) {
@@ -194,99 +167,114 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn) {
-    debugMsg(SYNC, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
-    debugMsg(SYNC, "startTimeSync(): timeSyncStatus changed to IN_PROGRESS\n", conn->nodeId);
+void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boolean checkAdopt) {
+    boolean adopt = true; // default, adopt time
+    String timeStamp;
+
+    debugMsg(S_TIME, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
+    debugMsg(S_TIME, "startTimeSync(): timeSyncStatus changed to IN_PROGRESS\n", conn->nodeId);
     conn->timeSyncStatus = IN_PROGRESS;
 
-    if (conn->time.num > TIME_SYNC_CYCLES) {
-        debugMsg(ERROR, "startTimeSync(): Error timeSync.num not reset conn->time.num=%d\n", conn->time.num);
+    if (checkAdopt) {
+        adopt = adoptionCalc(conn);
     }
-
-    conn->time.num = 0; // First time num is 0.
-
-    conn->time.adopt = adoptionCalc(conn); // should I adopt other party's time?
-    //   debugMsg( GENERAL, "startTimeSync(): remoteSubCount=%d adopt=%d\n", remoteSubCount, conn->time.adopt);
-
-    String timeStamp = conn->time.buildTimeStamp();
-    staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
+    if (adopt) {
+        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
+    } else {
+        timeStamp = conn->time.buildTimeStamp(TIME_SYNC_REQUEST); // Tell other party to ask me the time
+    }
+    sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
+    conn->timeSyncLastRequested = system_get_time(); // It is compared in manageConnections() to check response for timeout
 }
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
-    // make the adoption calulation.  Figure out how many nodes I am connected to exclusive of this connection.
+    // make the adoption calulation. Figure out how many nodes I am connected to exclusive of this connection.
 
     uint16_t mySubCount = connectionCount(conn);  //exclude this connection.
     uint16_t remoteSubCount = jsonSubConnCount(conn->subConnections);
     bool ap = conn->esp_conn->proto.tcp->local_port == _meshPort;
 
+    // ToDo. Simplify this logic
     bool ret = (mySubCount > remoteSubCount) ? false : true;
+    if (mySubCount == remoteSubCount && ap) { // in case of withdraw, ap wins
+        ret = false;
+    }
 
-    debugMsg(GENERAL, "adoptionCalc(): mySubCount=%d remoteSubCount=%d role=%s adopt=%s\n", mySubCount, remoteSubCount, ap ? "AP" : "STA", ret ? "true" : "false");
+    debugMsg(S_TIME, "adoptionCalc(): mySubCount=%d remoteSubCount=%d role=%s adopt=%s\n", mySubCount, remoteSubCount, ap ? "AP" : "STA", ret ? "true" : "false");
 
     return ret;
 }
 
 //***********************************************************************
-//* Time sync protocol is used to let all nodes in the mesh share a common
-//* clock, in order to be able to do synchronized tasks.
-//*
-//* - A node builds a timestamp with its local system clock and order 0.
-//*    Then it sends it to AP.
-//* - It adds a flag indicating if receving peer should update its clock.
-//*    The flag will be true for the node with less connections and
-//*    subconnections. In case of an equal value, the node acting as STA
-//*    will update its clock.
-//* - When timestamp is received order (num) is increased and a new timestamp
-//*    is generated
-//* - If num is less than TIME_SYNC_CYCLES then it sends new generated
-//*    timestamp.
-//* - An even value of num is asigned to requests and orders are assigned
-//*    with an odd value.
-//* - If TIME_SYNC_CYCLES is reached, or TIME_SYNC_CYCLES in case of a
-//*    received request, the node that has been assigned to adopt new time
-//*    will search in the time structure the lower difference into consecutive
-//*    values.
-//* - This value will be added to timeAdjuster variable, that is added to
-//*    local system clock every time meshClock is asked.
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root) {
-
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
     String timeStamp = root["msg"];
-    debugMsg(SYNC, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str());
-    debugMsg(SYNC, "handleTimeSync(): ip_local: %d.%d.%d.%d, puerto local = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
-    debugMsg(SYNC, "handleTimeSync(): ip_remota: %d.%d.%d.%d, puerto remoto = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
+    debugMsg(S_TIME, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str());
+    debugMsg(S_TIME, "handleTimeSync(): local ip: %d.%d.%d.%d, local port = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
+    debugMsg(S_TIME, "handleTimeSync(): remote ip: %d.%d.%d.%d, remote port = %d\n", IP2STR(conn->esp_conn->proto.tcp->remote_ip), conn->esp_conn->proto.tcp->remote_port);
 
-    bool shouldAnswer = conn->time.processTimeStamp(conn->timeSyncStatus, timeStamp, conn->esp_conn->proto.tcp->local_port == _meshPort);  //verifies timeStamp and UPDATES it with a new one.
+    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp); // Extract timestamps and get type of message
 
-    debugMsg(SYNC, "handleTimeSync(): with %d out timestamp=%s\n", conn->nodeId, timeStamp.c_str());
+    if (timeSyncMessageType == TIME_SYNC_REQUEST) { // Other party request me to ask it for time
+        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync. Status = %d\n", conn->timeSyncStatus);
+        if (conn->timeSyncStatus != IN_PROGRESS) {
+            startTimeSync(conn, false); // Start time sync only if I was not syncing yet
+        } else {
+            debugMsg(S_TIME, "handleTimeSync(): Already syncing. Request ignored\n");
+        }
 
-    if (conn->time.num < TIME_SYNC_CYCLES && shouldAnswer) { // Answer last valid message is sync cycles are still missing
+    } else if (timeSyncMessageType == TIME_REQUEST) {
+
+        conn->timeSyncStatus == IN_PROGRESS;
+        debugMsg(S_TIME, "handleTimeSync(): TIME REQUEST received. T0 = %d\n", conn->time.times[0]);
+
+        // Build time response
+        String timeStamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime());
         staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
-    }
 
-    uint8_t odd = conn->time.num % 2; // 1 if num is odd, 0 if even
+        debugMsg(S_TIME, "handleTimeSync(): Response sent %s\n", timeStamp.c_str());
+        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", conn->nodeId);
 
-    if ((conn->time.num + odd) >= TIME_SYNC_CYCLES) {   // timeSync completed
-        debugMsg(SYNC, "handleTimeSync(): timeSync completed. num = %d\n", conn->time.num);
-        if (conn->time.adopt) { // if I have to adopt
-            conn->time.calcAdjustment(odd);
+        // After response is sent I assume sync is completed
+        conn->timeSyncStatus == COMPLETE;
 
-            // flag all connections for re-timeSync
+
+    } else if (timeSyncMessageType == TIME_RESPONSE) {
+        debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE received.\n");
+        if (conn->timeSyncStatus == IN_PROGRESS) {
+            conn->time.times[3] = receivedAt; // Calculate fourth timestamp (response received time)
+
+            int offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset
+
+                                                      // flag all connections for re-timeSync
             SimpleList<meshConnectionType>::iterator connection = _connections.begin();
             while (connection != _connections.end()) {
                 if (connection != conn) {  // exclude this connection
                     connection->timeSyncStatus = NEEDED;
-                    debugMsg(SYNC, "handleTimeSync(): timeSyncStatus with %u changed to NEEDED\n", connection->nodeId);
+                    debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED\n", connection->nodeId);
                 }
                 connection++;
             }
+
+            if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
+                // mark complete only if offset was less than 10 ms
+                conn->timeSyncStatus = COMPLETE;
+                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", connection->nodeId);
+            } else {
+                // Iterate sync procedure if accuracy was not enough
+                conn->timeSyncStatus = NEEDED;
+                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED\n", connection->nodeId);
+
+            }
+            conn->lastTimeSync = getNodeTime();
+        } else {
+            debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE ignored.\n");
         }
-        conn->lastTimeSync = getNodeTime();
-        conn->timeSyncStatus = COMPLETE;
-        debugMsg(SYNC, "handleTimeSync(): timeSyncStatus changed to COMPLETE\n");
-        debugMsg(SYNC, "handleTimeSync(): ----------------------------------\n");
+
     }
+
+    debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
+
 }
 
 

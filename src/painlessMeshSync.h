@@ -3,22 +3,26 @@
 
 #include <Arduino.h>
 
-#define SCAN_INTERVAL       10000
-#define SYNC_INTERVAL       7000
-#define TIME_SYNC_INTERVAL  60000000
-#define TIME_SYNC_CYCLES    2 // should (must?) be an even number
+#define SCAN_INTERVAL       10000 // AP scan period in ms
+#define TIME_SYNC_INTERVAL  600000000  // Time resync period, in us. 600 sec = 10 min
+#define TIME_RESPONSE_TIMEOUT 5000000 // Max time to wait for time response. 5 sec
+#define NUMBER_OF_TIMESTAMS 4   // 4 timestamps are needed for time offset calculation
+#define MIN_ACCURACY        10000 // Minimum time sync accuracy
 
-//uint32_t getNodeTime( void );
+enum timeSyncMessageType_t {
+    TIME_SYNC_ERROR = -1,
+    TIME_SYNC_REQUEST,
+    TIME_REQUEST,
+    TIME_RESPONSE
+};
 
 class timeSync {
 public:
-    uint32_t        times[TIME_SYNC_CYCLES];
-    int8_t          num = -1;
-    bool            adopt;
+    uint32_t        times[NUMBER_OF_TIMESTAMS]; // timestamp array
 
-    String buildTimeStamp(void);
-    bool processTimeStamp(int timeSyncStatus, String &str, bool ap);
-    void calcAdjustment(bool even);
+    String buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
+    timeSyncMessageType_t processTimeStamp(String &str);
+    int32_t calcAdjustment();
 };
 
 #endif //   _MESH_SYNC_H_
