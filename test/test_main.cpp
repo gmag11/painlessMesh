@@ -24,6 +24,10 @@ void test_findConnection() {
     TEST_ASSERT(mesh.findConnection(887034362));
 
     TEST_ASSERT_EQUAL(NULL, mesh.findConnection(70));
+    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(88));
+    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(87));
+    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(62));
+    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(36));
 }
 
 void setup() {

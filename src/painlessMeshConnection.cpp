@@ -155,7 +155,16 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t node
         }
 
         String nodeIdStr(nodeId);
-        if (connection->subConnections.indexOf(nodeIdStr) != -1) { // check sub-connections
+        auto index = connection->subConnections.indexOf(nodeIdStr);
+        if ( index != -1 && index > 0 && 
+                index + nodeIdStr.length() + 1 < connection->subConnections.length() &&
+                // Preceding character is not a number
+                (connection->subConnections.charAt(index - 1) < '0' ||
+                 connection->subConnections.charAt(index - 1) > '9') && 
+                // Following character is not a number
+                (connection->subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
+                 connection->subConnections.charAt(index + nodeIdStr.length() + 1) > '9')
+           ) { // check sub-connections
             debugMsg(GENERAL, "findConnection(nodeId): Found Sub Connection\n");
             return connection;
         }
