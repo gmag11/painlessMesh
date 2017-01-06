@@ -19,7 +19,7 @@ void test_findConnection() {
     // Add test for meshConnection with indirect connection
     meshConnectionType conn3;
     conn3.nodeId = 2;
-    conn3.subConnections = "[{\"nodeId\":887034362,\"subs\":[{\"nodeId\":37418,\"subs\":[]}]}]";
+    conn3.subConnections = "[{\"nodeId\":887034362,\"subs\":[{\"nodeId\":43,\"subs\":[]}]}]";
     mesh._connections.push_back(conn3);
     TEST_ASSERT(mesh.findConnection(887034362));
 
@@ -28,6 +28,8 @@ void test_findConnection() {
     TEST_ASSERT_EQUAL(NULL, mesh.findConnection(87));
     TEST_ASSERT_EQUAL(NULL, mesh.findConnection(62));
     TEST_ASSERT_EQUAL(NULL, mesh.findConnection(36));
+    // 43 should match again
+    TEST_ASSERT(mesh.findConnection(43));
 }
 
 void setup() {

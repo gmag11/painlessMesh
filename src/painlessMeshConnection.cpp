@@ -141,6 +141,30 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
     }
 }
 
+// Search the subConnections string for a node id
+bool ICACHE_FLASH_ATTR  subConnectionsContainsNodeId(const String &subConnections,
+        const String & nodeIdStr, int from = 0) {
+    auto index = subConnections.indexOf(nodeIdStr, from);
+    if (index == -1)
+        return false;
+    // Check that the preceding and following characters are not a number
+    else if (index > 0 && 
+            index + nodeIdStr.length() + 1 < subConnections.length() &&
+            // Preceding character is not a number
+            (subConnections.charAt(index - 1) < '0' ||
+             subConnections.charAt(index - 1) > '9') && 
+            // Following character is not a number
+            (subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
+             subConnections.charAt(index + nodeIdStr.length() + 1) > '9')
+       ) { // check sub-connections
+        return true;
+    } else { // Check whether the nodeid occurs further in the subConnections string
+        return subConnectionsContainsNodeId(subConnections, nodeIdStr, 
+                index + nodeIdStr.length());
+    }
+    return false;
+}
+
 //***********************************************************************
 // Search for a connection to a given nodeID
 meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId) {
@@ -156,15 +180,8 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t node
 
         String nodeIdStr(nodeId);
         auto index = connection->subConnections.indexOf(nodeIdStr);
-        if ( index != -1 && index > 0 && 
-                index + nodeIdStr.length() + 1 < connection->subConnections.length() &&
-                // Preceding character is not a number
-                (connection->subConnections.charAt(index - 1) < '0' ||
-                 connection->subConnections.charAt(index - 1) > '9') && 
-                // Following character is not a number
-                (connection->subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
-                 connection->subConnections.charAt(index + nodeIdStr.length() + 1) > '9')
-           ) { // check sub-connections
+        if (subConnectionsContainsNodeId(connection->subConnections, 
+                    nodeIdStr)) { // check sub-connections
             debugMsg(GENERAL, "findConnection(nodeId): Found Sub Connection\n");
             return connection;
         }
