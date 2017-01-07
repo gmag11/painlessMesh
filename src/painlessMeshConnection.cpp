@@ -141,8 +141,10 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
     }
 }
 
-// Search the subConnections string for a node id
-bool ICACHE_FLASH_ATTR  subConnectionsContainsNodeId(const String &subConnections,
+// Check whether a string contains a numeric substring as a complete number
+//
+// "a:800" does contain "800", but does not contain "80"
+bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
         const String & nodeIdStr, int from = 0) {
     auto index = subConnections.indexOf(nodeIdStr, from);
     if (index == -1)
@@ -156,10 +158,10 @@ bool ICACHE_FLASH_ATTR  subConnectionsContainsNodeId(const String &subConnection
             // Following character is not a number
             (subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
              subConnections.charAt(index + nodeIdStr.length() + 1) > '9')
-       ) { // check sub-connections
+       ) {
         return true;
     } else { // Check whether the nodeid occurs further in the subConnections string
-        return subConnectionsContainsNodeId(subConnections, nodeIdStr, 
+        return stringContainsNumber(subConnections, nodeIdStr, 
                 index + nodeIdStr.length());
     }
     return false;
@@ -178,7 +180,7 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t node
             return connection;
         }
 
-        if (subConnectionsContainsNodeId(connection->subConnections, 
+        if (stringContainsNumber(connection->subConnections, 
                     String(nodeId))) { // check sub-connections
             debugMsg(GENERAL, "findConnection(nodeId): Found Sub Connection\n");
             return connection;
