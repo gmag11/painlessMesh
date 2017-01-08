@@ -74,9 +74,16 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         case NEEDED:           // start a nodeSync
             debugMsg(SYNC, "manageConnections(): start nodeSync with %d\n", connection->nodeId);
             startNodeSync(connection);
-            connection->nodeSyncStatus = IN_PROGRESS;
+            //connection->nodeSyncStatus = IN_PROGRESS; // Not needed, already done in startNodeSync()
 
         case IN_PROGRESS:
+            if (system_get_time() - connection->nodeSyncLastRequested > SYNC_RESPONSE_TIMEOUT) {
+                // A time sync response did not arrive within maximum time out.
+                connection->nodeSyncStatus = COMPLETE;
+                debugMsg(ERROR, "manageConnections(): nodeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
+                //} else {
+                    //debugMsg(S_TIME | DEBUG, "manageConnections(): timeSync IN_PROGRESS\n", connection->nodeId);
+            }
             connection++;
             continue;
         }
@@ -87,7 +94,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
             startTimeSync(connection);
 
         case IN_PROGRESS:
-            if (system_get_time() - connection->timeSyncLastRequested > TIME_RESPONSE_TIMEOUT) {
+            if (system_get_time() - connection->timeSyncLastRequested > SYNC_RESPONSE_TIMEOUT) {
                 // A time sync response did not arrive within maximum time out.
                 connection->timeSyncStatus = COMPLETE;
                 debugMsg(ERROR, "manageConnections(): timeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
@@ -109,7 +116,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         // check to see if we've recieved something lately.  Else, flag for new sync.
         // Stagger AP and STA so that they don't try to start a sync at the same time.
         uint32_t nodeTime = getNodeTime();
-        if (connection->nodeSyncRequest == 0) { // nodeSync not in progress
+        if (connection->nodeSyncLastRequested == 0) { // nodeSync not in progress
             if ((connection->esp_conn->proto.tcp->local_port == _meshPort  // we are AP
                 &&
                 nowNodeTime - connLastRecieved > (nodeTimeOut / 2))

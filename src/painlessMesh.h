@@ -17,9 +17,6 @@ extern "C" {
 
 #include "painlessMeshSync.h"
 
-//#define MESH_SSID           "mesh"
-//#define MESH_PASSWORD       "bootyboo"
-//#define MESH_PORT           4444
 #define NODE_TIMEOUT        6000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
@@ -68,22 +65,6 @@ typedef int debugType;
 #define APPLICATION 1<<10
 #define DEBUG 1<<11
 
-/*enum debugType {
-    ERROR = 0x0001,
-    STARTUP = 0x0002,
-    MESH_STATUS = 0x0004,
-    CONNECTION = 0x0008,
-    SYNC = 0x0010,
-    COMMUNICATION = 0x0020,
-    GENERAL = 0x0040,
-    MSG_TYPES = 0x0080,
-    REMOTE = 0x0100,  // not yet implemented
-    APPLICATION = 0x0200,
-    DEBUG = 0x0400
-    // add types if you like, room for a total of 16 types
-};*/
-
-
 struct meshConnectionType {
     espconn             *esp_conn;
     uint32_t            nodeId = 0;
@@ -93,14 +74,12 @@ struct meshConnectionType {
     bool                newConnection = true;
 
     syncStatusType      nodeSyncStatus = NEEDED;
-    uint32_t            nodeSyncRequest = 0;
+    uint32_t            nodeSyncLastRequested = 0;
 
     syncStatusType      timeSyncStatus = NEEDED;
     uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
     uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
     uint32_t            nextTimeSync = 0; // 
-    //    bool                needsNodeSync = true;
-    //    bool                needsTimeSync = false;
 
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
@@ -117,7 +96,6 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
-//    void                init( void );
     void                init(String ssid, String password, uint16_t port = 5555, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
@@ -127,17 +105,10 @@ public:
     void                setReceiveCallback(void(*onReceive)(uint32_t from, String &msg));
     void                setNewConnectionCallback(void(*onNewConnection)(bool adopt));
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
+    String              subConnectionJson(meshConnectionType *exclude = NULL);
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
-
-    // should be prototected, but public for debugging
-    scanStatusType                  _scanStatus = IDLE; // STA scanning status
-    nodeStatusType                  _nodeStatus = INITIALIZING;
-    SimpleList<bss_info>            _meshAPs;
-    SimpleList<meshConnectionType>  _connections;
-
-    String              subConnectionJson(meshConnectionType *exclude = NULL);
 
 #ifndef UNIT_TEST // Make everything public in unit test mode
 protected:
@@ -165,7 +136,7 @@ protected:
     void                manageConnections(void);
     meshConnectionType* findConnection(uint32_t nodeId);
     meshConnectionType* findConnection(espconn *conn);
-    void                cleanDeadConnections(void);
+    void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
     bool                connectToBestAP(void);
     uint16_t            jsonSubConnCount(String& subConns);
@@ -176,7 +147,7 @@ protected:
     static void         stationScanCb(void *arg, STATUS status);
     static void         scanTimerCallback(void *arg);
     void                stationInit(void);
-    bool                stationConnect(void);
+    bool                stationConnect(void); // Not implemented. Needed?
     void                startStationScan(void);
     uint32_t            encodeNodeId(uint8_t *hwaddr);
 
@@ -203,6 +174,11 @@ protected:
     _auth_mode  _meshAuthMode;
     uint8_t	_meshHidden;
     uint8_t	_meshMaxConn;
+
+    scanStatusType                  _scanStatus = IDLE; // STA scanning status
+    nodeStatusType                  _nodeStatus = INITIALIZING;
+    SimpleList<bss_info>            _meshAPs;
+    SimpleList<meshConnectionType>  _connections;
 
     os_timer_t  _scanTimer;
 

@@ -25,14 +25,12 @@ void setup() {
   mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
   mesh.setReceiveCallback( &receivedCallback );
   mesh.setNewConnectionCallback( &newConnectionCallback );
-
-  randomSeed( analogRead( A0 ) );  
 }
 
 void loop() {
   mesh.update();
 
- // get next random time for send message
+ // get next random time to send a message
   if ( sendMessageTime == 0 ) {
     sendMessageTime = mesh.getNodeTime() + random( 1000000, 5000000 );
   }

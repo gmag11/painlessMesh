@@ -1,14 +1,14 @@
 # Intro to painlessMesh
 
-painlessMesh is a library that takes care of the particulars for creating a simple mesh network using Arduino and esp8266.  The goal is to allow the programmer to work with a mesh network without having to worry about how the network is structured or managed.  
+painlessMesh is a library that takes care of the particulars of creating a simple mesh network using Arduino and esp8266.  The goal is to allow the programmer to work with a mesh network without having to worry about how the network is structured or managed.  
 
 ### True ad-hoc netoworking
 
-painlessMesh is a true ad-hoc network, meaning that no-planning, central controller, or router is required.  Any system of 1 or more nodes will self-organize into fully functional mesh.  The maximum size of the mesh is limited (i think) by the amount of memory in the heap that can be allocated to the sub-connections buffer… and so should be really quite high.
+painlessMesh is a true ad-hoc network, meaning that no-planning, central controller, or router is required.  Any system of 1 or more nodes will self-organize into fully functional mesh.  The maximum size of the mesh is limited (we think) by the amount of memory in the heap that can be allocated to the sub-connections buffer… and so should be really quite high.
 
 ### JSON based
 
-painlessMesh uses JSON objects for all its messaging.  There a couple of reasons for this.  First, it makes the code and the messages human readable and painless to understand and second, it makes it painless to integrate painlessMesh with javascript front-ends, web applications, and other apps.  Some performance is lost, but I haven’t been running into performance issues yet.  Converting to binary messaging would be fairly straight forward if someone wants to contribute.
+painlessMesh uses JSON objects for all its messaging.  There are a couple of reasons for this.  First, it makes the code and the messages human readable and painless to understand and second, it makes it painless to integrate painlessMesh with javascript front-ends, web applications, and other apps.  Some performance is lost, but I haven’t been running into performance issues yet.  Converting to binary messaging would be fairly straight forward if someone wants to contribute.
 
 ### Wifi & Networking
 
@@ -16,20 +16,19 @@ painlessMesh is designed to be used with Arduino, but it does not use the Arduin
 
 ### painlessMesh is not IP networking
 
-painlessMesh does not create a TCP/IP network of nodes. Rather each of the nodes is uniquely identified by its 32bit chipId which is retrieved from the esp8266 using the system_get_chip_id() call in the SDK.  Every esp8266 will have a unique number.  Messages can either be broadcast to all of the nodes on the mesh, or sent specifically to an individual node which is identified by its chipId.
+painlessMesh does not create a TCP/IP network of nodes. Rather each of the nodes is uniquely identified by its 32bit chipId which is retrieved from the esp8266 using the `system_get_chip_id()` call in the SDK.  Every esp8266 will have a unique number.  Messages can either be broadcast to all of the nodes on the mesh, or sent specifically to an individual node which is identified by its `nodeId`.
 
 ### Examples
 
-StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh.
-
-demoToy is kind of complex, uses a web server, web sockets, and neopixel animations, so it is not really a great entry level example.  That said, it does some pretty cools stuff… here is a video of the demo.
-
-https://www.youtube.com/watch?v=hqjOY8YHdlM&feature=youtu.be
+StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh. Further examples are under the examples directory and shown on the platformio [page](http://platformio.org/lib/show/1269/painlessMesh).
 
 ### Dependencies
 
-painlessMesh makes use of the following libraries. They can both be installed through Arduino Library Manager
-- ArduinoJson *** Available here... https://github.com/bblanchon/ArduinoJson
+painlessMesh makes use of the following library, which can both be installed through the Arduino Library Manager
+
+- [ArduinoJson](https://github.com/bblanchon/ArduinoJson)
+
+If platformio is used to install the library, then the dependency will be installed automatically.
 
 # painlessMesh API
 
@@ -42,29 +41,29 @@ First include the library and create an painlessMesh object like this…
 painlessMesh  mesh;
 ```
 
-##vMember Functions
+## Member Functions
 
 ### void painlessMesh::init( String prefix, String password, uint16_t port )
 
 Add this to your setup() function.
-Initialize the mesh network.  This routine does the following things…
+Initialize the mesh network.  This routine does the following things.
+
 - Starts a wifi network
 - Begins searching for other wifi networks that are part of the mesh
 - Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
 
-prefix = the name of your mesh.  The wifi ssid of this node will be prefix + chipId
-password = wifi password to your mesh
-port = the TCP port that you want the mesh server to run on
+`prefix` = the name of your mesh.  The wifi ssid of this node will be prefix + chipId
+`password` = wifi password to your mesh
+`port` = the TCP port that you want the mesh server to run on
 
 ### void painlessMesh::update( void )
 
 Add this to your loop() function
 This routine runs various maintainance tasks... Not super interesting, but things don't work without it.
 
-
 ### void painlessMesh::setReceiveCallback( &receivedCallback )
 
-Set a callback routine for any messages that are addressed to this node.  The callback routine has the following structure…
+Set a callback routine for any messages that are addressed to this node.  The callback routine has the following structure.
 
 `void receivedCallback( uint32_t from, String &msg )`
 
@@ -73,7 +72,7 @@ Every time this node receives a message, this callback routine will the called. 
 
 ### void painlessMesh::setNewConnectionCallback( &newConnectionCallback )
 
-This fires every time the local node makes a new connection.   The callback has the following structure…
+This fires every time the local node makes a new connection.   The callback has the following structure.
 
 `void newConnectionCallback( bool adopt )`
 
@@ -113,12 +112,4 @@ Return the chipId of the node that we are running on.
 
 Returns the mesh timebase microsecond counter.  Rolls over 71 minutes from startup of the first node.
 
-Nodes try to keep a common time base synchronizing to each other using this procedure:
-- On a new connection. STA initiates time synchronisation
-- It decides if it is the one that has to change time or is AP. It uses number of subconnections. Peer with the lower number of subconnections has to adopt other peer's time. In case of drawback AP wins.
-- A timestamp is sent by initiator, including time adoption flag for receiving peer.
-- The other party answer with its own generated timestamp
-- Offset is calculated as the difference between two timestamps
-- This is repeated periodically to keep clocks in sync
-
-Currently we are working to improve sync precission. In the future a NTP like algorithm is planned.
+Nodes try to keep a common time base synchronizing to each other using [an SNTP based protocol](https://gitlab.com/BlackEdder/painlessMesh/wikis/mesh-protocol#time-sync)
