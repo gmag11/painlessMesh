@@ -5,5 +5,5 @@ before_script:
   
 linux:
   script:
-    - platformio ci --lib="." --board=nodemcuv2 examples/sensor/sensor.ino
+    - platformio ci --lib="." --board=nodemcuv2 examples/basic/basic.ino
     - platformio ci --lib="." --board=nodemcuv2 examples/startHere/startHere.ino
