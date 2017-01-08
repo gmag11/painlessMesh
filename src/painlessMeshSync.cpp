@@ -94,7 +94,8 @@ void ICACHE_FLASH_ATTR painlessMesh::startNodeSync(meshConnectionType *conn) {
     debugMsg(SYNC, "startNodeSync(): with %d\n", conn->nodeId);
     String subs = subConnectionJson(conn);
     sendMessage(conn, conn->nodeId, NODE_SYNC_REQUEST, subs);
-    conn->nodeSyncRequest = getNodeTime();
+    //conn->nodeSyncLastRequested = getNodeTime();
+    conn->nodeSyncLastRequested = system_get_time(); // Using nodeTime may cause problems when node updates time.
     conn->nodeSyncStatus = IN_PROGRESS;
 }
 
@@ -141,7 +142,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
     }
     case NODE_SYNC_REPLY:
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %d\n", conn->nodeId);
-        conn->nodeSyncRequest = 0;  //reset nodeSyncRequest Timer  ????
+        conn->nodeSyncLastRequested = 0;  //reset nodeSyncLastRequested Timer
         if (conn->lastTimeSync == 0) {
             debugMsg(SYNC, "handleNodeSync(): timeSyncStatus changed to NEEDED\n");
             //startTimeSync(conn);
@@ -185,6 +186,7 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boo
     }
     sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
     conn->timeSyncLastRequested = system_get_time(); // It is compared in manageConnections() to check response for timeout
+                                                     // Using nodeTime may cause problems when node updates time.
 }
 
 //***********************************************************************
