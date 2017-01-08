@@ -17,9 +17,6 @@ extern "C" {
 
 #include "painlessMeshSync.h"
 
-//#define MESH_SSID           "mesh"
-//#define MESH_PASSWORD       "bootyboo"
-#define MESH_PORT           5555
 #define NODE_TIMEOUT        6000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
@@ -99,8 +96,7 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
-//    void                init( void );
-    void                init(String ssid, String password, uint16_t port = MESH_PORT, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+    void                init(String ssid, String password, uint16_t port = 5555, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
@@ -114,7 +110,10 @@ public:
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
 
+#ifndef UNIT_TEST // Make everything public in unit test mode
 protected:
+#endif
+
     // in painlessMeshComm.cpp
     //must be accessable from callback
     bool                sendMessage(meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg);
