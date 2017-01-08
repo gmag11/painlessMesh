@@ -20,7 +20,7 @@ painlessMesh does not create a TCP/IP network of nodes. Rather each of the nodes
 
 ### Examples
 
-StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh. Further examples are under the examples directory and shown on the platformio [page](http://platformio.org/lib/show/1269/painlessMesh)
+StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh. Further examples are under the examples directory and shown on the platformio [page](http://platformio.org/lib/show/1269/painlessMesh).
 
 ### Dependencies
 
@@ -63,7 +63,7 @@ This routine runs various maintainance tasks... Not super interesting, but thing
 
 ### void painlessMesh::setReceiveCallback( &receivedCallback )
 
-Set a callback routine for any messages that are addressed to this node.  The callback routine has the following structure…
+Set a callback routine for any messages that are addressed to this node.  The callback routine has the following structure.
 
 `void receivedCallback( uint32_t from, String &msg )`
 
@@ -72,7 +72,7 @@ Every time this node receives a message, this callback routine will the called. 
 
 ### void painlessMesh::setNewConnectionCallback( &newConnectionCallback )
 
-This fires every time the local node makes a new connection.   The callback has the following structure…
+This fires every time the local node makes a new connection.   The callback has the following structure.
 
 `void newConnectionCallback( bool adopt )`
 
