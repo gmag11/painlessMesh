@@ -142,17 +142,17 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         }
 
         // Start time sync periodically with a random delay 0,65 to 1.35 times TIME_SYNC_INTERVAL
-        if ((int32_t)nodeTime - (int32_t)connection->nextTimeSync > 0) {
-            if (connection->nextTimeSync != 0) { // Do not resync first time
+        if (nodeTime - connection->lastTimeSync > connection->nextTimeSyncPeriod) {
+            if (connection->nextTimeSyncPeriod != 0) { // Do not resync first time
                 debugMsg(S_TIME, "manageConnections(): Periodic sync:%u Sync changed to NEEDED (4)\n", nodeTime);
                 connection->timeSyncStatus = NEEDED;
+                connection->lastTimeSync = nodeTime; // Avoid multiple calls
             }
-
             // Add random delay to avoid collisions
             float randomDelay = (float)(random(650, 1350)) / 1000;
-            connection->nextTimeSync = getNodeTime() + (TIME_SYNC_INTERVAL*randomDelay);
+            connection->nextTimeSyncPeriod = TIME_SYNC_INTERVAL*randomDelay;
 
-            debugMsg(S_TIME, "manageConnections(): Random delay = %f sec\n", (TIME_SYNC_INTERVAL*randomDelay) / 1000000);
+            debugMsg(S_TIME | DEBUG, "manageConnections(): Random delay = %u sec\n", connection->nextTimeSyncPeriod / 1000000);
 
         }
         connection++;

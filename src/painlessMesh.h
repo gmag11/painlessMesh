@@ -82,7 +82,7 @@ struct meshConnectionType {
     syncStatusType      timeSyncStatus = NEEDED;
     uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
     uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
-    uint32_t            nextTimeSync = 0; // 
+    uint32_t            nextTimeSyncPeriod = 0; // 
 
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
