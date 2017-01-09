@@ -47,7 +47,7 @@ uint16_t  count = 0;
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, _auth_mode authmode, uint8_t channel, phy_mode_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
-    debugMsg(STARTUP, "init():\n", wifi_station_set_auto_connect(0)); // Disable autoconnect
+    debugMsg(STARTUP, "init(): %d\n", wifi_station_set_auto_connect(0)); // Disable autoconnect
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
@@ -84,7 +84,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     apInit();       // setup AP
     stationInit();  // setup station
 
-    debugMsg(GENERAL, "init(): tcp_max_con=%u\n", espconn_tcp_get_max_con());
+    debugMsg(STARTUP, "init(): tcp_max_con=%u, nodeId = %u\n", espconn_tcp_get_max_con(), _nodeId);
 }
 
 //***********************************************************************
