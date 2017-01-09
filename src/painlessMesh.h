@@ -20,7 +20,7 @@ extern "C" {
 
 #include "painlessMeshSync.h"
 
-#define NODE_TIMEOUT        6000000  //uSecs
+#define NODE_TIMEOUT        3000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
 
