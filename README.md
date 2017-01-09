@@ -2,7 +2,7 @@
 
 painlessMesh is a library that takes care of the particulars of creating a simple mesh network using Arduino and esp8266.  The goal is to allow the programmer to work with a mesh network without having to worry about how the network is structured or managed.  
 
-### True ad-hoc netoworking
+### True ad-hoc networking
 
 painlessMesh is a true ad-hoc network, meaning that no-planning, central controller, or router is required.  Any system of 1 or more nodes will self-organize into fully functional mesh.  The maximum size of the mesh is limited (we think) by the amount of memory in the heap that can be allocated to the sub-connections buffer… and so should be really quite high.
 
@@ -61,32 +61,38 @@ Initialize the mesh network.  This routine does the following things.
 Add this to your loop() function
 This routine runs various maintainance tasks... Not super interesting, but things don't work without it.
 
-### void painlessMesh::setReceiveCallback( &receivedCallback )
+### void painlessMesh::onReceive( &receivedCallback )
 
-Set a callback routine for any messages that are addressed to this node.  The callback routine has the following structure.
+Set a callback routine for any messages that are addressed to this node. Callback routine has the following structure.
 
 `void receivedCallback( uint32_t from, String &msg )`
 
 Every time this node receives a message, this callback routine will the called.  “from” is the id of the original sender of the message, and “msg” is a string that contains the message.  The message can be anything.  A JSON, some other text string, or binary data.
 
 
-### void painlessMesh::setNewConnectionCallback( &newConnectionCallback )
+### void painlessMesh::onNewConnection( &newConnectionCallback )
 
 This fires every time the local node makes a new connection.   The callback has the following structure.
 
-`void newConnectionCallback( bool adopt )`
+`void newConnectionCallback( uint32_t nodeId )`
 
-`adopt` is a boolean value that indicates whether the mesh has determined to adopt the remote nodes timebase or not.  If `adopt == true`, then this node has adopted the remote node’s timebase.
+`nodeId` is new connected node ID in the mesh.
 
-The mesh does a simple calculation to determine which nodes adopt and which nodes don’t.  When a connection is made, the node with the smaller number of connections to other nodes adopts the timebase of the node with the larger number of connections to other nodes.  If there is a tie, then the AP (access point) node wins.
+### void painlessMesh::onChangedConnections( &changedConnectionsCallback )
 
-###### Example 1:
+This fires every time there is a change in mesh topology. Callback has the following structure.
 
-There are two separate meshes (Mesh A and Mesh B) that have discovered each other and are connecting.  Mesh A has 7 nodes and Mesh B has 8 nodes.  When the connection is made, Mesh B has more nodes in it, so Mesh A adopts the timebase of Mesh B.
+`void onChangedConnections()`
 
-###### Example 2:
+There are no parameters passed. This is a signal only.
 
-A brand new mesh is starting.  There are only 2 nodes (Node X and Node Y) and they both just got turned on.  They find each other, and as luck would have it, Node X connects as a Station to the wifi network established by Node Y’s AP (access point)… which means that Node X is the wifi client and Node Y is the wifi server in the particular relationship.  In this case, since both nodes have zero (0) other connections, Node X adopts Node Y’s timebase because the tie (0 vs 0) goes to the AP. 
+### void painlessMesh::onNodeTimeAdjusted( &nodeTimeAdjustedCallback )
+
+This fires every time local time is adjusted to synchronize it with mesh time. Callback has the following structure.
+
+`void onNodeTimeAdjusted(int32_t offset)`
+
+`offset` is the adjustment delta that has benn calculated and applied to local clock.
 
 ### bool painlessMesh::sendBroadcast( String &msg)
 
@@ -104,6 +110,10 @@ returns true if everything works, false if not.  Prints an error message to Seri
 
 Returns the total number of nodes connected to this mesh.
 
+### String subConnectionJson()
+
+Returns mesh topology in JSON format.
+
 ### uint32_t painlessMesh::getNodeId( void )
 
 Return the chipId of the node that we are running on.
@@ -113,3 +123,13 @@ Return the chipId of the node that we are running on.
 Returns the mesh timebase microsecond counter.  Rolls over 71 minutes from startup of the first node.
 
 Nodes try to keep a common time base synchronizing to each other using [an SNTP based protocol](https://gitlab.com/BlackEdder/painlessMesh/wikis/mesh-protocol#time-sync)
+
+The mesh does a simple calculation to determine which nodes adopt and which nodes don’t.  When a connection is made, the node with the smaller number of connections to other nodes adopts the timebase of the node with the larger number of connections to other nodes.  If there is a tie, then the AP (access point) node wins.
+
+###### Example 1:
+
+There are two separate meshes (Mesh A and Mesh B) that have discovered each other and are connecting.  Mesh A has 7 nodes and Mesh B has 8 nodes.  When the connection is made, Mesh B has more nodes in it, so Mesh A adopts the timebase of Mesh B.
+
+###### Example 2:
+
+A brand new mesh is starting.  There are only 2 nodes (Node X and Node Y) and they both just got turned on.  They find each other, and as luck would have it, Node X connects as a Station to the wifi network established by Node Y’s AP (access point)… which means that Node X is the wifi client and Node Y is the wifi server in the particular relationship.  In this case, since both nodes have zero (0) other connections, Node X adopts Node Y’s timebase because the tie (0 vs 0) goes to the AP. 
