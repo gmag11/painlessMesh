@@ -47,17 +47,17 @@ void loop() {
 }
 
 void receivedCallback( uint32_t from, String &msg ) {
-  Serial.printf("startHere: Received from %d msg=%s\n", from, msg.c_str());
+  Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
 }
 
 void newConnectionCallback(uint32_t nodeId) {
-    Serial.printf("--> startHere: New Connection, nodeId = %d\n", nodeId);
+    Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
 }
 
 void changedConnectionCallback() {
-    Serial.printf("Changed connections\n");
+    Serial.printf("Changed connections %s\n",mesh.subConnectionJson().c_str());
 }
 
 void nodeTimeAdjustedCallback(int32_t offset) {
-    Serial.printf("Adjusted time. Offset = %d\n", offset);
+    Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
 }
