@@ -103,7 +103,7 @@ public:
 
     // in painlessMeshConnection.cpp
     void                setReceiveCallback(void(*onReceive)(uint32_t from, String &msg));
-    void                setNewConnectionCallback(void(*onNewConnection)(bool adopt));
+    void                setNewConnectionCallback(void(*onNewConnection)(uint32_t nodeId));
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
     String              subConnectionJson(meshConnectionType *exclude = NULL);
 
