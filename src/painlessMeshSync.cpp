@@ -257,7 +257,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 
             int32_t offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset
 
-                                                      // flag all connections for re-timeSync
+            // flag all connections for re-timeSync
             if (nodeTimeAdjustedCallback) {
                 nodeTimeAdjustedCallback(offset);
             }
