@@ -23,8 +23,10 @@ void setup() {
   mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
 
   mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
-  mesh.setReceiveCallback( &receivedCallback );
-  mesh.setNewConnectionCallback( &newConnectionCallback );
+  mesh.onReceive(&receivedCallback);
+  mesh.onNewConnection(&newConnectionCallback);
+  mesh.onChangedConnections(&changedConnectionCallback);
+  mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
 }
 
 void loop() {
@@ -48,7 +50,14 @@ void receivedCallback( uint32_t from, String &msg ) {
   Serial.printf("startHere: Received from %d msg=%s\n", from, msg.c_str());
 }
 
-void newConnectionCallback( bool adopt ) {
-  Serial.printf("startHere: New Connection, adopt=%d\n", adopt);
+void newConnectionCallback(uint32_t nodeId) {
+    Serial.printf("--> startHere: New Connection, nodeId = %d\n", nodeId);
 }
 
+void changedConnectionCallback() {
+    Serial.printf("Changed connections\n");
+}
+
+void nodeTimeAdjustedCallback(int32_t offset) {
+    Serial.printf("Adjusted time. Offset = %d\n", offset);
+}
