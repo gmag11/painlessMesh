@@ -114,7 +114,7 @@ public:
     void                onChangedConnections(changedConnectionsCallback_t onChangedConnections);
     void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
-    String              subConnectionJson(meshConnectionType *exclude = NULL);
+    String              subConnectionJson() { return subConnectionJson(NULL); }
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
@@ -150,6 +150,8 @@ protected:
     bool                connectToBestAP(void);
     uint16_t            jsonSubConnCount(String& subConns);
     meshConnectionType* closeConnection(meshConnectionType *conn);
+    String              subConnectionJson(meshConnectionType *exclude);
+
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);
