@@ -22,7 +22,7 @@ public:
 
     String buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
     timeSyncMessageType_t processTimeStamp(String &str);
-    int32_t calcAdjustment();
+    uint32_t calcAdjustment();
 };
 
 #endif //   _MESH_SYNC_H_

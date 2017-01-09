@@ -65,25 +65,28 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
 }
 
 //***********************************************************************
-int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
+uint32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
 
     if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
         // if any value is 0 
-        staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error. \n");
-        return 0x7FFFFFFF; // return max value
+        staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error.\n");
+        return 0xFFFFFFFF; // return max value
     }
 
 
     // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
-    int32_t offset = (int32_t)((times[1] - times[0]) + (times[2] - times[3])) / 2; // Must be signed because offset can be negative
-    int32_t tripDelay = (int32_t)(times[3] - times[0]) - (times[2] - times[1]); // Can be unsigned, but such a long delay is not possible
+    int64_t offset = (((int32_t)times[1] - (int32_t)times[0]) + ((int32_t)times[2] - (int32_t)times[3]));
 
-    timeAdjuster += offset; // Accumulate offset
-    staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
+    offset = offset / 2;
+
+    uint32_t tripDelay = (times[3] - times[0]) - (times[2] - times[1]);
+
+    timeAdjuster += (uint32_t)offset; // Accumulate offset
+    staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %u us. Network delay %d us\n", (uint32_t)offset, tripDelay);
     staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
 
-    return offset; // return offset to decide if sync is OK
+    return (uint32_t)offset; // return offset to decide if sync is OK
 }
 
 
@@ -255,7 +258,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
         if (conn->timeSyncStatus == IN_PROGRESS) {
             conn->time.times[3] = receivedAt; // Calculate fourth timestamp (response received time)
 
-            int32_t offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset
+            uint32_t offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset
 
             // flag all connections for re-timeSync
             if (nodeTimeAdjustedCallback) {
@@ -271,7 +274,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
                 connection++;
             }
 
-            if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
+            if ((int32_t)offset < MIN_ACCURACY && (int32_t)offset > -MIN_ACCURACY) {
                 // mark complete only if offset was less than 10 ms
                 conn->timeSyncStatus = COMPLETE;
                 debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", connection->nodeId);
