@@ -153,7 +153,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
             float randomDelay = (float)(random(650, 1350)) / 1000;
             connection->nextTimeSyncPeriod = TIME_SYNC_INTERVAL*randomDelay;
 
-            debugMsg(S_TIME | DEBUG, "manageConnections(): Random delay = %u sec\n", connection->nextTimeSyncPeriod / 1000000);
+            debugMsg(S_TIME, "manageConnections(): New time sync period = %u sec\n", connection->nextTimeSyncPeriod / 1000000);
 
         }
         connection++;
