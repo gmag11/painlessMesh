@@ -58,6 +58,6 @@ void changedConnectionCallback() {
     Serial.printf("Changed connections %s\n",mesh.subConnectionJson().c_str());
 }
 
-void nodeTimeAdjustedCallback(uint32_t offset) {
+void nodeTimeAdjustedCallback(int32_t offset) {
     Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
 }
