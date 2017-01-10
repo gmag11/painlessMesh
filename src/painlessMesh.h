@@ -9,15 +9,18 @@
 #include <Arduino.h>
 #include <SimpleList.h>
 #include <ArduinoJson.h>
+#include <functional>
+using namespace std;
 
 extern "C" {
 #include "user_interface.h"
 #include "espconn.h"
 }
 
+
 #include "painlessMeshSync.h"
 
-#define NODE_TIMEOUT        6000000  //uSecs
+#define NODE_TIMEOUT        3000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 
 
@@ -79,12 +82,16 @@ struct meshConnectionType {
     syncStatusType      timeSyncStatus = NEEDED;
     uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
     uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
-    uint32_t            nextTimeSync = 0; // 
+    uint32_t            nextTimeSyncPeriod = 0; // 
 
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
 };
 
+typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
+typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
+typedef std::function<void()> changedConnectionsCallback_t;
+typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 
 class painlessMesh {
 public:
@@ -102,10 +109,12 @@ public:
     bool                sendBroadcast(String &msg);
 
     // in painlessMeshConnection.cpp
-    void                setReceiveCallback(void(*onReceive)(uint32_t from, String &msg));
-    void                setNewConnectionCallback(void(*onNewConnection)(bool adopt));
+    void                onReceive(receivedCallback_t  onReceive);
+    void                onNewConnection(newConnectionCallback_t onNewConnection);
+    void                onChangedConnections(changedConnectionsCallback_t onChangedConnections);
+    void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
-    String              subConnectionJson(meshConnectionType *exclude = NULL);
+    String              subConnectionJson() { return subConnectionJson(NULL); }
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
@@ -136,18 +145,20 @@ protected:
     void                manageConnections(void);
     meshConnectionType* findConnection(uint32_t nodeId);
     meshConnectionType* findConnection(espconn *conn);
-    void                cleanDeadConnections(void); // Not implemented. Needed?
+    //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
     bool                connectToBestAP(void);
     uint16_t            jsonSubConnCount(String& subConns);
     meshConnectionType* closeConnection(meshConnectionType *conn);
+    String              subConnectionJson(meshConnectionType *exclude);
+
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);
     static void         stationScanCb(void *arg, STATUS status);
     static void         scanTimerCallback(void *arg);
     void                stationInit(void);
-    bool                stationConnect(void); // Not implemented. Needed?
+    //bool                stationConnect(void); // Not implemented. Needed?
     void                startStationScan(void);
     uint32_t            encodeNodeId(uint8_t *hwaddr);
 
@@ -164,6 +175,11 @@ protected:
     static void         meshDisconCb(void *arg);
     static void         meshReconCb(void *arg, sint8 err);
 
+    // Callback functions
+    newConnectionCallback_t         newConnectionCallback;
+    receivedCallback_t              receivedCallback;
+    changedConnectionsCallback_t    changedConnectionsCallback;
+    nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
 
     // variables
     uint32_t    _nodeId;
@@ -172,8 +188,8 @@ protected:
     uint16_t    _meshPort;
     uint8_t     _meshChannel;
     _auth_mode  _meshAuthMode;
-    uint8_t	_meshHidden;
-    uint8_t	_meshMaxConn;
+    uint8_t     _meshHidden;
+    uint8_t     _meshMaxConn;
 
     scanStatusType                  _scanStatus = IDLE; // STA scanning status
     nodeStatusType                  _nodeStatus = INITIALIZING;
