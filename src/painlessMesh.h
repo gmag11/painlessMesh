@@ -189,7 +189,7 @@ protected:
     uint8_t     _meshChannel;
     _auth_mode  _meshAuthMode;
     uint8_t     _meshHidden;
-    uint8_t	    _meshMaxConn;
+    uint8_t     _meshMaxConn;
 
     scanStatusType                  _scanStatus = IDLE; // STA scanning status
     nodeStatusType                  _nodeStatus = INITIALIZING;
