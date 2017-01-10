@@ -70,13 +70,16 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         if (nowNodeTime - connLastRecieved > nodeTimeOut) {
             debugMsg(CONNECTION, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
             connection = closeConnection(connection);
-            changedConnectionsCallback(); // Conncetion dropped. Signal user
+            if (changedConnectionsCallback)
+                changedConnectionsCallback(); // Connection dropped. Signal user
             continue;
         }
 
         if (connection->esp_conn->state == ESPCONN_CLOSE) {
             debugMsg(CONNECTION, "manageConnections(): dropping %d ESPCONN_CLOSE\n", connection->nodeId);
             connection = closeConnection(connection);
+            if (changedConnectionsCallback)
+                changedConnectionsCallback(); // Connection dropped. Signal user
             continue;
         }
 
