@@ -91,7 +91,7 @@ struct meshConnectionType {
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
 typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
-typedef std::function<void(uint32_t offset)> nodeTimeAdjustedCallback_t;
+typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 
 class painlessMesh {
 public:

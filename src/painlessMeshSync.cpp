@@ -76,17 +76,15 @@ uint32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
 
 
     // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
-    int64_t offset = (((int32_t)times[1] - (int32_t)times[0]) + ((int32_t)times[2] - (int32_t)times[3]));
-
-    offset = offset / 2;
+    uint32_t offset = ((int32_t)(times[1] - times[0]) / 2) + ((int32_t)(times[2] - times[3]) / 2);
 
     uint32_t tripDelay = (times[3] - times[0]) - (times[2] - times[1]);
 
-    timeAdjuster += (uint32_t)offset; // Accumulate offset
-    staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %u us. Network delay %d us\n", (uint32_t)offset, tripDelay);
+    timeAdjuster += offset; // Accumulate offset
+    staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
     staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
 
-    return (uint32_t)offset; // return offset to decide if sync is OK
+    return offset; // return offset to decide if sync is OK
 }
 
 
@@ -262,7 +260,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 
             // flag all connections for re-timeSync
             if (nodeTimeAdjustedCallback) {
-                nodeTimeAdjustedCallback(offset);
+                nodeTimeAdjustedCallback((int32_t)offset);
             }
 
             SimpleList<meshConnectionType>::iterator connection = _connections.begin();
