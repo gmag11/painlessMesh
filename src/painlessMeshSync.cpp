@@ -65,7 +65,7 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
 }
 
 //***********************************************************************
-uint32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
+int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
 
     if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
@@ -256,11 +256,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
         if (conn->timeSyncStatus == IN_PROGRESS) {
             conn->time.times[3] = receivedAt; // Calculate fourth timestamp (response received time)
 
-            uint32_t offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset
+            int32_t offset = conn->time.calcAdjustment(); // Adjust time and get calculated offset
 
             // flag all connections for re-timeSync
             if (nodeTimeAdjustedCallback) {
-                nodeTimeAdjustedCallback((int32_t)offset);
+                nodeTimeAdjustedCallback(offset);
             }
 
             SimpleList<meshConnectionType>::iterator connection = _connections.begin();
@@ -272,7 +272,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
                 connection++;
             }
 
-            if ((int32_t)offset < MIN_ACCURACY && (int32_t)offset > -MIN_ACCURACY) {
+            if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
                 // mark complete only if offset was less than 10 ms
                 conn->timeSyncStatus = COMPLETE;
                 debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", connection->nodeId);
