@@ -148,7 +148,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
         conn->nodeSyncLastRequested = 0;  //reset nodeSyncLastRequested Timer
         if (conn->lastTimeSync == 0) {
             debugMsg(S_TIME, "handleNodeSync(): timeSyncStatus changed to NEEDED (1)\n");
-            //startTimeSync(conn);
+            //startTimeSync(conn); // TimeSync is started on manageConnections() because status is set to NEEDED
             //conn->timeSyncStatus = IN_PROGRESS;
             conn->timeSyncStatus = NEEDED;
         }
@@ -191,7 +191,7 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boo
     }
     sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
     conn->timeSyncLastRequested = system_get_time(); // It is compared in manageConnections() to check response for timeout
-                                                     // Using nodeTime may cause problems when node updates time.
+                                                     // Using nodeTime may cause problems when node updates time because counter discontinuity.
 }
 
 //***********************************************************************

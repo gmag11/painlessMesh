@@ -46,7 +46,7 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeTimeAdjusted(nodeTimeAdjustedCallback
 
 //***********************************************************************
 meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnection(meshConnectionType *conn) {
-    // It seems that more should be done here... perhas send off a packette to
+    // It seems that more should be done here... perhaps send off a packet to
     // make an attempt to tell the other node that we are closing this conneciton?
     debugMsg(CONNECTION, "closeConnection(): conn-nodeId=%d\n", conn->nodeId);
     espconn_disconnect(conn->esp_conn);
@@ -150,7 +150,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
                 connection->lastTimeSync = nodeTime; // Avoid multiple calls
             }
             // Add random delay to avoid collisions
-            float randomDelay = (float)(random(650, 1350)) / 1000;
+            float randomDelay = (float)(random(650, 1350)) / 1000; // 35%
             connection->nextTimeSyncPeriod = TIME_SYNC_INTERVAL*randomDelay;
 
             debugMsg(S_TIME, "manageConnections(): New time sync period = %u sec\n", connection->nextTimeSyncPeriod / 1000000);
@@ -329,7 +329,6 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
     espconn_set_opt(newConn.esp_conn, ESPCONN_NODELAY);  // removes nagle, low latency, but soaks up bandwidth
-    //newConn.lastReceived = staticThis->getNodeTime();
     newConn.lastReceived = system_get_time();
 
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
@@ -412,7 +411,6 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     }
 
     // record that we've gotten a valid package
-    //receiveConn->lastReceived = receivedAt;
     receiveConn->lastReceived = system_get_time();
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", receiveConn->lastReceived, receiveConn->nodeId, t_message);
     return;

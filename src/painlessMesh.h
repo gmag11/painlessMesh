@@ -145,7 +145,7 @@ protected:
     void                manageConnections(void);
     meshConnectionType* findConnection(uint32_t nodeId);
     meshConnectionType* findConnection(espconn *conn);
-    void                cleanDeadConnections(void); // Not implemented. Needed?
+    //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
     bool                connectToBestAP(void);
     uint16_t            jsonSubConnCount(String& subConns);
@@ -158,7 +158,7 @@ protected:
     static void         stationScanCb(void *arg, STATUS status);
     static void         scanTimerCallback(void *arg);
     void                stationInit(void);
-    bool                stationConnect(void); // Not implemented. Needed?
+    //bool                stationConnect(void); // Not implemented. Needed?
     void                startStationScan(void);
     uint32_t            encodeNodeId(uint8_t *hwaddr);
 
