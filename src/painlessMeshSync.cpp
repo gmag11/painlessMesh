@@ -94,7 +94,7 @@ void ICACHE_FLASH_ATTR painlessMesh::startNodeSync(meshConnectionType *conn) {
 
     debugMsg(SYNC, "startNodeSync(): with %d\n", conn->nodeId);
     String subs = subConnectionJson(conn);
-    sendMessage(conn, conn->nodeId, NODE_SYNC_REQUEST, subs);
+    sendMessage(conn, conn->nodeId, _nodeId, NODE_SYNC_REQUEST, subs);
     //conn->nodeSyncLastRequested = getNodeTime();
     conn->nodeSyncLastRequested = system_get_time(); // Using nodeTime may cause problems when node updates time.
     conn->nodeSyncStatus = IN_PROGRESS;
@@ -140,7 +140,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
     {
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->nodeId);
         String myOtherSubConnections = subConnectionJson(conn);
-        sendMessage(conn, conn->nodeId, NODE_SYNC_REPLY, myOtherSubConnections);
+        sendMessage(conn, conn->nodeId, _nodeId, NODE_SYNC_REPLY, myOtherSubConnections);
         break;
     }
     case NODE_SYNC_REPLY:
@@ -189,7 +189,7 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boo
         debugMsg(S_TIME, "startTimeSync(): timeSyncStatus changed to COMPLETE\n", conn->nodeId);
         conn->timeSyncStatus = COMPLETE;
     }
-    sendMessage(conn, conn->nodeId, TIME_SYNC, timeStamp);
+    sendMessage(conn, conn->nodeId, _nodeId, TIME_SYNC, timeStamp);
     conn->timeSyncLastRequested = system_get_time(); // It is compared in manageConnections() to check response for timeout
                                                      // Using nodeTime may cause problems when node updates time because counter discontinuity.
 }
@@ -241,7 +241,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 
         // Build time response
         t_stamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime());
-        staticThis->sendMessage(conn, conn->nodeId, TIME_SYNC, t_stamp);
+        staticThis->sendMessage(conn, conn->nodeId, _nodeId, TIME_SYNC, t_stamp);
 
         debugMsg(S_TIME, "handleTimeSync(): Response sent %s\n", t_stamp.c_str());
         debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", conn->nodeId);

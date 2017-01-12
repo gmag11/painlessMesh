@@ -16,23 +16,23 @@ extern painlessMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, meshPackageType type, String &msg) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
     debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%d destId=%d type=%d msg=%s\n",
              conn->nodeId, destId, (uint8_t) type, msg.c_str());
 
-    String package = buildMeshPackage(destId, type, msg);
+    String package = buildMeshPackage(destId, fromId, type, msg);
 
     return sendPackage(conn, package);
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, meshPackageType type, String &msg) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
     debugMsg(COMMUNICATION, "In sendMessage(destId): destId=%d type=%d, msg=%s\n",
              destId, type, msg.c_str());
 
     meshConnectionType *conn = findConnection(destId);
     if (conn != NULL) {
-        return sendMessage(conn, destId, type, msg);
+        return sendMessage(conn, destId, fromId, type, msg);
     } else {
         debugMsg(ERROR, "In sendMessage(destId): findConnection( destId ) failed\n");
         return false;
@@ -58,7 +58,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
     while (connection != _connections.end()) {
         if (connection != exclude) {
-            sendMessage(connection, connection->nodeId, type, msg);
+            sendMessage(connection, connection->nodeId, from, type, msg);
         }
         connection++;
     }
@@ -88,13 +88,14 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
 }
 
 //***********************************************************************
-String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, meshPackageType type, String &msg) {
+String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
     debugMsg(GENERAL, "In buildMeshPackage(): msg=%s\n", msg.c_str());
 
     DynamicJsonBuffer jsonBuffer(JSON_BUFSIZE);
     JsonObject& root = jsonBuffer.createObject();
     root["dest"] = destId;
-    root["from"] = _nodeId;
+    //root["from"] = _nodeId;
+    root["from"] = fromId;
     root["type"] = (uint8_t) type;
     root["timestamp"] = staticThis->getNodeTime();
 
