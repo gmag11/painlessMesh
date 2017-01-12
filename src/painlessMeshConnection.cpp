@@ -198,13 +198,13 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t node
     while (connection != _connections.end()) {
 
         if (connection->nodeId == nodeId) {  // check direct connections
-            debugMsg(GENERAL, "findConnection(nodeId): Found Direct Connection\n");
+            debugMsg(GENERAL, "findConnection(%u): Found Direct Connection\n", nodeId);
             return connection;
         }
 
         if (stringContainsNumber(connection->subConnections, 
                     String(nodeId))) { // check sub-connections
-            debugMsg(GENERAL, "findConnection(nodeId): Found Sub Connection\n");
+            debugMsg(GENERAL, "findConnection(%u): Found Sub Connection through %u\n",nodeId, connection->nodeId);
             return connection;
         }
 
@@ -396,9 +396,12 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
             if (staticThis->receivedCallback)
                 staticThis->receivedCallback((uint32_t)root["from"], msg);
         } else {                                                    // pass it along
-         //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
-            String tempStr(data);
-            staticThis->sendPackage(staticThis->findConnection((uint32_t)root["dest"]), tempStr);
+            //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
+            String tempStr;
+            root.printTo(tempStr);
+            meshConnectionType *conn = staticThis->findConnection((uint32_t)root["dest"]);
+            staticThis->sendPackage(conn, tempStr);
+            staticThis->debugMsg(ERROR, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
         }
         break;
 
