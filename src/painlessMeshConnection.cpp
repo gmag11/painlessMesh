@@ -401,7 +401,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
             root.printTo(tempStr);
             meshConnectionType *conn = staticThis->findConnection((uint32_t)root["dest"]);
             staticThis->sendPackage(conn, tempStr);
-            staticThis->debugMsg(ERROR, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
+            staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
         }
         break;
 
