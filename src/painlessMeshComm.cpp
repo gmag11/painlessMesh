@@ -47,6 +47,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
                                                       meshConnectionType *exclude) {
 
     // send a message to every node on the mesh
+    bool errCode = false;
 
     if (exclude != NULL)
         debugMsg(COMMUNICATION, "broadcastMessage(): from=%d type=%d, msg=%s exclude=%d\n",
@@ -56,21 +57,26 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
                  from, type, msg.c_str());
 
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
+    if (_connections.size() > 0)
+        errCode = true; // Assume true if at least one connections
     while (connection != _connections.end()) {
         if (connection != exclude) {
-            sendMessage(connection, connection->nodeId, from, type, msg);
+            if (!sendMessage(connection, connection->nodeId, from, type, msg))
+                errCode = false; // If any error return 0
         }
         connection++;
     }
-    return true; // hmmm... ought to be smarter than this!
+    return errCode;
 }
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection, String &package) {
     debugMsg(COMMUNICATION, "Sending to %d-->%s<--\n", connection->nodeId, package.c_str());
 
-    if (package.length() > 1400)
+    if (package.length() > 1400) {
         debugMsg(ERROR, "sendPackage(): err package too long length=%d\n", package.length());
+        return false;
+    }
 
     if (connection->sendReady == true) {
         sint8 errCode = espconn_send(connection->esp_conn, (uint8*) package.c_str(), package.length());
@@ -84,6 +90,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
         }
     } else {
         connection->sendQueue.push_back(package);
+        return true;
     }
 }
 
