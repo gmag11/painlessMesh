@@ -86,6 +86,14 @@ This fires every time there is a change in mesh topology. Callback has the follo
 
 There are no parameters passed. This is a signal only.
 
+### bool painlessMesh::isConnected( nodeId )
+
+Returns if a given node is currently connected to the mesh.
+
+`bool isConnected()`
+
+`nodeId` is node ID that the request refers to.
+
 ### void painlessMesh::onNodeTimeAdjusted( &nodeTimeAdjustedCallback )
 
 This fires every time local time is adjusted to synchronize it with mesh time. Callback has the following structure.
