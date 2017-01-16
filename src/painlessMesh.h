@@ -115,6 +115,7 @@ public:
     void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
     String              subConnectionJson() { return subConnectionJson(NULL); }
+    bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
