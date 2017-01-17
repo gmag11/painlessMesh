@@ -43,7 +43,7 @@ painlessMesh  mesh;
 
 ## Member Functions
 
-### void painlessMesh::init( String prefix, String password, uint16_t port )
+### void painlessMesh::init( String ssid, String password, uint16_t port, bool hybridNode )
 
 Add this to your setup() function.
 Initialize the mesh network.  This routine does the following things.
@@ -52,9 +52,15 @@ Initialize the mesh network.  This routine does the following things.
 - Begins searching for other wifi networks that are part of the mesh
 - Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
 
-`prefix` = the name of your mesh.  The wifi ssid of this node will be prefix + chipId
-`password` = wifi password to your mesh
-`port` = the TCP port that you want the mesh server to run on
+`ssid` = the name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
+`password` = wifi password to your mesh.
+`port` = the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
+`hybridNode` = `true` if this is a hybrid node. Default value is `false`.
+
+A **Hybrid Node** is a node which is only connected to the mesh as a station. AP interface is free for user. There are some use cases where this can be useful:
+- Battery supplied nodes. A node that is running from battery must use deep sleep to extend runtime. It will only be active during a short time every some minutes or hours. They should not expose AP interface to mesh to avoid connection failures.
+- Nodes connected to mesh and external network. It may be desired for some specific node that AP is free to be used on user code for a different task. It could be used to run an embedded web server to allow data extraction from mesh.
+- Nodes in the physical mesh limit. In that case it may be desired not to extend AP coverage to hide it as much as possible.
 
 ### void painlessMesh::update( void )
 
