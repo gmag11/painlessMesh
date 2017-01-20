@@ -274,6 +274,45 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(meshConnectionType *exc
 }
 
 //***********************************************************************
+void ICACHE_FLASH_ATTR painlessMesh::getNodeList(uint32_t *&nodeList, int &numNodes) {
+
+    SimpleList<uint32_t> nodes;
+
+    String nodeJson = subConnectionJson();
+
+    uint index = 0;
+
+    while (index < nodeJson.length()) {
+        uint coma = 0;
+        index = nodeJson.indexOf("\"nodeId\":");
+        if (index == -1)
+            break;
+        coma = nodeJson.indexOf(',',index);
+        String temp = nodeJson.substring(index + 9, coma);
+        nodes.push_back(temp.toInt());
+        index = coma + 1;
+        nodeJson = nodeJson.substring(index);
+
+    }
+
+    nodeList = (uint32_t *)calloc(nodes.size(),sizeof(uint32_t));
+
+    SimpleList<uint32_t>::iterator node = nodes.begin();
+    int i = 0;
+    while (node != nodes.end()) {
+        nodeList[i] = *node;
+        debugMsg(COMMUNICATION, "getNodeList(): nodeId -> %d\n", nodeList[i]);
+        i++;
+        node++;
+    }
+
+    numNodes = nodes.size();
+
+    //return nodeList;
+
+}
+
+//***********************************************************************
 uint16_t ICACHE_FLASH_ATTR painlessMesh::connectionCount(meshConnectionType *exclude) {
     uint16_t count = 0;
 
