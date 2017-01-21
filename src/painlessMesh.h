@@ -107,6 +107,7 @@ public:
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
+    uint32_t            getDelay(uint32_t nodeId);
 
     // in painlessMeshConnection.cpp
     void                onReceive(receivedCallback_t  onReceive);
@@ -141,6 +142,7 @@ protected:
     void                startTimeSync(meshConnectionType *conn, boolean checkAdopt = true);
     void                handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt);
     bool                adoptionCalc(meshConnectionType *conn);
+    static String       buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
 
     // in painlessMeshConnection.cpp
     void                manageConnections(void);
