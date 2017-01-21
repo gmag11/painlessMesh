@@ -126,7 +126,7 @@ int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
 
     // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
 
-    uint32_t tripDelay = (timeDelay[3] - timeDelay[0]) - (timeDelay[2] - timeDelay[1]);
+    uint32_t tripDelay = ((timeDelay[3] - timeDelay[0]) - (timeDelay[2] - timeDelay[1]))/2;
 
     staticThis->debugMsg(S_TIME, "delayCalc(): Calculated Network delay %d us\n", tripDelay);
 
