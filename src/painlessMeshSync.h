@@ -18,11 +18,13 @@ enum timeSyncMessageType_t {
 
 class timeSync {
 public:
-    uint32_t        times[NUMBER_OF_TIMESTAMS]; // timestamp array
+    uint32_t              times[NUMBER_OF_TIMESTAMS]; // timestamp array
 
-    String buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
+    String                buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);
     timeSyncMessageType_t processTimeStamp(String &str);
-    int32_t calcAdjustment();
+    int32_t               calcAdjustment();
+    int32_t               delayCalc();
+
 };
 
 #endif //   _MESH_SYNC_H_

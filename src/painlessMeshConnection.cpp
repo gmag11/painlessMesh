@@ -45,6 +45,13 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeTimeAdjusted(nodeTimeAdjustedCallback
 }
 
 //***********************************************************************
+void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb) {
+    debugMsg(GENERAL, "onNodeDelayReceived():\n");
+    nodeDelayReceivedCallback = cb;
+}
+
+
+//***********************************************************************
 meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnection(meshConnectionType *conn) {
     // It seems that more should be done here... perhaps send off a packet to
     // make an attempt to tell the other node that we are closing this conneciton?
@@ -167,24 +174,24 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
 //
 // "a:800" does contain "800", but does not contain "80"
 bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
-        const String & nodeIdStr, int from = 0) {
+                                             const String & nodeIdStr, int from = 0) {
     auto index = subConnections.indexOf(nodeIdStr, from);
     if (index == -1)
         return false;
     // Check that the preceding and following characters are not a number
-    else if (index > 0 && 
-            index + nodeIdStr.length() + 1 < subConnections.length() &&
-            // Preceding character is not a number
-            (subConnections.charAt(index - 1) < '0' ||
-             subConnections.charAt(index - 1) > '9') && 
-            // Following character is not a number
-            (subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
+    else if (index > 0 &&
+             index + nodeIdStr.length() + 1 < subConnections.length() &&
+             // Preceding character is not a number
+             (subConnections.charAt(index - 1) < '0' ||
+             subConnections.charAt(index - 1) > '9') &&
+             // Following character is not a number
+             (subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
              subConnections.charAt(index + nodeIdStr.length() + 1) > '9')
-       ) {
+             ) {
         return true;
     } else { // Check whether the nodeid occurs further in the subConnections string
-        return stringContainsNumber(subConnections, nodeIdStr, 
-                index + nodeIdStr.length());
+        return stringContainsNumber(subConnections, nodeIdStr,
+                                    index + nodeIdStr.length());
     }
     return false;
 }
@@ -202,9 +209,9 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t node
             return connection;
         }
 
-        if (stringContainsNumber(connection->subConnections, 
-                    String(nodeId))) { // check sub-connections
-            debugMsg(GENERAL, "findConnection(%u): Found Sub Connection through %u\n",nodeId, connection->nodeId);
+        if (stringContainsNumber(connection->subConnections,
+            String(nodeId))) { // check sub-connections
+            debugMsg(GENERAL, "findConnection(%u): Found Sub Connection through %u\n", nodeId, connection->nodeId);
             return connection;
         }
 
@@ -392,9 +399,14 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         break;
 
     case SINGLE:
+    case TIME_DELAY:
         if ((uint32_t)root["dest"] == staticThis->getNodeId()) {  // msg for us!
-            if (staticThis->receivedCallback)
-                staticThis->receivedCallback((uint32_t)root["from"], msg);
+            if (t_message == TIME_DELAY) {
+                staticThis->handleTimeDelay(receiveConn, root, receivedAt);
+            } else {
+                if (staticThis->receivedCallback)
+                    staticThis->receivedCallback((uint32_t)root["from"], msg);
+            }
         } else {                                                    // pass it along
             //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
             String tempStr;

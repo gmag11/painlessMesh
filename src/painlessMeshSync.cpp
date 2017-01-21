@@ -19,26 +19,6 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
 }
 
 //***********************************************************************
-String ICACHE_FLASH_ATTR painlessMesh::buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS, uint32_t receiveTS, uint32_t transmitTS) {
-    staticThis->debugMsg(S_TIME, "buildTimeStamp(): Type = %u, t0 = %u, t1 = %u, t2 = %u\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
-    StaticJsonBuffer<75> jsonBuffer;
-    JsonObject& timeStampObj = jsonBuffer.createObject();
-    timeStampObj["type"] = (int)timeSyncMessageType;
-    if (originateTS > 0)
-        timeStampObj["t0"] = originateTS;
-    if (receiveTS > 0)
-        timeStampObj["t1"] = receiveTS;
-    if (transmitTS > 0)
-        timeStampObj["t2"] = transmitTS;
-
-    String timeStampStr;
-    timeStampObj.printTo(timeStampStr);
-    staticThis->debugMsg(S_TIME, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
-
-    return timeStampStr;
-}
-
-//***********************************************************************
 String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS, uint32_t receiveTS, uint32_t transmitTS) {
     staticThis->debugMsg(S_TIME, "buildTimeStamp(): Type = %u, t0 = %u, t1 = %u, t2 = %u\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
     StaticJsonBuffer<75> jsonBuffer;
@@ -106,6 +86,28 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
 
     return offset; // return offset to decide if sync is OK
 }
+
+//***********************************************************************
+int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
+    staticThis->debugMsg(S_TIME, "delayCalc(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
+
+    if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
+        // if any value is 0 
+        staticThis->debugMsg(ERROR, "delayCalc(): TimeStamp error.\n");
+        return -1; // return max value
+    }
+
+
+    // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+
+    uint32_t tripDelay = (times[3] - times[0]) - (times[2] - times[1]);
+
+    staticThis->debugMsg(S_TIME, "delayCalc(): Calculated Network delay %d us\n", tripDelay);
+
+    return tripDelay; 
+}
+
+
 
 
 // painlessMesh Syncing functions
@@ -315,7 +317,54 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 
 }
 
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
+    String timeStamp = root["msg"];
+    uint32_t from = root["from"];
+    debugMsg(DEBUG, "handleTimeDelay(): from %u in timestamp = %s\n", from, timeStamp.c_str());
 
+    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp); // Extract timestamps and get type of message
+
+    String t_stamp;
+
+    switch (timeSyncMessageType) {
+
+    case (TIME_REQUEST):
+
+        //conn->timeSyncStatus == IN_PROGRESS;
+        debugMsg(DEBUG, "handleTimeDelay(): TIME REQUEST received. T0 = %d\n", conn->time.times[0]);
+
+        // Build time response
+        t_stamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime());
+        staticThis->sendMessage(conn, from, _nodeId, TIME_DELAY, t_stamp);
+
+        debugMsg(DEBUG, "handleTimeDelay(): Response sent %s\n", t_stamp.c_str());
+        debugMsg(DEBUG, "handleTimeDelay(): timeSyncStatus changed to COMPLETE\n", conn->nodeId);
+
+        // After response is sent I assume sync is completed
+        //conn->timeSyncStatus == COMPLETE;
+        //conn->lastTimeSync = getNodeTime();
+        break;
+
+    case (TIME_RESPONSE):
+        debugMsg(DEBUG, "handleTimeDelay(): TIME RESPONSE received.\n");
+        if (conn->timeSyncStatus == IN_PROGRESS) {
+            conn->time.times[3] = receivedAt; // Calculate fourth timestamp (response received time)
+
+            int32_t delay = conn->time.delayCalc(); // Adjust time and get calculated offset
+            debugMsg(DEBUG, "handleTimeDelay(): Delay is %d\n", delay);
+
+            conn->timeSyncStatus == COMPLETE;
+
+            if (nodeDelayReceivedCallback)
+                nodeDelayReceivedCallback(from, delay);
+        }
+
+        break;
+    }
+
+    debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
+
+}
 
 
 
