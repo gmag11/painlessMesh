@@ -83,9 +83,3 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg) {
     debugMsg(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
     return broadcastMessage(_nodeId, BROADCAST, msg);
 }
-
-uint32_t ICACHE_FLASH_ATTR painlessMesh::getDelay(uint32_t nodeId) {
-    String timeStamp;
-
-    timeStamp = buildTimeStamp(TIME_REQUEST, getNodeTime());
-}
