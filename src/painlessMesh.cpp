@@ -84,7 +84,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg) {
     return broadcastMessage(_nodeId, BROADCAST, msg);
 }
 
-uint32_t ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
+bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
     String timeStamp;
     meshConnectionType *conn;
     debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
@@ -95,9 +95,10 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
         timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());
         //conn->timeDelayStatus = IN_PROGRESS;
     } else {
-        return 0;
+        return false;
     }
     debugMsg(S_TIME, "startDelayMeas(): Sent delay calc request -> %s\n", timeStamp.c_str());
     sendMessage(conn, nodeId, _nodeId, TIME_DELAY, timeStamp);
     //conn->timeSyncLastRequested = system_get_time();
+    return true;
 }
