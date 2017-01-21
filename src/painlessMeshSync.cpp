@@ -65,6 +65,32 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStamp(String &str) 
 }
 
 //***********************************************************************
+timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStampDelay(String &str) {
+    // Extracts and fills timestamp values from json
+    timeSyncMessageType_t ret = TIME_SYNC_ERROR;
+
+    staticThis->debugMsg(S_TIME, "processTimeStamp(): str=%s\n", str.c_str());
+
+    DynamicJsonBuffer jsonBuffer(75);
+    JsonObject& timeStampObj = jsonBuffer.parseObject(str);
+    if (!timeStampObj.success()) {
+        staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
+        return TIME_SYNC_ERROR;
+    }
+
+    ret = static_cast<timeSyncMessageType_t>(timeStampObj.get<int>("type"));
+    if (ret == TIME_REQUEST || ret == TIME_RESPONSE) {
+        timeDelay[0] = timeStampObj.get<uint32_t>("t0");
+    }
+    if (ret == TIME_RESPONSE) {
+        timeDelay[1] = timeStampObj.get<uint32_t>("t1");
+        timeDelay[2] = timeStampObj.get<uint32_t>("t2");
+    }
+    return ret; // return type of sync message
+
+}
+
+//***********************************************************************
 int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
 
@@ -89,9 +115,9 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
 
 //***********************************************************************
 int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
-    staticThis->debugMsg(S_TIME, "delayCalc(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
+    staticThis->debugMsg(S_TIME, "delayCalc(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", timeDelay[0], timeDelay[1], timeDelay[2], timeDelay[3]);
 
-    if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
+    if (timeDelay[0] == 0 || timeDelay[1] == 0 || timeDelay[2] == 0 || timeDelay[3] == 0) {
         // if any value is 0 
         staticThis->debugMsg(ERROR, "delayCalc(): TimeStamp error.\n");
         return -1; // return max value
@@ -100,11 +126,11 @@ int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
 
     // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
 
-    uint32_t tripDelay = (times[3] - times[0]) - (times[2] - times[1]);
+    uint32_t tripDelay = (timeDelay[3] - timeDelay[0]) - (timeDelay[2] - timeDelay[1]);
 
     staticThis->debugMsg(S_TIME, "delayCalc(): Calculated Network delay %d us\n", tripDelay);
 
-    return tripDelay; 
+    return tripDelay;
 }
 
 
@@ -320,9 +346,9 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
     String timeStamp = root["msg"];
     uint32_t from = root["from"];
-    debugMsg(DEBUG, "handleTimeDelay(): from %u in timestamp = %s\n", from, timeStamp.c_str());
+    debugMsg(S_TIME, "handleTimeDelay(): from %u in timestamp = %s\n", from, timeStamp.c_str());
 
-    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp); // Extract timestamps and get type of message
+    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStampDelay(timeStamp); // Extract timestamps and get type of message
 
     String t_stamp;
 
@@ -331,14 +357,13 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(meshConnectionType *conn, J
     case (TIME_REQUEST):
 
         //conn->timeSyncStatus == IN_PROGRESS;
-        debugMsg(DEBUG, "handleTimeDelay(): TIME REQUEST received. T0 = %d\n", conn->time.times[0]);
+        debugMsg(S_TIME, "handleTimeDelay(): TIME REQUEST received. T0 = %d\n", conn->time.times[0]);
 
         // Build time response
-        t_stamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime());
+        t_stamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.timeDelay[0], receivedAt, getNodeTime());
         staticThis->sendMessage(conn, from, _nodeId, TIME_DELAY, t_stamp);
 
-        debugMsg(DEBUG, "handleTimeDelay(): Response sent %s\n", t_stamp.c_str());
-        debugMsg(DEBUG, "handleTimeDelay(): timeSyncStatus changed to COMPLETE\n", conn->nodeId);
+        debugMsg(S_TIME, "handleTimeDelay(): Response sent %s\n", t_stamp.c_str());
 
         // After response is sent I assume sync is completed
         //conn->timeSyncStatus == COMPLETE;
@@ -346,18 +371,17 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(meshConnectionType *conn, J
         break;
 
     case (TIME_RESPONSE):
-        debugMsg(DEBUG, "handleTimeDelay(): TIME RESPONSE received.\n");
-        if (conn->timeSyncStatus == IN_PROGRESS) {
-            conn->time.times[3] = receivedAt; // Calculate fourth timestamp (response received time)
+        debugMsg(S_TIME, "handleTimeDelay(): TIME RESPONSE received.\n");
+        conn->time.timeDelay[3] = receivedAt; // Calculate fourth timestamp (response received time)
 
-            int32_t delay = conn->time.delayCalc(); // Adjust time and get calculated offset
-            debugMsg(DEBUG, "handleTimeDelay(): Delay is %d\n", delay);
+        int32_t delay = conn->time.delayCalc(); // Adjust time and get calculated offset
+        debugMsg(S_TIME, "handleTimeDelay(): Delay is %d\n", delay);
 
-            conn->timeSyncStatus == COMPLETE;
+        //conn->timeSyncStatus == COMPLETE;
 
-            if (nodeDelayReceivedCallback)
-                nodeDelayReceivedCallback(from, delay);
-        }
+        if (nodeDelayReceivedCallback)
+            nodeDelayReceivedCallback(from, delay);
+
 
         break;
     }
