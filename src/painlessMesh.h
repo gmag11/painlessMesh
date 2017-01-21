@@ -109,7 +109,7 @@ public:
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
-    uint32_t            startDelayMeas(uint32_t nodeId);
+    bool                startDelayMeas(uint32_t nodeId);
 
     // in painlessMeshConnection.cpp
     void                onReceive(receivedCallback_t  onReceive);
