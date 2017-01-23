@@ -128,9 +128,9 @@ Returns the total number of nodes connected to this mesh.
 
 Returns mesh topology in JSON format.
 
-###  void painlessMesh::getNodeList(uint32_t *&amp;nodeList, int &amp;numNodes)
+###  SimpleList<uint32_t> painlessMesh::getNodeList()
 
-Get a pointer to a node lists and poits it to an array of connected nodes, giving the number of nodes aka. array length.
+Get node list including all nodes independently if they are connected directly or not.
 
 ### uint32_t painlessMesh::getNodeId( void )
 
