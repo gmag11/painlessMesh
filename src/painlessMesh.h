@@ -116,6 +116,7 @@ public:
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
+    SimpleList<uint32_t> getNodeList();
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);

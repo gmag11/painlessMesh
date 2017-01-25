@@ -124,9 +124,13 @@ returns true if everything works, false if not.  Prints an error message to Seri
 
 Returns the total number of nodes connected to this mesh.
 
-### String subConnectionJson()
+### String painlessMesh::subConnectionJson()
 
 Returns mesh topology in JSON format.
+
+###  SimpleList<uint32_t> painlessMesh::getNodeList()
+
+Get node list including all nodes independently if they are connected directly or not.
 
 ### uint32_t painlessMesh::getNodeId( void )
 
