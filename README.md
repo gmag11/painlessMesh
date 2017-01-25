@@ -140,7 +140,7 @@ Returns mesh topology in JSON format.
 
 ###  SimpleList<uint32_t> painlessMesh::getNodeList()
 
-Get node list including all nodes independently if they are connected directly or not.
+Get a list of all known nodes. This includes nodes that are both directly and indirectly connected to the current node.
 
 ### uint32_t painlessMesh::getNodeId( void )
 
