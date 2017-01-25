@@ -1,6 +1,6 @@
 # Intro to painlessMesh
 
-painlessMesh is a library that takes care of the particulars of creating a simple mesh network using Arduino and esp8266.  The goal is to allow the programmer to work with a mesh network without having to worry about how the network is structured or managed.  
+painlessMesh is a library that takes care of the particulars of creating a simple mesh network using Arduino and esp8266.  The goal is to allow the programmer to work with a mesh network without having to worry about how the network is structured or managed.
 
 ### True ad-hoc networking
 
@@ -10,7 +10,7 @@ painlessMesh is a true ad-hoc network, meaning that no-planning, central control
 
 painlessMesh uses JSON objects for all its messaging.  There are a couple of reasons for this.  First, it makes the code and the messages human readable and painless to understand and second, it makes it painless to integrate painlessMesh with javascript front-ends, web applications, and other apps.  Some performance is lost, but I haven’t been running into performance issues yet.  Converting to binary messaging would be fairly straight forward if someone wants to contribute.
 
-### Wifi & Networking
+### Wifi &amp; Networking
 
 painlessMesh is designed to be used with Arduino, but it does not use the Arduino WiFi libraries, as I was running into performance issues (primarily latency) with them.  Rather the networking is all done using the native esp8266 SDK libraries, which are available through the Arduino IDE.  Hopefully though, which networking libraries are used won’t matter to most users much as you can just include the .h, run the init() and then work the library through the API.
 
@@ -67,16 +67,16 @@ A **Hybrid Node** is a node which is only connected to the mesh as a station. AP
 Add this to your loop() function
 This routine runs various maintainance tasks... Not super interesting, but things don't work without it.
 
-### void painlessMesh::onReceive( &receivedCallback )
+### void painlessMesh::onReceive( &amp;receivedCallback )
 
 Set a callback routine for any messages that are addressed to this node. Callback routine has the following structure.
 
-`void receivedCallback( uint32_t from, String &msg )`
+`void receivedCallback( uint32_t from, String &amp;msg )`
 
 Every time this node receives a message, this callback routine will the called.  “from” is the id of the original sender of the message, and “msg” is a string that contains the message.  The message can be anything.  A JSON, some other text string, or binary data.
 
 
-### void painlessMesh::onNewConnection( &newConnectionCallback )
+### void painlessMesh::onNewConnection( &amp;newConnectionCallback )
 
 This fires every time the local node makes a new connection.   The callback has the following structure.
 
@@ -84,7 +84,7 @@ This fires every time the local node makes a new connection.   The callback has 
 
 `nodeId` is new connected node ID in the mesh.
 
-### void painlessMesh::onChangedConnections( &changedConnectionsCallback )
+### void painlessMesh::onChangedConnections( &amp;changedConnectionsCallback )
 
 This fires every time there is a change in mesh topology. Callback has the following structure.
 
@@ -100,7 +100,7 @@ Returns if a given node is currently connected to the mesh.
 
 `nodeId` is node ID that the request refers to.
 
-### void painlessMesh::onNodeTimeAdjusted( &nodeTimeAdjustedCallback )
+### void painlessMesh::onNodeTimeAdjusted( &amp;nodeTimeAdjustedCallback )
 
 This fires every time local time is adjusted to synchronize it with mesh time. Callback has the following structure.
 
@@ -108,13 +108,23 @@ This fires every time local time is adjusted to synchronize it with mesh time. C
 
 `offset` is the adjustment delta that has benn calculated and applied to local clock.
 
-### bool painlessMesh::sendBroadcast( String &msg)
+### void onNodeDelayReceived(nodeDelayCallback_t onDelayReceived)
+
+This fires when a time delay masurement response is received, after a request was sent. Callback has the following structure.
+
+`void onNodeDelayReceived(uint32_t nodeId, int32_t delay)`
+
+`nodeId` The node that originated response.
+
+`delay` One way network trip delay in nanoseconds.
+
+### bool painlessMesh::sendBroadcast( String &amp;msg)
 
 Sends msg to every node on the entire mesh network.
 
 returns true if everything works, false if not.  Prints an error message to Serial.print, if there is a failure.
 
-### bool painlessMesh::sendSingle(uint32_t dest, String &msg)
+### bool painlessMesh::sendSingle(uint32_t dest, String &amp;msg)
 
 Sends msg to the node with Id == dest.
 
@@ -150,4 +160,10 @@ There are two separate meshes (Mesh A and Mesh B) that have discovered each othe
 
 ###### Example 2:
 
-A brand new mesh is starting.  There are only 2 nodes (Node X and Node Y) and they both just got turned on.  They find each other, and as luck would have it, Node X connects as a Station to the wifi network established by Node Y’s AP (access point)… which means that Node X is the wifi client and Node Y is the wifi server in the particular relationship.  In this case, since both nodes have zero (0) other connections, Node X adopts Node Y’s timebase because the tie (0 vs 0) goes to the AP. 
+A brand new mesh is starting.  There are only 2 nodes (Node X and Node Y) and they both just got turned on.  They find each other, and as luck would have it, Node X connects as a Station to the wifi network established by Node Y’s AP (access point)… which means that Node X is the wifi client and Node Y is the wifi server in the particular relationship.  In this case, since both nodes have zero (0) other connections, Node X adopts Node Y’s timebase because the tie (0 vs 0) goes to the AP.
+
+###bool painlessMesh::startDelayMeas(uint32_t nodeId)
+
+Sends a node a packet to measure network trip delay to that node. Returns true if nodeId is connected to the mesh, false otherwise. After calling this function, user program have to wait to the response in the form of a callback specified by `void painlessMesh::onNodeDelayReceived(nodeDelayCallback_t onDelayReceived)`.
+
+nodeDelayCallback_t is a funtion in the form of `void (uint32_t nodeId, int32_t delay)`.

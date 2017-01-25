@@ -44,7 +44,7 @@ enum syncStatusType {
 };
 
 enum meshPackageType {
-    DROP = 3,
+    TIME_DELAY = 3,
     TIME_SYNC = 4,
     NODE_SYNC_REQUEST = 5,
     NODE_SYNC_REPLY = 6,
@@ -81,6 +81,7 @@ struct meshConnectionType {
 
     syncStatusType      timeSyncStatus = NEEDED;
     uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
+    uint32_t            timeDelayLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
     uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
     uint32_t            nextTimeSyncPeriod = 0; // 
 
@@ -92,6 +93,7 @@ typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
 typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
+typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
 
 class painlessMesh {
 public:
@@ -107,12 +109,14 @@ public:
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
+    bool                startDelayMeas(uint32_t nodeId);
 
     // in painlessMeshConnection.cpp
     void                onReceive(receivedCallback_t  onReceive);
     void                onNewConnection(newConnectionCallback_t onNewConnection);
     void                onChangedConnections(changedConnectionsCallback_t onChangedConnections);
     void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
+    void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
     uint16_t            connectionCount(meshConnectionType *exclude = NULL);
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
@@ -141,6 +145,7 @@ protected:
     void                handleNodeSync(meshConnectionType *conn, JsonObject& root);
     void                startTimeSync(meshConnectionType *conn, boolean checkAdopt = true);
     void                handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt);
+    void                handleTimeDelay(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt);
     bool                adoptionCalc(meshConnectionType *conn);
 
     // in painlessMeshConnection.cpp
@@ -182,6 +187,7 @@ protected:
     receivedCallback_t              receivedCallback;
     changedConnectionsCallback_t    changedConnectionsCallback;
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
+    nodeDelayCallback_t             nodeDelayReceivedCallback;
 
     // variables
     uint32_t    _nodeId;
