@@ -14,7 +14,7 @@
 // on my rig, this is 5, change to the right number of your LED.
 #define   LED             2       // GPIO number of connected LED, ON ESP-12 IS GPIO2
 
-#define   BLINK_PERIOD    2000000 // microseconds until cycle repeat
+#define   BLINK_PERIOD    3000000 // microseconds until cycle repeat
 #define   BLINK_DURATION  100000  // microseconds LED is on for
 
 #define   MESH_SSID       "whateverYouLike"
@@ -32,7 +32,7 @@ void setup() {
     pinMode(LED, OUTPUT);
 
     //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-    mesh.setDebugMsgTypes(ERROR | STARTUP);  // set before init() so that you can see startup messages
+    mesh.setDebugMsgTypes(ERROR | DEBUG);  // set before init() so that you can see startup messages
 
     mesh.init(MESH_SSID, MESH_PASSWORD, MESH_PORT);
     mesh.onReceive(&receivedCallback);
@@ -50,13 +50,13 @@ void loop() {
     mesh.update();
 
     // run the blinky
-    bool  onFlag = false;
+    bool  onFlag = true;
     uint32_t cycleTime = mesh.getNodeTime() % BLINK_PERIOD;
     for (uint8_t i = 0; i < (mesh.connectionCount() + 1); i++) {
         uint32_t onTime = BLINK_DURATION * i * 2;
 
         if (cycleTime > onTime && cycleTime < onTime + BLINK_DURATION)
-            onFlag = true;
+            onFlag = false;
     }
     digitalWrite(LED, onFlag);
 
@@ -69,7 +69,7 @@ void loop() {
     if (sendMessageTime != 0 && sendMessageTime < mesh.getNodeTime()) {
         String msg = "Hello from node ";
         msg += mesh.getNodeId();
-        error = mesh.sendBroadcast(msg + "myFreeMemory: " + String(ESP.getFreeHeap()));
+        error = mesh.sendBroadcast(msg + " myFreeMemory: " + String(ESP.getFreeHeap()));
         sendMessageTime = 0;
 
         if (calc_delay) {
