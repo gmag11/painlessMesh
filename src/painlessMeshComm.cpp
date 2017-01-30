@@ -89,8 +89,13 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
             return false;
         }
     } else {
-        connection->sendQueue.push_back(package);
-        return true;
+        if (ESP.getFreeHeap() >= MIN_FREE_MEMMORY) { // If memory heap is enugh, queue the message
+            connection->sendQueue.push_back(package);
+            return true;
+        } else {
+            connection->sendQueue.clear(); // Discard all messages
+            return false;
+        }
     }
 }
 
