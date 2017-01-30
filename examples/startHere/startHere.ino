@@ -12,9 +12,9 @@
 
 // some gpio pin that is connected to an LED... 
 // on my rig, this is 5, change to the right number of your LED.
-#define   LED             5       // GPIO number of connected LED
+#define   LED             2       // GPIO number of connected LED, ON ESP-12 IS GPIO2
 
-#define   BLINK_PERIOD    1000000 // microseconds until cycle repeat
+#define   BLINK_PERIOD    3000000 // microseconds until cycle repeat
 #define   BLINK_DURATION  100000  // microseconds LED is on for
 
 #define   MESH_SSID       "whateverYouLike"
@@ -22,57 +22,70 @@
 #define   MESH_PORT       5555
 
 painlessMesh  mesh;
-
+bool calc_delay = false;
+SimpleList<uint32_t> nodes;
 uint32_t sendMessageTime = 0;
 
 void setup() {
-  Serial.begin(115200);
-    
-  pinMode( LED, OUTPUT );
+    Serial.begin(115200);
 
-//mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-  mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
+    pinMode(LED, OUTPUT);
 
-  mesh.init( MESH_SSID, MESH_PASSWORD, MESH_PORT );
-  mesh.onReceive(&receivedCallback);
-  mesh.onNewConnection(&newConnectionCallback);
-  mesh.onChangedConnections(&changedConnectionCallback);
-  mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
+    //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
+    mesh.setDebugMsgTypes(ERROR | DEBUG);  // set before init() so that you can see startup messages
 
-  randomSeed( analogRead( A0 ) );  
+    mesh.init(MESH_SSID, MESH_PASSWORD, MESH_PORT);
+    mesh.onReceive(&receivedCallback);
+    mesh.onNewConnection(&newConnectionCallback);
+    mesh.onChangedConnections(&changedConnectionCallback);
+    mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
+    mesh.onNodeDelayReceived(&delayReceivedCallback);
+
+    randomSeed(analogRead(A0));
 }
 
 void loop() {
-  mesh.update();
+    bool error;
 
-  // run the blinky
-  bool  onFlag = false;
-  uint32_t cycleTime = mesh.getNodeTime() % BLINK_PERIOD;
-  for ( uint8_t i = 0; i < ( mesh.connectionCount() + 1); i++ ) {
-    uint32_t onTime = BLINK_DURATION * i * 2;    
+    mesh.update();
 
-    if ( cycleTime > onTime && cycleTime < onTime + BLINK_DURATION )
-      onFlag = true;
-  }
-  digitalWrite( LED, onFlag );
+    // run the blinky
+    bool  onFlag = true;
+    uint32_t cycleTime = mesh.getNodeTime() % BLINK_PERIOD;
+    for (uint8_t i = 0; i < (mesh.connectionCount() + 1); i++) {
+        uint32_t onTime = BLINK_DURATION * i * 2;
 
-  // get next random time for send message
-  if ( sendMessageTime == 0 ) {
-    sendMessageTime = mesh.getNodeTime() + random( 1000000, 5000000 );
-  }
+        if (cycleTime > onTime && cycleTime < onTime + BLINK_DURATION)
+            onFlag = false;
+    }
+    digitalWrite(LED, onFlag);
 
-  // if the time is ripe, send everyone a message!
-  if (sendMessageTime != 0 && 
-    (int) sendMessageTime - (int) mesh.getNodeTime() < 0){ // Cast to int in case of time rollover
-    String msg = "Hello from node ";
-    msg += mesh.getNodeId();
-    mesh.sendBroadcast( msg );
-    sendMessageTime = 0;
-  }
+    // get next random time for send message
+    if (sendMessageTime == 0) {
+        sendMessageTime = mesh.getNodeTime() + random(1000000, 5000000);
+    }
+
+    // if the time is ripe, send everyone a message!
+    if (sendMessageTime != 0 && 
+            (int) sendMessageTime - (int) mesh.getNodeTime() < 0) { // Cast to int in case of time rollover
+        String msg = "Hello from node ";
+        msg += mesh.getNodeId();
+        error = mesh.sendBroadcast(msg + " myFreeMemory: " + String(ESP.getFreeHeap()));
+        sendMessageTime = 0;
+
+        if (calc_delay) {
+            SimpleList<uint32_t>::iterator node = nodes.begin();
+            while (node != nodes.end()) {
+                mesh.startDelayMeas(*node);
+                node++;
+            }
+            calc_delay = false;
+        }
+    }
 }
 
-void receivedCallback( uint32_t from, String &msg ) {
-  Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
+void receivedCallback(uint32_t from, String &msg) {
+    Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
 }
 
 void newConnectionCallback(uint32_t nodeId) {
@@ -80,9 +93,26 @@ void newConnectionCallback(uint32_t nodeId) {
 }
 
 void changedConnectionCallback() {
-    Serial.printf("Changed connections %s\n",mesh.subConnectionJson().c_str());
+    Serial.printf("Changed connections %s\n", mesh.subConnectionJson().c_str());
+
+    nodes = mesh.getNodeList();
+
+    Serial.printf("Num nodes: %d\n", nodes.size());
+    Serial.printf("Connection list:");
+
+    SimpleList<uint32_t>::iterator node = nodes.begin();
+    while (node != nodes.end()) {
+        Serial.printf(" %u", *node);
+        node++;
+    }
+    Serial.println();
+    calc_delay = true;
 }
 
 void nodeTimeAdjustedCallback(int32_t offset) {
-    Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
+    Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
+}
+
+void delayReceivedCallback(uint32_t from, int32_t delay) {
+    Serial.printf("Delay to node %u is %d us\n", from, delay);
 }
