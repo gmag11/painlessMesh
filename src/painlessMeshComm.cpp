@@ -31,10 +31,10 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromI
              destId, type, msg.c_str());
 
     meshConnectionType *conn = findConnection(destId);
-    if (conn != NULL) {
+    if (conn) {
         return sendMessage(conn, destId, fromId, type, msg);
     } else {
-        debugMsg(ERROR, "In sendMessage(destId): findConnection( destId ) failed\n");
+        debugMsg(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n", destId);
         return false;
     }
 }

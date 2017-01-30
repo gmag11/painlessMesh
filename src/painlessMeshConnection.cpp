@@ -391,9 +391,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 
     uint32_t receivedAt = staticThis->getNodeTime();
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn->nodeId);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn?receiveConn->nodeId:0);
 
-    if (receiveConn == NULL) {
+    if (!receiveConn) {
         staticThis->debugMsg(ERROR, "meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
         staticThis->debugMsg(ERROR, "meshRecvCb(): dropping this msg... see if we recover?\n");
         return;
@@ -438,8 +438,10 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
             String tempStr;
             root.printTo(tempStr);
             meshConnectionType *conn = staticThis->findConnection((uint32_t)root["dest"]);
-            staticThis->sendPackage(conn, tempStr);
-            staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
+            if (conn) {
+                staticThis->sendPackage(conn, tempStr);
+                staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
+            }
         }
         break;
 
@@ -466,7 +468,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
     espconn *conn = (espconn*)arg;
     meshConnectionType *meshConnection = staticThis->findConnection(conn);
 
-    if (meshConnection == NULL) {
+    if (!meshConnection) {
         staticThis->debugMsg(ERROR, "meshSentCb(): err did not find meshConnection? Likely it was dropped for some reason\n");
         return;
     }
