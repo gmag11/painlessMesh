@@ -32,12 +32,30 @@ void test_findConnection() {
     TEST_ASSERT(mesh.findConnection(43));
 }
 
+bool lesserThan(uint32_t lessr, uint32_t than) {
+    return
+        (int) lesser - (int) than < 0;// Cast to int in case of time rollover
+}
+
+void test_comparison() {
+    uint32_t uint32_max = 4294967295;
+    TEST_ASSERT(lesserThan(uint32_max-1,uint32_max)); 
+    TEST_ASSERT(lesserThan(uint32_max/2-1,uint32_max/2)); 
+    TEST_ASSERT(lesserThan(uint32_max/2,uint32_max/2+1)); 
+    TEST_ASSERT(lesserThan(10,100)); 
+
+    // Overflow
+    TEST_ASSERT(lesserThan(uint32_max,0)); 
+    TEST_ASSERT(lesserThan(uint32_max,100)); 
+}
+
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
 }
 
 void loop() {
     RUN_TEST(test_findConnection);
+    RUN_TEST(test_comparison);
     UNITY_END(); // stop unit testing
 }
 #endif
