@@ -62,7 +62,7 @@ void loop() {
 
     // get next random time for send message
     if (sendMessageTime == 0) {
-        sendMessageTime = mesh.getNodeTime() + random(1000000, 5000000);
+        sendMessageTime = mesh.getNodeTime() + random(100000, 1000000); // Stress mesh for testing message queue overflow
     }
 
     // if the time is ripe, send everyone a message!
