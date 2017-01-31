@@ -125,7 +125,7 @@ public:
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
 
-#ifndef UNIT_TEST // Make everything public in unit test mode
+#ifndef UNITY // Make everything public in unit test mode
 protected:
 #endif
 
