@@ -66,7 +66,8 @@ void loop() {
     }
 
     // if the time is ripe, send everyone a message!
-    if (sendMessageTime != 0 && sendMessageTime < mesh.getNodeTime()) {
+    if (sendMessageTime != 0 && 
+            (int) sendMessageTime - (int) mesh.getNodeTime() < 0) { // Cast to int in case of time rollover
         String msg = "Hello from node ";
         msg += mesh.getNodeId();
         error = mesh.sendBroadcast(msg + " myFreeMemory: " + String(ESP.getFreeHeap()));
