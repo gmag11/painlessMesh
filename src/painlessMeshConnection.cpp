@@ -294,7 +294,7 @@ SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
         index = nodeJson.indexOf("\"nodeId\":");
         if (index == -1)
             break;
-        comma = nodeJson.indexOf(',',index);
+        comma = nodeJson.indexOf(',', index);
         String temp = nodeJson.substring(index + 9, comma);
         nodeList.push_back(temp.toInt());
         index = comma + 1;
@@ -391,7 +391,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 
     uint32_t receivedAt = staticThis->getNodeTime();
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn?receiveConn->nodeId:0);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn ? receiveConn->nodeId : 0);
 
     if (!receiveConn) {
         staticThis->debugMsg(ERROR, "meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
