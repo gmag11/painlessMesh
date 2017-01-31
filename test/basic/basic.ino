@@ -1,7 +1,8 @@
-#include <painlessMesh.h>
-#include <unity.h>
+#include <arduinoUnity.h>
 
-#ifdef UNIT_TEST
+#include <painlessMesh.h>
+
+#ifdef UNITY
 
 void test_findConnection() {
     painlessMesh mesh;
@@ -32,7 +33,7 @@ void test_findConnection() {
     TEST_ASSERT(mesh.findConnection(43));
 }
 
-bool lesserThan(uint32_t lessr, uint32_t than) {
+bool lesserThan(uint32_t lesser, uint32_t than) {
     return
         (int) lesser - (int) than < 0;// Cast to int in case of time rollover
 }
