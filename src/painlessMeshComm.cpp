@@ -18,7 +18,7 @@ extern painlessMesh* staticThis;
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
     debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%d destId=%d type=%d msg=%s\n",
-             conn->nodeId, destId, (uint8_t) type, msg.c_str());
+             conn->nodeId, destId, (uint8_t)type, msg.c_str());
 
     String package = buildMeshPackage(destId, fromId, type, msg);
 
@@ -78,24 +78,28 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
         return false;
     }
 
-    if (connection->sendReady == true) {
-        sint8 errCode = espconn_send(connection->esp_conn, (uint8*) package.c_str(), package.length());
-        connection->sendReady = false;
+    if (connection) { // Protect against null pointer
+        if (connection->sendReady == true) {
+            sint8 errCode = espconn_send(connection->esp_conn, (uint8*)package.c_str(), package.length());
+            connection->sendReady = false;
 
-        if (errCode == 0) {
-            return true;
+            if (errCode == 0) {
+                return true;
+            } else {
+                debugMsg(ERROR, "sendPackage(): espconn_send Failed err=%d\n", errCode);
+                return false;
+            }
         } else {
-            debugMsg(ERROR, "sendPackage(): espconn_send Failed err=%d\n", errCode);
-            return false;
+            if (ESP.getFreeHeap() >= MIN_FREE_MEMMORY) { // If memory heap is enugh, queue the message
+                connection->sendQueue.push_back(package);
+                return true;
+            } else {
+                connection->sendQueue.clear(); // Discard all messages
+                return false;
+            }
         }
     } else {
-        if (ESP.getFreeHeap() >= MIN_FREE_MEMMORY) { // If memory heap is enugh, queue the message
-            connection->sendQueue.push_back(package);
-            return true;
-        } else {
-            connection->sendQueue.clear(); // Discard all messages
-            return false;
-        }
+        return false;
     }
 }
 
@@ -108,7 +112,7 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     root["dest"] = destId;
     //root["from"] = _nodeId;
     root["from"] = fromId;
-    root["type"] = (uint8_t) type;
+    root["type"] = (uint8_t)type;
     root["timestamp"] = staticThis->getNodeTime();
 
     switch (type) {
