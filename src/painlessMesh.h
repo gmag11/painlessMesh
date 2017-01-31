@@ -132,11 +132,11 @@ protected:
 
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
-    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
+    bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, meshConnectionType *exclude = NULL);
 
-    bool                sendPackage(meshConnectionType *connection, String &package);
+    bool                sendPackage(meshConnectionType *connection, String &package, bool priority = false);
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
 
