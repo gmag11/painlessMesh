@@ -84,20 +84,31 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
             connection->sendReady = false;
 
             if (errCode == 0) {
+                debugMsg(COMMUNICATION, "sendPackage(): Package sent -> %s\n", package.c_str());
                 return true;
             } else {
                 debugMsg(ERROR, "sendPackage(): espconn_send Failed err=%d\n", errCode);
                 return false;
             }
         } else {
-            if (ESP.getFreeHeap() >= MIN_FREE_MEMMORY) { // If memory heap is enough, queue the message
-                if (priority)
+            if (ESP.getFreeHeap() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
+                if (priority) {
                     connection->sendQueue.push_front(package);
-                else
-                    connection->sendQueue.push_back(package);
+                    debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue beginning -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
+                } else {
+                    if (connection->sendQueue.size() < MAX_MESSAGE_QUEUE) {
+                        connection->sendQueue.push_back(package);
+                        debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue end -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
+                    } else {
+                        debugMsg(ERROR, "sendPackage(): Message queue full -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
+                        return false;
+                    }
+
+                }
                 return true;
             } else {
                 connection->sendQueue.clear(); // Discard all messages if free memory is low
+                debugMsg(DEBUG, "sendPackage(): Memory low, all messages were discarded\n");
                 return false;
             }
         }
