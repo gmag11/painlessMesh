@@ -97,7 +97,7 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
         // if any value is 0 
         staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error.\n");
-        return 0xFFFFFFFF; // return max value
+        return 0x7FFFFFFF; // return max value
     }
 
 
