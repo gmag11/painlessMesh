@@ -475,7 +475,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
     
     if (!meshConnection->sendQueue.empty()) {
         String package = *meshConnection->sendQueue.begin();
-        for (int i = 0; i < min((unsigned int)MAX_CONSECUTIVE_SEND, meshConnection->sendQueue.size()) ; i++) {
+        for (int i = 0; i < MAX_CONSECUTIVE_SEND; ++i) {
             meshConnection->sendQueue.pop_front();
             sint8 errCode = espconn_send(meshConnection->esp_conn, (uint8*)package.c_str(), package.length());
            
@@ -484,8 +484,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
                 break;
             }
             //Serial.printf("Send queue %d\n", i);
-            //if (meshConnection->sendQueue.empty())
-            //    break;
+            if (meshConnection->sendQueue.empty())
+                break;
             //connection->sendReady = false;
         }
 
