@@ -501,6 +501,15 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
     //test to see if this connection was on the STATION interface by checking the local port
     if (disConn->proto.tcp->local_port == staticThis->_meshPort) {
         staticThis->debugMsg(CONNECTION, "AP connection.  No new action needed. local_port=%d\n", disConn->proto.tcp->local_port);
+
+        // I HAVE TO START NODE SYNC HERE TO LET OTHER NODES KNOW ABOUT THE DISCONNECTION.
+        // In case of high message load nodeSync is not sent TEST NEEDED
+        SimpleList<meshConnectionType>::iterator conn = staticThis->_connections.begin();
+        while (conn != staticThis->_connections.end()) {
+            conn->nodeSyncStatus = NEEDED;
+            conn++;
+        }
+
     } else {
         staticThis->debugMsg(CONNECTION, "Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
         // should start up automatically when station_status changes to IDLE
