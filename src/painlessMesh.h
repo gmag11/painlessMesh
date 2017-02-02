@@ -31,6 +31,12 @@ enum nodeStatusType {
     CONNECTED = 3
 };
 
+enum nodeMode {
+    AP_ONLY,
+    STA_ONLY,
+    STA_AP
+};
+
 enum scanStatusType {
     IDLE = 0,
     SCANNING = 1
@@ -105,7 +111,7 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
-    void                init(String ssid, String password, uint16_t port = 5555, bool hybridNode = false, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
