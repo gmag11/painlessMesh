@@ -8,6 +8,10 @@ void test_adjust_calc() {
     timeSync ts;
 
     // ts.times are invalid, should lead to max value
+    TEST_ASSERT_EQUAL(0, ts.times[0]);
+    TEST_ASSERT_EQUAL(0, ts.times[1]);
+    TEST_ASSERT_EQUAL(0, ts.times[2]);
+    TEST_ASSERT_EQUAL(0, ts.times[3]);
     TEST_ASSERT_EQUAL(0x7FFFFFFF, ts.calcAdjustment());
 }
 
