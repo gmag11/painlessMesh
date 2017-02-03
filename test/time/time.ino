@@ -43,6 +43,13 @@ void test_adjust_calc() {
     ts.times[2] = 1; ts.times[3] = 3;
     TEST_ASSERT_EQUAL(-2, ts.calcAdjustment());
     TEST_ASSERT_EQUAL(0xFFFFFFFF-1, timeAdjuster);
+
+    ts.times[0] = 0xFFFFFFFF; ts.times[1] = 1;
+    ts.times[2] = 1; ts.times[3] = 0xFFFFFFFF;
+    TEST_ASSERT_EQUAL(2, ts.calcAdjustment());
+    TEST_ASSERT_EQUAL(0, timeAdjuster);
+
+
 }
 
 void setup() {
