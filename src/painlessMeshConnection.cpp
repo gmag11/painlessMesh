@@ -480,7 +480,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
             sint8 errCode = espconn_send(meshConnection->esp_conn, 
                     (uint8*)package.c_str(), package.length());
             if (errCode != 0) {
-                staticThis->debugMsg(ERROR, "meshSentCb(): espconn_send Failed err=%d\n", errCode);
+                staticThis->debugMsg(ERROR, "meshSentCb(): espconn_send Failed err=%d Queue size %d\n", errCode, meshConnection->sendQueue.size());
                 break;
             }
 

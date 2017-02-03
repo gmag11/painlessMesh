@@ -23,8 +23,8 @@ extern "C" {
 #define NODE_TIMEOUT        3000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
 #define MIN_FREE_MEMORY     16000 // Minimum free memory, besides here all packets in queue are discarded.
-#define MAX_MESSAGE_QUEUE   100 // MAX number of unsent messages in queue. Newer messages are discarded
-#define MAX_CONSECUTIVE_SEND 10 // Max message busrt
+#define MAX_MESSAGE_QUEUE   50 // MAX number of unsent messages in queue. Newer messages are discarded
+#define MAX_CONSECUTIVE_SEND 5 // Max message busrt
 
 
 enum nodeStatusType {
