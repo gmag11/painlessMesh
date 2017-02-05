@@ -472,19 +472,27 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
         staticThis->debugMsg(ERROR, "meshSentCb(): err did not find meshConnection? Likely it was dropped for some reason\n");
         return;
     }
-
+    
     if (!meshConnection->sendQueue.empty()) {
-        String package = *meshConnection->sendQueue.begin();
-        meshConnection->sendQueue.pop_front();
-        sint8 errCode = espconn_send(meshConnection->esp_conn, (uint8*)package.c_str(), package.length());
-        //connection->sendReady = false;
+        for (int i = 0; i < MAX_CONSECUTIVE_SEND; ++i) {
+            String package = *meshConnection->sendQueue.begin();
 
-        if (errCode != 0) {
-            staticThis->debugMsg(ERROR, "meshSentCb(): espconn_send Failed err=%d\n", errCode);
+            sint8 errCode = espconn_send(meshConnection->esp_conn, 
+                    (uint8*)package.c_str(), package.length());
+            if (errCode != 0) {
+                staticThis->debugMsg(ERROR, "meshSentCb(): espconn_send Failed err=%d Queue size %d\n", errCode, meshConnection->sendQueue.size());
+                break;
+            }
+
+            meshConnection->sendQueue.pop_front();
+
+            if (meshConnection->sendQueue.empty())
+                break;
         }
     } else {
         meshConnection->sendReady = true;
     }
+
 }
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
@@ -495,6 +503,15 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
     //test to see if this connection was on the STATION interface by checking the local port
     if (disConn->proto.tcp->local_port == staticThis->_meshPort) {
         staticThis->debugMsg(CONNECTION, "AP connection.  No new action needed. local_port=%d\n", disConn->proto.tcp->local_port);
+
+        // I HAVE TO START NODE SYNC HERE TO LET OTHER NODES KNOW ABOUT THE DISCONNECTION.
+        // In case of high message load nodeSync is not sent TEST NEEDED
+        SimpleList<meshConnectionType>::iterator conn = staticThis->_connections.begin();
+        while (conn != staticThis->_connections.end()) {
+            conn->nodeSyncStatus = NEEDED;
+            conn++;
+        }
+
     } else {
         staticThis->debugMsg(CONNECTION, "Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
         // should start up automatically when station_status changes to IDLE

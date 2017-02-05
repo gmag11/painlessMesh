@@ -22,7 +22,9 @@ extern "C" {
 
 #define NODE_TIMEOUT        3000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
-#define MIN_FREE_MEMMORY    10000 // Minimum free memory, besides here all packets in queue are discarded.
+#define MIN_FREE_MEMORY     16000 // Minimum free memory, besides here all packets in queue are discarded.
+#define MAX_MESSAGE_QUEUE   50 // MAX number of unsent messages in queue. Newer messages are discarded
+#define MAX_CONSECUTIVE_SEND 5 // Max message busrt
 
 
 enum nodeStatusType {
@@ -138,11 +140,11 @@ protected:
 
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
-    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
+    bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, meshConnectionType *exclude = NULL);
 
-    bool                sendPackage(meshConnectionType *connection, String &package);
+    bool                sendPackage(meshConnectionType *connection, String &package, bool priority = false);
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
 
