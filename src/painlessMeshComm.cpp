@@ -16,25 +16,25 @@ extern painlessMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
     debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%d destId=%d type=%d msg=%s\n",
-             conn->nodeId, destId, (uint8_t) type, msg.c_str());
+             conn->nodeId, destId, (uint8_t)type, msg.c_str());
 
     String package = buildMeshPackage(destId, fromId, type, msg);
 
-    return sendPackage(conn, package);
+    return sendPackage(conn, package, priority);
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
     debugMsg(COMMUNICATION, "In sendMessage(destId): destId=%d type=%d, msg=%s\n",
              destId, type, msg.c_str());
 
     meshConnectionType *conn = findConnection(destId);
-    if (conn != NULL) {
-        return sendMessage(conn, destId, fromId, type, msg);
+    if (conn) {
+        return sendMessage(conn, destId, fromId, type, msg, priority);
     } else {
-        debugMsg(ERROR, "In sendMessage(destId): findConnection( destId ) failed\n");
+        debugMsg(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n", destId);
         return false;
     }
 }
@@ -70,7 +70,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection, String &package) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection, String &package, bool priority) {
     debugMsg(COMMUNICATION, "Sending to %d-->%s<--\n", connection->nodeId, package.c_str());
 
     if (package.length() > 1400) {
@@ -78,19 +78,42 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
         return false;
     }
 
-    if (connection->sendReady == true) {
-        sint8 errCode = espconn_send(connection->esp_conn, (uint8*) package.c_str(), package.length());
-        connection->sendReady = false;
+    if (connection) { // Protect against null pointer
+        if (connection->sendReady == true) {
+            sint8 errCode = espconn_send(connection->esp_conn, (uint8*)package.c_str(), package.length());
+            connection->sendReady = false;
 
-        if (errCode == 0) {
-            return true;
+            if (errCode == 0) {
+                debugMsg(COMMUNICATION, "sendPackage(): Package sent -> %s\n", package.c_str());
+                return true;
+            } else {
+                debugMsg(ERROR, "sendPackage(): espconn_send Failed err=%d\n", errCode);
+                return false;
+            }
         } else {
-            debugMsg(ERROR, "sendPackage(): espconn_send Failed err=%d\n", errCode);
-            return false;
+            if (ESP.getFreeHeap() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
+                if (priority) {
+                    connection->sendQueue.push_front(package);
+                    debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue beginning -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
+                } else {
+                    if (connection->sendQueue.size() < MAX_MESSAGE_QUEUE) {
+                        connection->sendQueue.push_back(package);
+                        debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue end -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
+                    } else {
+                        debugMsg(ERROR, "sendPackage(): Message queue full -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
+                        return false;
+                    }
+
+                }
+                return true;
+            } else {
+                connection->sendQueue.clear(); // Discard all messages if free memory is low
+                debugMsg(DEBUG, "sendPackage(): Memory low, all messages were discarded\n");
+                return false;
+            }
         }
     } else {
-        connection->sendQueue.push_back(package);
-        return true;
+        return false;
     }
 }
 
@@ -103,7 +126,7 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     root["dest"] = destId;
     //root["from"] = _nodeId;
     root["from"] = fromId;
-    root["type"] = (uint8_t) type;
+    root["type"] = (uint8_t)type;
     root["timestamp"] = staticThis->getNodeTime();
 
     switch (type) {
