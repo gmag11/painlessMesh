@@ -22,6 +22,9 @@ extern "C" {
 
 #define NODE_TIMEOUT        3000000  //uSecs
 #define JSON_BUFSIZE        300 // initial size for the DynamicJsonBuffers.
+#define MIN_FREE_MEMORY     16000 // Minimum free memory, besides here all packets in queue are discarded.
+#define MAX_MESSAGE_QUEUE   50 // MAX number of unsent messages in queue. Newer messages are discarded
+#define MAX_CONSECUTIVE_SEND 5 // Max message busrt
 
 
 enum nodeStatusType {
@@ -29,6 +32,12 @@ enum nodeStatusType {
     SEARCHING = 1,
     FOUND_MESH = 2,
     CONNECTED = 3
+};
+
+enum nodeMode {
+    AP_ONLY,
+    STA_ONLY,
+    STA_AP
 };
 
 enum scanStatusType {
@@ -105,7 +114,7 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
-    void                init(String ssid, String password, uint16_t port = 5555, bool hybridNode = false, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
@@ -131,11 +140,11 @@ protected:
 
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
-    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
+    bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, meshConnectionType *exclude = NULL);
 
-    bool                sendPackage(meshConnectionType *connection, String &package);
+    bool                sendPackage(meshConnectionType *connection, String &package, bool priority = false);
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
 
