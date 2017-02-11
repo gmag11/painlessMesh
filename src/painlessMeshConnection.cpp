@@ -288,6 +288,7 @@ SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
     String nodeJson = subConnectionJson();
 
     uint index = 0;
+    char* stopstr;
 
     while (index < nodeJson.length()) {
         uint comma = 0;
@@ -296,7 +297,8 @@ SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
             break;
         comma = nodeJson.indexOf(',', index);
         String temp = nodeJson.substring(index + 9, comma);
-        nodeList.push_back(temp.toInt());
+        uint32_t id = strtoul(temp.c_str(), &stopstr, 10);
+        nodeList.push_back(id);
         index = comma + 1;
         nodeJson = nodeJson.substring(index);
 
