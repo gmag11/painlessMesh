@@ -217,7 +217,7 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t node
 
         connection++;
     }
-    debugMsg(CONNECTION, "findConnection(%d): did not find connection\n", nodeId);
+    debugMsg(CONNECTION, "findConnection(%u): did not find connection\n", nodeId);
     return NULL;
 }
 
