@@ -18,7 +18,7 @@ enum timeSyncMessageType_t {
 
 class timeSync {
 public:
-    uint32_t              times[NUMBER_OF_TIMESTAMS]; // timestamp array
+    uint32_t              times[NUMBER_OF_TIMESTAMS] = {0,0,0,0}; // timestamp array
     uint32_t              timeDelay[NUMBER_OF_TIMESTAMS]; // timestamp array
 
     String                buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS = 0, uint32_t receiveTS = 0, uint32_t transmitTS = 0);

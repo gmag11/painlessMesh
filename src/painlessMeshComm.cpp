@@ -17,7 +17,7 @@ extern painlessMesh* staticThis;
 // communications functions
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
-    debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%d destId=%d type=%d msg=%s\n",
+    debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%u destId=%u type=%d msg=%s\n",
              conn->nodeId, destId, (uint8_t)type, msg.c_str());
 
     String package = buildMeshPackage(destId, fromId, type, msg);
@@ -27,7 +27,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint3
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
-    debugMsg(COMMUNICATION, "In sendMessage(destId): destId=%d type=%d, msg=%s\n",
+    debugMsg(COMMUNICATION, "In sendMessage(destId): destId=%u type=%d, msg=%s\n",
              destId, type, msg.c_str());
 
     meshConnectionType *conn = findConnection(destId);
@@ -50,10 +50,10 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
     bool errCode = false;
 
     if (exclude != NULL)
-        debugMsg(COMMUNICATION, "broadcastMessage(): from=%d type=%d, msg=%s exclude=%d\n",
+        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=%u\n",
                  from, type, msg.c_str(), exclude->nodeId);
     else
-        debugMsg(COMMUNICATION, "broadcastMessage(): from=%d type=%d, msg=%s exclude=NULL\n",
+        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n",
                  from, type, msg.c_str());
 
     SimpleList<meshConnectionType>::iterator connection = _connections.begin();
@@ -71,7 +71,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection, String &package, bool priority) {
-    debugMsg(COMMUNICATION, "Sending to %d-->%s<--\n", connection->nodeId, package.c_str());
+    debugMsg(COMMUNICATION, "Sending to %u-->%s<--\n", connection->nodeId, package.c_str());
 
     if (package.length() > 1400) {
         debugMsg(ERROR, "sendPackage(): err package too long length=%d\n", package.length());

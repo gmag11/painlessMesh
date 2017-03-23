@@ -55,7 +55,7 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
 meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnection(meshConnectionType *conn) {
     // It seems that more should be done here... perhaps send off a packet to
     // make an attempt to tell the other node that we are closing this conneciton?
-    debugMsg(CONNECTION, "closeConnection(): conn-nodeId=%d\n", conn->nodeId);
+    debugMsg(CONNECTION, "closeConnection(): conn-nodeId=%u\n", conn->nodeId);
     espconn_disconnect(conn->esp_conn);
     return _connections.erase(conn);
 }
@@ -392,7 +392,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 
     uint32_t receivedAt = staticThis->getNodeTime();
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%d\n", data, receiveConn ? receiveConn->nodeId : 0);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%u\n", data, receiveConn ? receiveConn->nodeId : 0);
 
     if (!receiveConn) {
         staticThis->debugMsg(ERROR, "meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
@@ -410,7 +410,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         return;
     }
 
-    staticThis->debugMsg(GENERAL, "meshRecvCb(): Recvd from %d-->%s<--\n", receiveConn->nodeId, data);
+    staticThis->debugMsg(GENERAL, "meshRecvCb(): Recvd from %u-->%s<--\n", receiveConn->nodeId, data);
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];

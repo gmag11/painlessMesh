@@ -80,7 +80,7 @@ void ICACHE_FLASH_ATTR painlessMesh::update(void) {
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
-    debugMsg(COMMUNICATION, "sendSingle(): dest=%d msg=%s\n", destId, msg.c_str());
+    debugMsg(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
     return sendMessage(destId, _nodeId, SINGLE, msg);
 }
 

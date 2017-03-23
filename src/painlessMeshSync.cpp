@@ -97,17 +97,15 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment() {
     if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
         // if any value is 0 
         staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error.\n");
-        return 0xFFFFFFFF; // return max value
+        return 0x7FFFFFFF; // return max value
     }
 
-
-    // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+    // We use the SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm.
     uint32_t offset = ((int32_t)(times[1] - times[0]) / 2) + ((int32_t)(times[2] - times[3]) / 2);
 
-    uint32_t tripDelay = (times[3] - times[0]) - (times[2] - times[1]);
-
     timeAdjuster += offset; // Accumulate offset
-    staticThis->debugMsg(S_TIME, "calcAdjustment(): Calculated offset %d us. Network delay %d us\n", offset, tripDelay);
+    staticThis->debugMsg(S_TIME, 
+            "calcAdjustment(): Calculated offset %d us.\n", offset);
     staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
 
     return offset; // return offset to decide if sync is OK
@@ -123,9 +121,7 @@ int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
         return -1; // return max value
     }
 
-
-    // This calculation algorithm is got from SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
-
+    // We use the SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm.
     uint32_t tripDelay = ((timeDelay[3] - timeDelay[0]) - (timeDelay[2] - timeDelay[1]))/2;
 
     staticThis->debugMsg(S_TIME, "delayCalc(): Calculated Network delay %d us\n", tripDelay);
