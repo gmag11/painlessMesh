@@ -52,7 +52,7 @@ void loop() {
     // run the blinky
     bool  onFlag = true;
     uint32_t cycleTime = mesh.getNodeTime() % BLINK_PERIOD;
-    for (uint8_t i = 0; i < (mesh.connectionCount() + 1); i++) {
+    for (uint8_t i = 0; i < (mesh.getNodeList().size() + 1); i++) {
         uint32_t onTime = BLINK_DURATION * i * 2;
 
         if (cycleTime > onTime && cycleTime < onTime + BLINK_DURATION)
