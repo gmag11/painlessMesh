@@ -171,7 +171,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::connectToBestAP(void) {
     }
 
     // connect to bestAP
-    debugMsg(CONNECTION, "connectToBestAP(): Best AP is %d<---\n", encodeNodeId(bestAP->bssid));
+    debugMsg(CONNECTION, "connectToBestAP(): Best AP is %u<---\n", encodeNodeId(bestAP->bssid));
     struct station_config stationConf;
     stationConf.bssid_set = 1;
     memcpy(&stationConf.bssid, bestAP->bssid, 6); // Connect to this specific HW Address
