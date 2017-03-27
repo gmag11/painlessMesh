@@ -167,7 +167,9 @@ protected:
     uint16_t            jsonSubConnCount(String& subConns);
     meshConnectionType* closeConnection(meshConnectionType *conn);
     String              subConnectionJson(meshConnectionType *exclude);
-
+    String              subConnectionJsonHelper(
+                            SimpleList<meshConnectionType> &connections,
+                            meshConnectionType *exclude);
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);

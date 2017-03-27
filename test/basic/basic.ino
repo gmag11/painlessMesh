@@ -50,6 +50,10 @@ void test_comparison() {
     TEST_ASSERT(lesserThan(uint32_max,100)); 
 }
 
+void test_subConnectionJsonHelper() {
+    TEST_ASSERT(false);
+}
+
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
 }
@@ -57,6 +61,7 @@ void setup() {
 void loop() {
     RUN_TEST(test_findConnection);
     RUN_TEST(test_comparison);
+    RUN_TEST(test_subConnectionJsonHelper);
     UNITY_END(); // stop unit testing
 }
 #endif

@@ -241,6 +241,13 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(espconn *conn
 
 //***********************************************************************
 String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(meshConnectionType *exclude) {
+    subConnectionJsonHelper(_connections, exclude);
+}
+
+//***********************************************************************
+String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
+        SimpleList<meshConnectionType> &connections,
+        meshConnectionType *exclude) {
     if (exclude != NULL)
         debugMsg(GENERAL, "subConnectionJson(), exclude=%d\n", exclude->nodeId);
 
@@ -249,8 +256,8 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(meshConnectionType *exc
     if (!subArray.success())
         debugMsg(ERROR, "subConnectionJson(): ran out of memory 1");
 
-    SimpleList<meshConnectionType>::iterator sub = _connections.begin();
-    while (sub != _connections.end()) {
+    SimpleList<meshConnectionType>::iterator sub = connections.begin();
+    while (sub != connections.end()) {
         if (sub != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
             JsonObject& subObj = jsonBuffer.createObject();
             if (!subObj.success())
@@ -279,6 +286,8 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(meshConnectionType *exc
     debugMsg(GENERAL, "subConnectionJson(): ret=%s\n", ret.c_str());
     return ret;
 }
+
+
 
 //***********************************************************************
 SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
