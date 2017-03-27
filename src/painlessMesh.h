@@ -169,7 +169,7 @@ protected:
     String              subConnectionJson(meshConnectionType *exclude);
     String              subConnectionJsonHelper(
                             SimpleList<meshConnectionType> &connections,
-                            meshConnectionType *exclude);
+                            uint32_t exclude = 0);
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);
