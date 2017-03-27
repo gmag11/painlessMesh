@@ -52,7 +52,7 @@ void test_comparison() {
 
 void test_subConnectionJsonHelper() {
     meshConnectionType node1, node2;
-    node1.nodeId = 2132111639;
+    node1.nodeId = -1; // Max uint value
     node1.subConnections = String("[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]");
     
     node2.nodeId = 886231565;
@@ -64,10 +64,14 @@ void test_subConnectionJsonHelper() {
 
     painlessMesh mesh;
     TEST_ASSERT(
-        String("[{\"nodeId\":2132111639,\"subs\":[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]},{\"nodeId\":886231565,\"subs\":[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]}]") ==
+        String("[{\"nodeId\":4294967295,\"subs\":[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]},{\"nodeId\":886231565,\"subs\":[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]}]") ==
         mesh.subConnectionJsonHelper(connections));
+
     TEST_ASSERT(String("[{\"nodeId\":886231565,\"subs\":[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]}]") == 
         mesh.subConnectionJsonHelper(connections, node1.nodeId));
+
+    TEST_ASSERT(String("[{\"nodeId\":4294967295,\"subs\":[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]}]") == 
+        mesh.subConnectionJsonHelper(connections, node2.nodeId));
 }
 
 void setup() {

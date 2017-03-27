@@ -251,43 +251,22 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     if (exclude != 0)
         debugMsg(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
 
-    DynamicJsonBuffer jsonBuffer(JSON_BUFSIZE);
-    JsonArray& subArray = jsonBuffer.createArray();
-    if (!subArray.success())
-        debugMsg(ERROR, "subConnectionJson(): ran out of memory 1");
-
     SimpleList<meshConnectionType>::iterator sub = connections.begin();
+    String ret = "[";
     while (sub != connections.end()) {
         if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
-            JsonObject& subObj = jsonBuffer.createObject();
-            if (!subObj.success())
-                debugMsg(ERROR, "subConnectionJson(): ran out of memory 2");
-
-            subObj["nodeId"] = sub->nodeId;
-
-            if (sub->subConnections.length() != 0) {
-                //debugMsg( GENERAL, "subConnectionJson(): sub->subConnections=%s\n", sub->subConnections.c_str() );
-
-                JsonArray& subs = jsonBuffer.parseArray(sub->subConnections);
-                if (!subs.success())
-                    debugMsg(ERROR, "subConnectionJson(): ran out of memory 3");
-
-                subObj["subs"] = subs;
-            }
-
-            if (!subArray.add(subObj))
-                debugMsg(ERROR, "subConnectionJson(): ran out of memory 4");
+            if (ret.length() > 1)
+                ret += String(",");
+            ret += String("{\"nodeId\":") + String(sub->nodeId) +
+                String(",\"subs\":") + sub->subConnections + String("}");
         }
         sub++;
     }
+    ret += String("]");
 
-    String ret;
-    subArray.printTo(ret);
     debugMsg(GENERAL, "subConnectionJson(): ret=%s\n", ret.c_str());
     return ret;
 }
-
-
 
 //***********************************************************************
 SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
@@ -309,7 +288,6 @@ SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
         nodeList.push_back(id);
         index = comma + 1;
         nodeJson = nodeJson.substring(index);
-
     }
 
     return nodeList;
