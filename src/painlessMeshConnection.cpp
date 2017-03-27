@@ -241,7 +241,10 @@ meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::findConnection(espconn *conn
 
 //***********************************************************************
 String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(meshConnectionType *exclude) {
-    subConnectionJsonHelper(_connections, exclude->nodeId);
+    if (exclude == NULL)
+        return subConnectionJsonHelper(_connections);
+    else
+        return subConnectionJsonHelper(_connections, exclude->nodeId);
 }
 
 //***********************************************************************
@@ -251,16 +254,14 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     if (exclude != 0)
         debugMsg(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
 
-    SimpleList<meshConnectionType>::iterator sub = connections.begin();
     String ret = "[";
-    while (sub != connections.end()) {
-        if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
+    for (auto &sub : connections) {
+        if (sub.nodeId != exclude && sub.nodeId != 0) {  //exclude connection that we are working with & anything too new.
             if (ret.length() > 1)
                 ret += String(",");
-            ret += String("{\"nodeId\":") + String(sub->nodeId) +
-                String(",\"subs\":") + sub->subConnections + String("}");
+            ret += String("{\"nodeId\":") + String(sub.nodeId) +
+                String(",\"subs\":") + sub.subConnections + String("}");
         }
-        sub++;
     }
     ret += String("]");
 
