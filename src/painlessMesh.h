@@ -165,7 +165,9 @@ protected:
     bool                connectToBestAP(void);
     meshConnectionType* closeConnection(meshConnectionType *conn);
     String              subConnectionJson(meshConnectionType *exclude);
-
+    String              subConnectionJsonHelper(
+                            SimpleList<meshConnectionType> &connections,
+                            uint32_t exclude = 0);
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);
