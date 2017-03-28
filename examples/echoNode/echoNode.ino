@@ -14,7 +14,7 @@ painlessMesh  mesh;
 void setup() {
   Serial.begin(115200);
     
-  mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION );  // set before init() so that you can see startup messages
 
   mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
   mesh.onReceive(&receivedCallback);
