@@ -14,25 +14,50 @@ bool endTest = false;
 
 painlessMesh  mesh;
 
+SimpleList<String> expected;
+SimpleList<String> received;
+
 size_t noCBs = 0;
 
 void newConnectionCallback(uint32_t nodeId) {
     mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-    Serial.printf("--> New Connection, nodeId = %u\n", nodeId);
-    Serial.printf("--> My nodeId = %u\n", mesh.getNodeId());
     auto msg = String("Hello boy");
     mesh.sendSingle(nodeId, msg);
+    expected.push_back(msg);
 }
 
 void receivedCallback(uint32_t from, String &msg) {
-    Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
     ++noCBs;
-    endTest = true;
+    received.push_back(msg);
+    if (expected.size() == received.size())
+        endTest = true;
 }
 
-void test_connected() {
-    TEST_ASSERT_EQUAL(1, noCBs);
+void test_no_received() {
+    TEST_ASSERT_EQUAL(expected.size(), noCBs);
 }
+
+void test_received_equals_expected() {
+    auto r = received.begin();
+    auto e = expected.begin(); 
+    while(r != received.end()) {
+        TEST_ASSERT(*r == *e);
+        ++r;
+        ++e;
+    }
+}
+
+void logMessages() {
+    auto r = received.begin();
+    auto e = expected.begin(); 
+    while(r != received.end()) {
+        Serial.printf("Received: %s\n", (*r).c_str());
+        Serial.printf("Expected: %s\n", (*e).c_str());
+        ++r;
+        ++e;
+    }
+}
+
 
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
@@ -45,7 +70,9 @@ void loop() {
     mesh.update();
     //UNITY_END(); // stop unit testing
     if (endTest) {
-        RUN_TEST(test_connected);
+        RUN_TEST(test_no_received);
+        RUN_TEST(test_received_equals_expected);
+        //logMessages();
         UNITY_END();
     }
 }
