@@ -11,6 +11,7 @@ Here we test the network behaviour of a node. These tests rely on a echoNode to 
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 bool endTest = false;
+bool sendingDone = false;
 
 painlessMesh  mesh;
 
@@ -19,17 +20,44 @@ SimpleList<String> received;
 
 size_t noCBs = 0;
 
+String randomString(uint32_t length) {
+    String str;
+    for(auto i = 0; i < length; ++i) {
+        char rnd = random(33, 90);
+        str += String(rnd);
+    }
+    return str;
+}
+
+void addMessage(painlessMesh &m, String msg, uint32_t nodeId) {
+    if (m.sendSingle(nodeId, msg))
+        expected.push_back(msg);
+}
+
 void newConnectionCallback(uint32_t nodeId) {
-    mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
     auto msg = String("Hello boy");
     mesh.sendSingle(nodeId, msg);
     expected.push_back(msg);
+
+    // Test 10 short msgs
+    for(auto i = 0; i < 10; ++i)
+        addMessage(mesh, randomString(random(10,50)), nodeId);
+
+    // Test 10 long msgs
+    for(auto i = 0; i < 10; ++i)
+        addMessage(mesh, randomString(random(1000,1300)), nodeId);
+
+
+    //addMessage(mesh, randomString(1800), nodeId);
+    //addMessage(mesh, randomString(3600), nodeId);
+
+    sendingDone = true;
 }
 
 void receivedCallback(uint32_t from, String &msg) {
     ++noCBs;
     received.push_back(msg);
-    if (expected.size() == received.size())
+    if (sendingDone && expected.size() == received.size())
         endTest = true;
 }
 
@@ -61,6 +89,8 @@ void logMessages() {
 
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
+    //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG ); // all types on
+    mesh.setDebugMsgTypes( ERROR | CONNECTION | DEBUG ); // all types on
     mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onReceive(&receivedCallback);
