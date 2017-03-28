@@ -91,7 +91,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
                 return false;
             }
         } else {
-            if (ESP.getFreeHeap() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
+            if (ESP.getFreeHeap() - package.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
                 if (priority) {
                     connection->sendQueue.push_front(package);
                     debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue beginning -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
@@ -107,8 +107,8 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
                 }
                 return true;
             } else {
-                connection->sendQueue.clear(); // Discard all messages if free memory is low
-                debugMsg(DEBUG, "sendPackage(): Memory low, all messages were discarded\n");
+                //connection->sendQueue.clear(); // Discard all messages if free memory is low
+                debugMsg(DEBUG, "sendPackage(): Memory low, message was discarded\n");
                 return false;
             }
         }
@@ -121,7 +121,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
 String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
     debugMsg(GENERAL, "In buildMeshPackage(): msg=%s\n", msg.c_str());
 
-    DynamicJsonBuffer jsonBuffer(JSON_BUFSIZE);
+    DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.createObject();
     root["dest"] = destId;
     //root["from"] = _nodeId;

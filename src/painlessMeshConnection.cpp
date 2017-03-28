@@ -341,7 +341,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 
     String somestring(data);      //copy data before json parsing FIXME: can someone explain why this works?
 
-    DynamicJsonBuffer jsonBuffer(JSON_BUFSIZE);
+    DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(data);
     if (!root.success()) {   // Test if parsing succeeded.
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. data=%s<--\n", data);
@@ -419,7 +419,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
             sint8 errCode = espconn_send(meshConnection->esp_conn, 
                     (uint8*)package.c_str(), package.length());
             if (errCode != 0) {
-                staticThis->debugMsg(ERROR, "meshSentCb(): espconn_send Failed err=%d Queue size %d\n", errCode, meshConnection->sendQueue.size());
+                staticThis->debugMsg(CONNECTION, "meshSentCb(): espconn_send failed with err=%d Queue size %d. Will retry later\n", errCode, meshConnection->sendQueue.size());
                 break;
             }
 
