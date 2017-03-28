@@ -126,7 +126,6 @@ public:
     void                onChangedConnections(changedConnectionsCallback_t onChangedConnections);
     void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
     void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
-    uint16_t            connectionCount(meshConnectionType *exclude = NULL);
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
     SimpleList<uint32_t> getNodeList();
@@ -164,7 +163,6 @@ protected:
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
     bool                connectToBestAP(void);
-    uint16_t            jsonSubConnCount(String& subConns);
     meshConnectionType* closeConnection(meshConnectionType *conn);
     String              subConnectionJson(meshConnectionType *exclude);
 

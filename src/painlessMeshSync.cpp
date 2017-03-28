@@ -242,13 +242,14 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boo
 bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
     // make the adoption calulation. Figure out how many nodes I am connected to exclusive of this connection.
 
-    uint16_t mySubCount = connectionCount(conn);  //exclude this connection.
-    uint16_t remoteSubCount = jsonSubConnCount(conn->subConnections);
+    // We use length as an indicator for how many subconnections both nodes have
+    uint16_t mySubCount = subConnectionJson(conn).length();  //exclude this connection.
+    uint16_t remoteSubCount = conn->subConnections.length();
     bool ap = conn->esp_conn->proto.tcp->local_port == _meshPort;
 
     // ToDo. Simplify this logic
     bool ret = (mySubCount > remoteSubCount) ? false : true;
-    if (mySubCount == remoteSubCount && ap) { // in case of withdraw, ap wins
+    if (mySubCount == remoteSubCount && ap) { // in case of draw, ap wins
         ret = false;
     }
 

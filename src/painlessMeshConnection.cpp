@@ -308,56 +308,6 @@ SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
 }
 
 //***********************************************************************
-uint16_t ICACHE_FLASH_ATTR painlessMesh::connectionCount(meshConnectionType *exclude) {
-    uint16_t count = 0;
-
-    SimpleList<meshConnectionType>::iterator sub = _connections.begin();
-    while (sub != _connections.end()) {
-        if (sub != exclude) {  //exclude this connection in the calc.
-            count += (1 + jsonSubConnCount(sub->subConnections));
-        }
-        sub++;
-    }
-
-    debugMsg(GENERAL, "connectionCount(): count=%d\n", count);
-    return count;
-}
-
-//***********************************************************************
-uint16_t ICACHE_FLASH_ATTR painlessMesh::jsonSubConnCount(String& subConns) {
-    debugMsg(GENERAL, "jsonSubConnCount(): subConns=%s\n", subConns.c_str());
-
-    uint16_t count = 0;
-
-    if (subConns.length() < 3)
-        return 0;
-
-    DynamicJsonBuffer jsonBuffer(JSON_BUFSIZE);
-    JsonArray& subArray = jsonBuffer.parseArray(subConns);
-
-    if (!subArray.success()) {
-        debugMsg(ERROR, "subConnCount(): out of memory1\n");
-    }
-
-    String str;
-    for (uint8_t i = 0; i < subArray.size(); i++) {
-        str = subArray.get<String>(i);
-        debugMsg(GENERAL, "jsonSubConnCount(): str=%s\n", str.c_str());
-        JsonObject& obj = jsonBuffer.parseObject(str);
-        if (!obj.success()) {
-            debugMsg(ERROR, "subConnCount(): out of memory2\n");
-        }
-
-        str = obj.get<String>("subs");
-        count += (1 + jsonSubConnCount(str));
-    }
-
-    debugMsg(CONNECTION, "jsonSubConnCount(): leaving count=%d\n", count);
-
-    return count;
-}
-
-//***********************************************************************
 // callback which will be called on successful TCP connection (server or client)
 // If we are the station party a node time sync is started
 
