@@ -204,7 +204,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         _stationConn.proto.tcp->remote_port = _meshPort; // Global mesh port
         os_memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
         os_memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
-        espconn_set_opt(&_stationConn, ESPCONN_NODELAY); // low latency, but soaks up bandwidth
+        espconn_set_opt(&_stationConn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE); // low latency, but soaks up bandwidth
 
         debugMsg(CONNECTION, "tcpConnect(): connecting type=%d, state=%d, local_ip=%d.%d.%d.%d, local_port=%d, remote_ip=%d.%d.%d.%d remote_port=%d\n",
                  _stationConn.type,

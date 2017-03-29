@@ -303,7 +303,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     staticThis->debugMsg(CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
     meshConnectionType newConn;
     newConn.esp_conn = (espconn *)arg;
-    espconn_set_opt(newConn.esp_conn, ESPCONN_NODELAY);  // removes nagle, low latency, but soaks up bandwidth
+    espconn_set_opt(newConn.esp_conn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE);  // removes nagle, low latency, but soaks up bandwidth
     newConn.lastReceived = system_get_time();
 
     espconn_regist_recvcb(newConn.esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
