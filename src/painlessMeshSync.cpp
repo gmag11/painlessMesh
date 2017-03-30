@@ -240,6 +240,8 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boo
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
+    if (conn == NULL) // Missing connection
+        return false;
     // make the adoption calulation. Figure out how many nodes I am connected to exclusive of this connection.
 
     // We use length as an indicator for how many subconnections both nodes have
