@@ -91,8 +91,6 @@ There are no parameters passed. This is a signal only.
 
 Returns if a given node is currently connected to the mesh.
 
-`bool isConnected()`
-
 `nodeId` is node ID that the request refers to.
 
 ### void painlessMesh::onNodeTimeAdjusted( &amp;nodeTimeAdjustedCallback )
@@ -124,10 +122,6 @@ returns true if everything works, false if not.  Prints an error message to Seri
 Sends msg to the node with Id == dest.
 
 returns true if everything works, false if not.  Prints an error message to Serial.print, if there is a failure.
-
-### uint16_t painlessMesh::connectionCount()
-
-Returns the total number of nodes connected to this mesh.
 
 ### String painlessMesh::subConnectionJson()
 
