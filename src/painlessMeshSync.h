@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 
-#define SCAN_INTERVAL       10000 // AP scan period in ms
 #define TIME_SYNC_INTERVAL  600000000  // Time resync period, in us. 600 sec = 10 min
 #define SYNC_RESPONSE_TIMEOUT 5000000 // Max time to wait for time response. 5 sec
 #define NUMBER_OF_TIMESTAMS 4   // 4 timestamps are needed for time offset calculation

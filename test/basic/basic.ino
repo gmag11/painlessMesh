@@ -74,6 +74,20 @@ void test_subConnectionJsonHelper() {
         mesh.subConnectionJsonHelper(connections, node2.nodeId));
 }
 
+void test_approxNoNodes() {
+    meshConnectionType node1, node2;
+    node1.subConnections = String("[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]");
+    painlessMesh mesh;
+
+    TEST_ASSERT_EQUAL(4, mesh.approxNoNodes(node1.subConnections));
+    
+    
+    node2.subConnections = String("[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]");
+    TEST_ASSERT_EQUAL(2, mesh.approxNoNodes(node2.subConnections));
+}
+
+
+
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
 }
@@ -82,6 +96,7 @@ void loop() {
     RUN_TEST(test_findConnection);
     RUN_TEST(test_comparison);
     RUN_TEST(test_subConnectionJsonHelper);
+    RUN_TEST(test_approxNoNodes);
     UNITY_END(); // stop unit testing
 }
 #endif
