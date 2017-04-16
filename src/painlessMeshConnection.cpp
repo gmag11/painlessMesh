@@ -53,12 +53,24 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
 
 //***********************************************************************
 meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnection(meshConnectionType *conn) {
-    // It seems that more should be done here... perhaps send off a packet to
-    // make an attempt to tell the other node that we are closing this conneciton?
+    // A closed connection should (TODO: double check) result in a call to meshDisconCB, which will send sub sync messages
     debugMsg(CONNECTION, "closeConnection(): conn-nodeId=%u\n", conn->nodeId);
     espconn_disconnect(conn->esp_conn);
     return _connections.erase(conn);
 }
+
+meshConnectionType* ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
+{
+    auto conn = _connections.begin();
+    while (conn != _connections.end()) {
+        if (conn->esp_conn->proto.tcp->local_port != _meshPort) {
+            // We found the STA connection, close it
+            return closeConnection(conn);
+        }
+        conn++;
+    }
+}
+ 
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {

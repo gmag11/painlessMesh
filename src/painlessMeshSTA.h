@@ -13,19 +13,26 @@ class StationScan {
 
     StationScan() {}
     void init(painlessMesh *pMesh, String &ssid, String &password, 
-            uint8_t channel);
+            uint16_t port);
 
     void stationScan();
     void scanComplete(bss_info *bssInfo);
     void filterAPs();
     void connectToAP();
+
   private:
     String ssid;
     String password;
     painlessMesh *mesh;
-    uint8_t channel;
+    uint16_t port;
     SimpleList<bss_info> aps;
 
+    void requestIP(bss_info* ap);
+
+    // Manually configure network and ip 
+    bool manual = false; 
+    uint8_t manualIP[4] = {0, 0, 0, 0};
+    friend class painlessMesh;
 };
 
 #endif

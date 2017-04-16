@@ -131,6 +131,10 @@ public:
 
     // in painlessMeshSTA.cpp
     uint32_t            encodeNodeId(uint8_t *hwaddr);
+    /// Connect (as a station) to a specified network and ip
+    /// You can pass {0,0,0,0} as IP to have it connect to the gateway
+    void stationManual(String ssid, String password, uint16_t port,
+        uint8_t *remote_ip);
 
     Scheduler scheduler;
     StationScan stationScan;
@@ -165,6 +169,7 @@ protected:
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
     meshConnectionType* closeConnection(meshConnectionType *conn);
+    meshConnectionType* closeConnectionSTA(); 
     String              subConnectionJson(meshConnectionType *exclude);
     String              subConnectionJsonHelper(
                             SimpleList<meshConnectionType> &connections,

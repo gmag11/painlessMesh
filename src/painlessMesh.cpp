@@ -65,7 +65,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     if (connectMode == AP_ONLY || connectMode == STA_AP)
         apInit();       // setup AP
     if (connectMode == STA_ONLY || connectMode == STA_AP) {
-        stationScan.init(this, ssid, password, channel);
+        stationScan.init(this, ssid, password, port);
         scheduler.addTask(stationScan.task);
     }
 
