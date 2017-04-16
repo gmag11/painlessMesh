@@ -172,8 +172,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
     if (!conn->subConnections.equals(inComingSubs)) {  // change in the network
         reSyncAllSubConnections = true;
         conn->subConnections = inComingSubs;
+        stability *= 0.5;
         if (changedConnectionsCallback)
             changedConnectionsCallback();
+    } else {
+        stability = 1.0-(1.0-stability)*0.9;
     }
     String tempstr;
     root.printTo(tempstr);

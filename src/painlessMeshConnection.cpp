@@ -75,7 +75,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         connLastRecieved = connection->lastReceived;
 
         if (nowNodeTime - connLastRecieved > nodeTimeOut) {
-            debugMsg(CONNECTION, "manageConnections(): dropping %d now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
+            debugMsg(CONNECTION, "manageConnections(): dropping %u now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
             connection = closeConnection(connection);
             if (changedConnectionsCallback)
                 changedConnectionsCallback(); // Connection dropped. Signal user
@@ -83,7 +83,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         }
 
         if (connection->esp_conn->state == ESPCONN_CLOSE) {
-            debugMsg(CONNECTION, "manageConnections(): dropping %d ESPCONN_CLOSE\n", connection->nodeId);
+            debugMsg(CONNECTION, "manageConnections(): dropping %u ESPCONN_CLOSE\n", connection->nodeId);
             connection = closeConnection(connection);
             if (changedConnectionsCallback)
                 changedConnectionsCallback(); // Connection dropped. Signal user
@@ -269,6 +269,17 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     return ret;
 }
 
+// Calculating the actual number of connected nodes is fairly expensive,
+// this calculates a cheap approximation
+size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes() {
+    auto sc = subConnectionJson();
+    return approxNoNodes(sc);
+}
+
+size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
+    return max((long int) 1,round(subConns.length()/30.0));
+}
+
 //***********************************************************************
 SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
 
@@ -435,6 +446,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
 }
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
+    staticThis->stability *= 0.5;
     struct espconn *disConn = (espconn *)arg;
 
     staticThis->debugMsg(CONNECTION, "meshDisconCb(): ");
@@ -443,18 +455,18 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
     if (disConn->proto.tcp->local_port == staticThis->_meshPort) {
         staticThis->debugMsg(CONNECTION, "AP connection.  No new action needed. local_port=%d\n", disConn->proto.tcp->local_port);
 
-        // I HAVE TO START NODE SYNC HERE TO LET OTHER NODES KNOW ABOUT THE DISCONNECTION.
-        // In case of high message load nodeSync is not sent TEST NEEDED
-        SimpleList<meshConnectionType>::iterator conn = staticThis->_connections.begin();
-        while (conn != staticThis->_connections.end()) {
-            conn->nodeSyncStatus = NEEDED;
-            conn++;
-        }
-
     } else {
         staticThis->debugMsg(CONNECTION, "Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
         // should start up automatically when station_status changes to IDLE
         wifi_station_disconnect();
+    }
+
+    // START NODE SYNC HERE TO LET OTHER NODES KNOW ABOUT THE DISCONNECTION.
+    // In case of high message load nodeSync might not be sent TEST NEEDED
+    SimpleList<meshConnectionType>::iterator conn = staticThis->_connections.begin();
+    while (conn != staticThis->_connections.end()) {
+        conn->nodeSyncStatus = NEEDED;
+        conn++;
     }
 
     return;
@@ -475,7 +487,7 @@ void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
     case EVENT_STAMODE_DISCONNECTED:
         staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_DISCONNECTED\n");
         wifi_station_disconnect(); // Make sure we are disconnected
-        staticThis->connectToBestAP(); // Search for APs and connect to the best one
+        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
         break;
     case EVENT_STAMODE_AUTHMODE_CHANGE:
         staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_AUTHMODE_CHANGE\n");

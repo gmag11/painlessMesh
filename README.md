@@ -27,6 +27,7 @@ StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as m
 painlessMesh makes use of the following library, which can both be installed through the Arduino Library Manager
 
 - [ArduinoJson](https://github.com/bblanchon/ArduinoJson)
+- [TaskScheduler](https://github.com/arkhipenko/TaskScheduler)
 
 If platformio is used to install the library, then the dependency will be installed automatically.
 

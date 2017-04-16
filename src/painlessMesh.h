@@ -5,7 +5,7 @@
 #error Only ESP8266 platform is allowed
 #endif // !ESP8266
 
-
+#include <painlessScheduler.h>
 #include <Arduino.h>
 #include <SimpleList.h>
 #include <ArduinoJson.h>
@@ -17,8 +17,8 @@ extern "C" {
 #include "espconn.h"
 }
 
-
 #include "painlessMeshSync.h"
+#include "painlessMeshSTA.h"
 
 #define NODE_TIMEOUT        10000000  //uSecs
 #define MIN_FREE_MEMORY     16000 // Minimum free memory, besides here all packets in queue are discarded.
@@ -37,11 +37,6 @@ enum nodeMode {
     AP_ONLY,
     STA_ONLY,
     STA_AP
-};
-
-enum scanStatusType {
-    IDLE = 0,
-    SCANNING = 1
 };
 
 enum syncStatusType {
@@ -128,14 +123,24 @@ public:
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
     SimpleList<uint32_t> getNodeList();
+    meshConnectionType* findConnection(uint32_t nodeId);
+    meshConnectionType* findConnection(espconn *conn);
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
 
+    // in painlessMeshSTA.cpp
+    uint32_t            encodeNodeId(uint8_t *hwaddr);
+
+    Scheduler scheduler;
+    StationScan stationScan;
+
+    // Rough estimate of the mesh stability
+    float stability = 0;
+
 #ifndef UNITY // Make everything public in unit test mode
 protected:
 #endif
-
     // in painlessMeshComm.cpp
     //must be accessable from callback
     bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
@@ -157,25 +162,18 @@ protected:
 
     // in painlessMeshConnection.cpp
     void                manageConnections(void);
-    meshConnectionType* findConnection(uint32_t nodeId);
-    meshConnectionType* findConnection(espconn *conn);
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
-    bool                connectToBestAP(void);
     meshConnectionType* closeConnection(meshConnectionType *conn);
     String              subConnectionJson(meshConnectionType *exclude);
     String              subConnectionJsonHelper(
                             SimpleList<meshConnectionType> &connections,
                             uint32_t exclude = 0);
+    size_t              approxNoNodes(); // estimate of numbers of node
+    size_t              approxNoNodes(String &subConns); // estimate of numbers of node
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);
-    static void         stationScanCb(void *arg, STATUS status);
-    static void         scanTimerCallback(void *arg);
-    void                stationInit(void);
-    //bool                stationConnect(void); // Not implemented. Needed?
-    void                startStationScan(void);
-    uint32_t            encodeNodeId(uint8_t *hwaddr);
 
     // in painlessMeshAP.cpp
     void                apInit(void);
@@ -207,7 +205,6 @@ protected:
     uint8_t     _meshHidden;
     uint8_t     _meshMaxConn;
 
-    scanStatusType                  _scanStatus = IDLE; // STA scanning status
     nodeStatusType                  _nodeStatus = INITIALIZING;
     SimpleList<bss_info>            _meshAPs;
     SimpleList<meshConnectionType>  _connections;
@@ -219,7 +216,8 @@ protected:
 
     espconn     _stationConn;
     esp_tcp     _stationTcp;
-};
 
+    friend class StationScan;
+};
 
 #endif //   _EASY_MESH_H_
