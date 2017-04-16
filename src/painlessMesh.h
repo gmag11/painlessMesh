@@ -123,8 +123,6 @@ public:
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
     SimpleList<uint32_t> getNodeList();
-    meshConnectionType* findConnection(uint32_t nodeId);
-    meshConnectionType* findConnection(espconn *conn);
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
@@ -176,6 +174,8 @@ protected:
                             uint32_t exclude = 0);
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
+    meshConnectionType* findConnection(uint32_t nodeId);
+    meshConnectionType* findConnection(espconn *conn);
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);

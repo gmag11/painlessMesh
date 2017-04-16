@@ -44,7 +44,7 @@ painlessMesh  mesh;
 
 ## Member Functions
 
-### void painlessMesh::init( String ssid, String password, uint16_t port, bool hybridNode )
+### void painlessMesh::init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4)
 
 Add this to your setup() function.
 Initialize the mesh network.  This routine does the following things.
@@ -56,12 +56,7 @@ Initialize the mesh network.  This routine does the following things.
 `ssid` = the name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
 `password` = wifi password to your mesh.
 `port` = the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
-`hybridNode` = `true` if this is a hybrid node. Default value is `false`.
-
-A **Hybrid Node** is a node which is only connected to the mesh as a station. AP interface is free for user. There are some use cases where this can be useful:
-- Battery supplied nodes. A node that is running from battery must use deep sleep to extend runtime. It will only be active during a short time every some minutes or hours. They should not expose AP interface to mesh to avoid connection failures.
-- Nodes connected to mesh and external network. It may be desired for some specific node that AP is free to be used on user code for a different task. It could be used to run an embedded web server to allow data extraction from mesh.
-- Nodes in the physical mesh limit. In that case it may be desired not to extend AP coverage to hide it as much as possible.
+[`connectMode`](https://gitlab.com/BlackEdder/painlessMesh/wikis/connect-mode:-ap_only,-sta_only,-sta_ap-mode) = switch between AP_ONLY, STA_ONLY and STA_AP (default) mode
 
 ### void painlessMesh::update( void )
 
@@ -75,7 +70,6 @@ Set a callback routine for any messages that are addressed to this node. Callbac
 `void receivedCallback( uint32_t from, String &amp;msg )`
 
 Every time this node receives a message, this callback routine will the called.  “from” is the id of the original sender of the message, and “msg” is a string that contains the message.  The message can be anything.  A JSON, some other text string, or binary data.
-
 
 ### void painlessMesh::onNewConnection( &amp;newConnectionCallback )
 
@@ -139,7 +133,7 @@ Returns the total number of nodes connected to this mesh.
 
 Returns mesh topology in JSON format.
 
-###  SimpleList<uint32_t> painlessMesh::getNodeList()
+### SimpleList<uint32_t> painlessMesh::getNodeList()
 
 Get a list of all known nodes. This includes nodes that are both directly and indirectly connected to the current node.
 
@@ -149,22 +143,14 @@ Return the chipId of the node that we are running on.
 
 ### uint32_t painlessMesh::getNodeTime( void )
 
-Returns the mesh timebase microsecond counter.  Rolls over 71 minutes from startup of the first node.
+Returns the mesh timebase microsecond counter. Rolls over 71 minutes from startup of the first node.
 
 Nodes try to keep a common time base synchronizing to each other using [an SNTP based protocol](https://gitlab.com/BlackEdder/painlessMesh/wikis/mesh-protocol#time-sync)
 
-The mesh does a simple calculation to determine which nodes adopt and which nodes don’t.  When a connection is made, the node with the smaller number of connections to other nodes adopts the timebase of the node with the larger number of connections to other nodes.  If there is a tie, then the AP (access point) node wins.
-
-###### Example 1:
-
-There are two separate meshes (Mesh A and Mesh B) that have discovered each other and are connecting.  Mesh A has 7 nodes and Mesh B has 8 nodes.  When the connection is made, Mesh B has more nodes in it, so Mesh A adopts the timebase of Mesh B.
-
-###### Example 2:
-
-A brand new mesh is starting.  There are only 2 nodes (Node X and Node Y) and they both just got turned on.  They find each other, and as luck would have it, Node X connects as a Station to the wifi network established by Node Y’s AP (access point)… which means that Node X is the wifi client and Node Y is the wifi server in the particular relationship.  In this case, since both nodes have zero (0) other connections, Node X adopts Node Y’s timebase because the tie (0 vs 0) goes to the AP.
-
-###bool painlessMesh::startDelayMeas(uint32_t nodeId)
+### bool painlessMesh::startDelayMeas(uint32_t nodeId)
 
 Sends a node a packet to measure network trip delay to that node. Returns true if nodeId is connected to the mesh, false otherwise. After calling this function, user program have to wait to the response in the form of a callback specified by `void painlessMesh::onNodeDelayReceived(nodeDelayCallback_t onDelayReceived)`.
 
 nodeDelayCallback_t is a funtion in the form of `void (uint32_t nodeId, int32_t delay)`.
+
+
