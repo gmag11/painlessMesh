@@ -486,7 +486,10 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, sint8 err) {
-    staticThis->debugMsg(ERROR, "In meshReconCb(): err=%d\n", err);
+    staticThis->debugMsg(ERROR, "meshReconCb(): err=%d. Forwarding to meshDisconCb\n", err);
+    // Could also call tcpConnect again, but this gives us chance to connect to better 
+    // AP.
+    meshDisconCb(arg);
 }
 
 //***********************************************************************
