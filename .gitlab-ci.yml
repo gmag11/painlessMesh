@@ -7,3 +7,6 @@ linux:
   script:
     - platformio ci --lib="." --board=nodemcuv2 examples/basic/basic.ino
     - platformio ci --lib="." --board=nodemcuv2 examples/startHere/startHere.ino
+    - platformio ci --lib="." --board=nodemcuv2 examples/bridge/bridge.ino
+    - platformio ci --lib="." --board=nodemcuv2 examples/logServer/logServer.ino
+    - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino
