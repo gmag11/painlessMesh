@@ -458,7 +458,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
 }
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
-    staticThis->stability *= 0.5;
+    staticThis->stability /= 2;
     struct espconn *disConn = (espconn *)arg;
 
     staticThis->debugMsg(CONNECTION, "meshDisconCb(): ");
