@@ -137,8 +137,8 @@ public:
     Scheduler scheduler;
     StationScan stationScan;
 
-    // Rough estimate of the mesh stability
-    float stability = 0;
+    // Rough estimate of the mesh stability (goes from 0-1000)
+    size_t stability = 0;
 
 #ifndef UNITY // Make everything public in unit test mode
 protected:

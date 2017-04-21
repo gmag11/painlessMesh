@@ -269,18 +269,18 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         if (statusCode == STATION_GOT_IP) {
             // if already connected -> scan slow
             mesh->debugMsg(CONNECTION, "connectToAP(): Already connected, and no unknown nodes found: scan rate set to slow\n", statusCode);
-            task.delay(random(25.0,35.0)*SCAN_INTERVAL);
+            task.delay(random(25,36)*SCAN_INTERVAL);
         } else {
             // else scan fast (SCAN_INTERVAL)
             mesh->debugMsg(CONNECTION, "connectToAP(): No unknown nodes found scan rate set to normal\n", statusCode);
             task.delay(SCAN_INTERVAL); 
         }
-        mesh->stability = 1.0-(1.0-mesh->stability)*0.90;
+        mesh->stability += min(1000-mesh->stability,(size_t)25);
     } else {
         if (statusCode == STATION_GOT_IP) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Unknown nodes found. Current stability: %s\n", String(mesh->stability).c_str());
             auto prob = mesh->stability/mesh->approxNoNodes();
-            if (random(0.0, 1.0) < prob) {
+            if (random(0, 1000) < prob) {
                 mesh->debugMsg(CONNECTION, "connectToAP(): Reconfigure network: %s\n", String(prob).c_str());
                 // close STA connection, this will trigger station disconnect which will trigger 
                 // connectToAP()
@@ -290,7 +290,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
                 // and reset the connecting
                 task.delay(1000*SCAN_INTERVAL); 
             } else {
-                task.delay(random(4.0,6.0)*SCAN_INTERVAL); 
+                task.delay(random(4,7)*SCAN_INTERVAL); 
             }
         } else {
             // Else try to connect to first 
