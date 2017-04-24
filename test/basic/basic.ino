@@ -86,7 +86,18 @@ void test_approxNoNodes() {
     TEST_ASSERT_EQUAL(2, mesh.approxNoNodes(node2.subConnections));
 }
 
-
+void test_jsonnodeid() {
+    uint32_t mx = 0 - 1;
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject& root = jsonBuffer.createObject();
+    root["test"] = mx;
+    TEST_ASSERT_EQUAL(root["test"], mx);
+    TEST_ASSERT(String(mx).equals(root["test"].as<String>()));
+    TEST_ASSERT(!String(mx).equals(
+       String(root["test"].as<int>())));
+    TEST_ASSERT(String(mx).equals(
+       String(root["test"].as<uint32_t>())));
+}
 
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
@@ -97,6 +108,7 @@ void loop() {
     RUN_TEST(test_comparison);
     RUN_TEST(test_subConnectionJsonHelper);
     RUN_TEST(test_approxNoNodes);
+    RUN_TEST(test_jsonnodeid);
     UNITY_END(); // stop unit testing
 }
 #endif
