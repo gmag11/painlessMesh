@@ -16,9 +16,9 @@ extern painlessMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(ConnectionList::iterator conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
     debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%u destId=%u type=%d msg=%s\n",
-             conn->nodeId, destId, (uint8_t)type, msg.c_str());
+             (*conn)->nodeId, destId, (uint8_t)type, msg.c_str());
 
     String package = buildMeshPackage(destId, fromId, type, msg);
 
@@ -30,7 +30,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromI
     debugMsg(COMMUNICATION, "In sendMessage(destId): destId=%u type=%d, msg=%s\n",
              destId, type, msg.c_str());
 
-    meshConnectionType *conn = findConnection(destId);
+    ConnectionList::iterator conn = findConnection(destId);
     if (conn) {
         return sendMessage(conn, destId, fromId, type, msg, priority);
     } else {
@@ -41,27 +41,28 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromI
 
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
-                                                      meshPackageType type,
-                                                      String &msg,
-                                                      meshConnectionType *exclude) {
+bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
+        uint32_t from,
+        meshPackageType type,
+        String &msg,
+        ConnectionList::iterator exclude) {
 
     // send a message to every node on the mesh
     bool errCode = false;
 
     if (exclude != NULL)
         debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=%u\n",
-                 from, type, msg.c_str(), exclude->nodeId);
+                 from, type, msg.c_str(), (*exclude)->nodeId);
     else
         debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n",
                  from, type, msg.c_str());
 
-    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
+    auto connection = _connections.begin();
     if (_connections.size() > 0)
         errCode = true; // Assume true if at least one connections
     while (connection != _connections.end()) {
         if (connection != exclude) {
-            if (!sendMessage(connection, connection->nodeId, from, type, msg))
+            if (!sendMessage(connection, (*connection)->nodeId, from, type, msg))
                 errCode = false; // If any error return 0
         }
         connection++;
@@ -70,7 +71,8 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection, String &package, bool priority) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(ConnectionList::iterator connIt, String &package, bool priority) {
+    auto connection = (*connIt);
     debugMsg(COMMUNICATION, "Sending to %u-->%s<--\n", connection->nodeId, package.c_str());
 
     if (package.length() > 1400) {

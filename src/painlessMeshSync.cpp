@@ -134,18 +134,21 @@ int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
 
 // painlessMesh Syncing functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::startNodeSync(meshConnectionType *conn) {
+void ICACHE_FLASH_ATTR painlessMesh::startNodeSync(
+        ConnectionList::iterator connIt) {
+    auto conn = (*connIt);
 
     debugMsg(SYNC, "startNodeSync(): with %d\n", conn->nodeId);
-    String subs = subConnectionJson(conn);
-    sendMessage(conn, conn->nodeId, _nodeId, NODE_SYNC_REQUEST, subs, true);
+    String subs = subConnectionJson(connIt);
+    sendMessage(connIt, conn->nodeId, _nodeId, NODE_SYNC_REQUEST, subs, true);
     //conn->nodeSyncLastRequested = getNodeTime();
     conn->nodeSyncLastRequested = system_get_time(); // Using nodeTime may cause problems when node updates time.
     conn->nodeSyncStatus = IN_PROGRESS;
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, JsonObject& root) {
+void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(ConnectionList::iterator connIt, JsonObject& root) {
+    auto conn = (*connIt);
     debugMsg(SYNC, "handleNodeSync(): with %d\n", conn->nodeId);
 
     meshPackageType message_type = (meshPackageType)(int)root["type"];
@@ -157,7 +160,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
         // this is the first NODE_SYNC_REQUEST from a station
         // is we are already connected drop this connection
         debugMsg(SYNC, "handleNodeSync(): Already connected to node %d.  Dropping\n", conn->nodeId);
-        closeConnection(conn);
+        closeConnection(connIt);
         return;
     }
 
@@ -186,8 +189,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
     case NODE_SYNC_REQUEST:
     {
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REQUEST %d sending NODE_SYNC_REPLY\n", conn->nodeId);
-        String myOtherSubConnections = subConnectionJson(conn);
-        sendMessage(conn, conn->nodeId, _nodeId, NODE_SYNC_REPLY, myOtherSubConnections, true);
+        String myOtherSubConnections = subConnectionJson(connIt);
+        sendMessage(connIt, conn->nodeId, _nodeId, NODE_SYNC_REPLY, myOtherSubConnections, true);
         break;
     }
     case NODE_SYNC_REPLY:
@@ -205,12 +208,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
     }
 
     if (reSyncAllSubConnections == true) {
-        SimpleList<meshConnectionType>::iterator connection = _connections.begin();
-        while (connection != _connections.end()) {
+        for (auto &&connection : _connections) {
             if (connection != conn) { // Exclude current
                 connection->nodeSyncStatus = NEEDED;
             }
-            connection++;
         }
     }
 
@@ -218,14 +219,15 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(meshConnectionType *conn, Js
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boolean checkAdopt) {
+void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(ConnectionList::iterator connIt, boolean checkAdopt) {
+    auto conn = (*connIt);
     boolean adopt = true; // default, adopt time
     String timeStamp;
 
     debugMsg(S_TIME, "startTimeSync(): with %d, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
 
     if (checkAdopt) {
-        adopt = adoptionCalc(conn);
+        adopt = adoptionCalc(connIt);
     }
     if (adopt) {
         timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
@@ -236,19 +238,20 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(meshConnectionType *conn, boo
         debugMsg(S_TIME, "startTimeSync(): timeSyncStatus changed to COMPLETE\n", conn->nodeId);
         conn->timeSyncStatus = COMPLETE;
     }
-    sendMessage(conn, conn->nodeId, _nodeId, TIME_SYNC, timeStamp, true);
+    sendMessage(connIt, conn->nodeId, _nodeId, TIME_SYNC, timeStamp, true);
     conn->timeSyncLastRequested = system_get_time(); // It is compared in manageConnections() to check response for timeout
                                                      // Using nodeTime may cause problems when node updates time because counter discontinuity.
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
+bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(ConnectionList::iterator connIt) {
+    auto conn = (*connIt);
     if (conn == NULL) // Missing connection
         return false;
     // make the adoption calulation. Figure out how many nodes I am connected to exclusive of this connection.
 
     // We use length as an indicator for how many subconnections both nodes have
-    uint16_t mySubCount = subConnectionJson(conn).length();  //exclude this connection.
+    uint16_t mySubCount = subConnectionJson(connIt).length();  //exclude this connection.
     uint16_t remoteSubCount = conn->subConnections.length();
     bool ap = conn->esp_conn->proto.tcp->local_port == _meshPort;
 
@@ -264,7 +267,8 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(meshConnectionType *conn) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(ConnectionList::iterator connIt, JsonObject& root, uint32_t receivedAt) {
+    auto conn = (*connIt);
     String timeStamp = root["msg"];
     debugMsg(S_TIME, "handleTimeSync(): with %d in timestamp=%s\n", conn->nodeId, timeStamp.c_str());
     debugMsg(S_TIME, "handleTimeSync(): local ip: %d.%d.%d.%d, local port = %d\n", IP2STR(conn->esp_conn->proto.tcp->local_ip), conn->esp_conn->proto.tcp->local_port);
@@ -278,7 +282,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
     case (TIME_SYNC_REQUEST):  // Other party request me to ask it for time
         debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync. Status = %d\n", conn->timeSyncStatus);
         if (conn->timeSyncStatus != IN_PROGRESS) {
-            startTimeSync(conn, false); // Start time sync only if I was not syncing yet
+            startTimeSync(connIt, false); // Start time sync only if I was not syncing yet
         } else {
             debugMsg(S_TIME, "handleTimeSync(): Already syncing. Request ignored\n");
         }
@@ -291,7 +295,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 
         // Build time response
         t_stamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.times[0], receivedAt, getNodeTime());
-        staticThis->sendMessage(conn, conn->nodeId, _nodeId, TIME_SYNC, t_stamp, true);
+        staticThis->sendMessage(connIt, conn->nodeId, _nodeId, TIME_SYNC, t_stamp, true);
 
         debugMsg(S_TIME, "handleTimeSync(): Response sent %s\n", t_stamp.c_str());
         debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", conn->nodeId);
@@ -313,23 +317,21 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
                 nodeTimeAdjustedCallback(offset);
             }
 
-            SimpleList<meshConnectionType>::iterator connection = _connections.begin();
-            while (connection != _connections.end()) {
+            for (auto &&connection : _connections) {
                 if (connection != conn) {  // exclude this connection
                     connection->timeSyncStatus = NEEDED;
                     debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED (2)\n", connection->nodeId);
                 }
-                connection++;
             }
 
             if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
                 // mark complete only if offset was less than 10 ms
                 conn->timeSyncStatus = COMPLETE;
-                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", connection->nodeId);
+                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", conn->nodeId);
             } else {
                 // Iterate sync procedure if accuracy was not enough
                 conn->timeSyncStatus = NEEDED;
-                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED (3)\n", connection->nodeId);
+                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED (3)\n", conn->nodeId);
 
             }
             conn->lastTimeSync = getNodeTime();
@@ -345,7 +347,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(meshConnectionType *conn, Js
 
 }
 
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt) {
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(ConnectionList::iterator connIt, JsonObject& root, uint32_t receivedAt) {
+    auto conn = (*connIt);
     String timeStamp = root["msg"];
     uint32_t from = root["from"];
     debugMsg(S_TIME, "handleTimeDelay(): from %u in timestamp = %s\n", from, timeStamp.c_str());
@@ -363,7 +366,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(meshConnectionType *conn, J
 
         // Build time response
         t_stamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.timeDelay[0], receivedAt, getNodeTime());
-        staticThis->sendMessage(conn, from, _nodeId, TIME_DELAY, t_stamp);
+        staticThis->sendMessage(connIt, from, _nodeId, TIME_DELAY, t_stamp);
 
         debugMsg(S_TIME, "handleTimeDelay(): Response sent %s\n", t_stamp.c_str());
 
