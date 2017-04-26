@@ -8,19 +8,19 @@ void test_findConnection() {
     painlessMesh mesh;
     TEST_ASSERT_EQUAL(NULL, mesh.findConnection(1));
 
-    meshConnectionType conn;
+    std::shared_ptr<meshConnectionType> conn(new meshConnectionType);
     mesh._connections.push_back(conn);
     TEST_ASSERT_EQUAL(NULL, mesh.findConnection(1));
 
-    meshConnectionType conn2;
-    conn2.nodeId = 1;
+    std::shared_ptr<meshConnectionType> conn2(new meshConnectionType);
+    conn2->nodeId = 1;
     mesh._connections.push_back(conn2);
     TEST_ASSERT(mesh.findConnection(1));
 
     // Add test for meshConnection with indirect connection
-    meshConnectionType conn3;
-    conn3.nodeId = 2;
-    conn3.subConnections = "[{\"nodeId\":887034362,\"subs\":[{\"nodeId\":43,\"subs\":[]}]}]";
+    std::shared_ptr<meshConnectionType> conn3(new meshConnectionType);
+    conn3->nodeId = 2;
+    conn3->subConnections = "[{\"nodeId\":887034362,\"subs\":[{\"nodeId\":43,\"subs\":[]}]}]";
     mesh._connections.push_back(conn3);
     TEST_ASSERT(mesh.findConnection(887034362));
 
@@ -51,14 +51,15 @@ void test_comparison() {
 }
 
 void test_subConnectionJsonHelper() {
-    meshConnectionType node1, node2;
-    node1.nodeId = -1; // Max uint value
-    node1.subConnections = String("[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]");
+    std::shared_ptr<meshConnectionType> node1(new meshConnectionType);
+    std::shared_ptr<meshConnectionType> node2(new meshConnectionType);
+    node1->nodeId = -1; // Max uint value
+    node1->subConnections = String("[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]");
     
-    node2.nodeId = 886231565;
-    node2.subConnections = String("[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]");
+    node2->nodeId = 886231565;
+    node2->subConnections = String("[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]");
 
-    SimpleList<meshConnectionType>  connections;
+    ConnectionList  connections;
     connections.push_back(node1);
     connections.push_back(node2);
 
@@ -68,10 +69,10 @@ void test_subConnectionJsonHelper() {
         mesh.subConnectionJsonHelper(connections));
 
     TEST_ASSERT(String("[{\"nodeId\":886231565,\"subs\":[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]}]") == 
-        mesh.subConnectionJsonHelper(connections, node1.nodeId));
+        mesh.subConnectionJsonHelper(connections, node1->nodeId));
 
     TEST_ASSERT(String("[{\"nodeId\":4294967295,\"subs\":[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]}]") == 
-        mesh.subConnectionJsonHelper(connections, node2.nodeId));
+        mesh.subConnectionJsonHelper(connections, node2->nodeId));
 }
 
 void test_approxNoNodes() {
