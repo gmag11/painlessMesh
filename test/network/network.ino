@@ -76,6 +76,7 @@ void nodeStatusReceivedCallback(uint32_t from, String &msg) {
 }
 
 void test_no_received() {
+    TEST_ASSERT(noCBs > 1);
     TEST_ASSERT_EQUAL(expected.size(), noCBs);
 }
 
@@ -83,7 +84,7 @@ void test_received_equals_expected() {
     auto r = received.begin();
     auto e = expected.begin(); 
     while(r != received.end()) {
-        TEST_ASSERT(*r == *e);
+        TEST_ASSERT((*r).equals(*e));
         ++r;
         ++e;
     }
@@ -137,7 +138,7 @@ Task waitTask;
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
     //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG ); // all types on
-    mesh.setDebugMsgTypes( ERROR | CONNECTION | DEBUG ); // all types on
+    mesh.setDebugMsgTypes(SYNC | ERROR | CONNECTION | DEBUG); // all types on
     mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onReceive(&receivedCallback);

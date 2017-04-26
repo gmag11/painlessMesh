@@ -76,18 +76,9 @@ ConnectionList::iterator ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
     debugMsg(GENERAL, "manageConnections():\n");
-
-    uint32_t nowNodeTime;
-    uint32_t nodeTimeOut = NODE_TIMEOUT;
-    uint32_t connLastRecieved;
-
     auto connIt = _connections.begin();
     while (connIt != _connections.end()) {
         auto connection = (*connIt);
-        //nowNodeTime = getNodeTime();
-        nowNodeTime = system_get_time();
-        connLastRecieved = connection->lastReceived;
-
         if (connection->esp_conn->state == ESPCONN_CLOSE) {
             debugMsg(CONNECTION, "manageConnections(): dropping %u ESPCONN_CLOSE\n", connection->nodeId);
             connIt = closeConnection(connIt);
@@ -96,20 +87,7 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
             continue;
         }
 
-        switch (connection->nodeSyncStatus) {
-        case NEEDED:           // start a nodeSync
-            debugMsg(SYNC, "manageConnections(): start nodeSync with %d\n", connection->nodeId);
-            startNodeSync(connIt);
-            //connection->nodeSyncStatus = IN_PROGRESS; // Not needed, already done in startNodeSync()
-
-        case IN_PROGRESS:
-            if (system_get_time() - connection->nodeSyncLastRequested > SYNC_RESPONSE_TIMEOUT) {
-                // A time sync response did not arrive within maximum time out.
-                connection->nodeSyncStatus = COMPLETE;
-                debugMsg(ERROR, "manageConnections(): nodeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
-                //} else {
-                    //debugMsg(S_TIME | DEBUG, "manageConnections(): timeSync IN_PROGRESS\n", connection->nodeId);
-            }
+        if (connection->nodeId == 0) {
             ++connIt;
             continue;
         }
@@ -144,20 +122,6 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         // check to see if we've recieved something lately.  Else, flag for new sync.
         // Stagger AP and STA so that they don't try to start a sync at the same time.
         uint32_t nodeTime = getNodeTime();
-        if (connection->nodeSyncLastRequested == 0) { // nodeSync not in progress
-            if ((connection->esp_conn->proto.tcp->local_port == _meshPort  // we are AP
-                &&
-                nowNodeTime - connLastRecieved > (nodeTimeOut / 2))
-                ||
-                (connection->esp_conn->proto.tcp->local_port != _meshPort  // we are the STA
-                &&
-                nowNodeTime - connLastRecieved > (nodeTimeOut * 3 / 4))
-                ) {
-                connection->nodeSyncStatus = NEEDED;
-                debugMsg(SYNC, "manageConnections(): %u nodeSyncStatus changed to NEEDED\n", staticThis->getNodeTime());
-            }
-        }
-
         // Start time sync periodically with a random delay 0,65 to 1.35 times TIME_SYNC_INTERVAL
         if (nodeTime - connection->lastTimeSync > connection->nextTimeSyncPeriod) {
             if (connection->nextTimeSyncPeriod != 0) { // Do not resync first time
@@ -320,22 +284,22 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     std::shared_ptr<meshConnectionType> newConn(new meshConnectionType());
     newConn->esp_conn = (espconn *)arg;
     espconn_set_opt(newConn->esp_conn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE);  // removes nagle, low latency, but soaks up bandwidth
-    newConn->lastReceived = system_get_time();
-
     espconn_regist_recvcb(newConn->esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
     espconn_regist_sentcb(newConn->esp_conn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
     espconn_regist_reconcb(newConn->esp_conn, meshReconCb); // This callback is entered when an error occurs, TCP connection broken
     espconn_regist_disconcb(newConn->esp_conn, meshDisconCb); // Register disconnection function which will be called back under successful TCP disconnection
 
     staticThis->_connections.push_back(newConn);
+    auto sta = true;
 
     if (newConn->esp_conn->proto.tcp->local_port != staticThis->_meshPort) { // we are the station, start nodeSync
-        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA, start nodeSync\n");
-        staticThis->startNodeSync(staticThis->_connections.end() - 1); // Sync with the last connected node
+        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
         staticThis->debugMsg(S_TIME, "meshConnectedCb(): New connection. timeSync changed to NEEDED (5)\n");
         newConn->timeSyncStatus = NEEDED;
-    } else
+    } else {
+        sta = false;
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");
+    }
 
     staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
 
@@ -347,8 +311,27 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
         if (staticThis->changedConnectionsCallback)
             staticThis->changedConnectionsCallback(); // Connection dropped. Signal user
     });
+
     staticThis->scheduler.addTask(connIt->get()->nodeTimeoutTask);
     connIt->get()->nodeTimeoutTask.enableDelayed();
+
+    auto syncInterval = NODE_TIMEOUT/2000;
+    if (!sta)
+        syncInterval = NODE_TIMEOUT/500;
+
+    connIt->get()->nodeSyncTask.set(
+            syncInterval, TASK_FOREVER, [connIt](){
+        staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
+                connIt->get()->nodeId);
+        String subs = staticThis->subConnectionJson(connIt);
+        staticThis->sendMessage(connIt, connIt->get()->nodeId, 
+                staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
+    });
+    staticThis->scheduler.addTask(connIt->get()->nodeSyncTask);
+    if (sta)
+        connIt->get()->nodeSyncTask.enable();
+    else
+        connIt->get()->nodeSyncTask.enableDelayed();
 }
 
 //***********************************************************************
@@ -425,7 +408,6 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 
     // reset timeout 
     receiveConn->nodeTimeoutTask.delay();
-    receiveConn->lastReceived = system_get_time(); // TODO: remove when sync task etc
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", system_get_time(), receiveConn->nodeId, t_message);
     return;
 }
@@ -482,7 +464,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
     // START NODE SYNC HERE TO LET OTHER NODES KNOW ABOUT THE DISCONNECTION.
     // In case of high message load nodeSync might not be sent TEST NEEDED
     for (auto &&conn : staticThis->_connections) {
-        conn->nodeSyncStatus = NEEDED;
+        conn->nodeSyncTask.forceNextIteration();
     }
 
     return;

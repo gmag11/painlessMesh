@@ -79,11 +79,7 @@ struct meshConnectionType {
     uint32_t            nodeId = 0;
     String              subConnections;
     timeSync            time;
-    uint32_t            lastReceived = 0;
     bool                newConnection = true;
-
-    syncStatusType      nodeSyncStatus = NEEDED;
-    uint32_t            nodeSyncLastRequested = 0;
 
     syncStatusType      timeSyncStatus = NEEDED;
     uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
@@ -95,6 +91,7 @@ struct meshConnectionType {
     SimpleList<String>  sendQueue;
 
     Task                nodeTimeoutTask;
+    Task                nodeSyncTask;
 };
 
 using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType> >;
@@ -162,7 +159,6 @@ protected:
 
     // in painlessMeshSync.cpp
     //must be accessable from callback
-    void                startNodeSync(ConnectionList::iterator conn);
     void                handleNodeSync(ConnectionList::iterator conn, JsonObject& root);
     void                startTimeSync(ConnectionList::iterator conn, boolean checkAdopt = true);
     void                handleTimeSync(ConnectionList::iterator conn, JsonObject& root, uint32_t receivedAt);
