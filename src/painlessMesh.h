@@ -5,6 +5,8 @@
 #error Only ESP8266 platform is allowed
 #endif // !ESP8266
 
+#define _TASK_STD_FUNCTION
+
 #include <painlessScheduler.h>
 #include <Arduino.h>
 #include <SimpleList.h>
@@ -91,6 +93,8 @@ struct meshConnectionType {
 
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
+
+    Task                nodeTimeoutTask;
 };
 
 using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType> >;

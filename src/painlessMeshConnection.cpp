@@ -88,14 +88,6 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
         nowNodeTime = system_get_time();
         connLastRecieved = connection->lastReceived;
 
-        if (nowNodeTime - connLastRecieved > nodeTimeOut) {
-            debugMsg(CONNECTION, "manageConnections(): dropping %u now= %u - last= %u ( %u ) > timeout= %u \n", connection->nodeId, nowNodeTime, connLastRecieved, nowNodeTime - connLastRecieved, nodeTimeOut);
-            connIt = closeConnection(connIt);
-            if (changedConnectionsCallback)
-                changedConnectionsCallback(); // Connection dropped. Signal user
-            continue;
-        }
-
         if (connection->esp_conn->state == ESPCONN_CLOSE) {
             debugMsg(CONNECTION, "manageConnections(): dropping %u ESPCONN_CLOSE\n", connection->nodeId);
             connIt = closeConnection(connIt);
@@ -346,6 +338,17 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");
 
     staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
+
+    auto connIt = staticThis->_connections.end()-1;
+    connIt->get()->nodeTimeoutTask.set(
+            NODE_TIMEOUT/1000, TASK_ONCE, [connIt](){
+        staticThis->debugMsg(CONNECTION, "nodeTimeoutTask(): dropping %u now= %u\n", connIt->get()->nodeId, staticThis->getNodeTime());
+        staticThis->closeConnection(connIt);
+        if (staticThis->changedConnectionsCallback)
+            staticThis->changedConnectionsCallback(); // Connection dropped. Signal user
+    });
+    staticThis->scheduler.addTask(connIt->get()->nodeTimeoutTask);
+    connIt->get()->nodeTimeoutTask.enableDelayed();
 }
 
 //***********************************************************************
@@ -420,9 +423,10 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         return;
     }
 
-    // record that we've gotten a valid package
-    receiveConn->lastReceived = system_get_time();
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", receiveConn->lastReceived, receiveConn->nodeId, t_message);
+    // reset timeout 
+    receiveConn->nodeTimeoutTask.delay();
+    receiveConn->lastReceived = system_get_time(); // TODO: remove when sync task etc
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", system_get_time(), receiveConn->nodeId, t_message);
     return;
 }
 
