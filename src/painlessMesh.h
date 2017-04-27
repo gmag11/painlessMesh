@@ -28,14 +28,6 @@ extern "C" {
 #define MAX_MESSAGE_QUEUE   50 // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5 // Max message busrt
 
-
-enum nodeStatusType {
-    INITIALIZING = 0,
-    SEARCHING = 1,
-    FOUND_MESH = 2,
-    CONNECTED = 3
-};
-
 enum nodeMode {
     AP_ONLY,
     STA_ONLY,
@@ -214,7 +206,6 @@ protected:
     uint8_t     _meshHidden;
     uint8_t     _meshMaxConn;
 
-    nodeStatusType                  _nodeStatus = INITIALIZING;
     SimpleList<bss_info>            _meshAPs;
     ConnectionList  _connections;
 
