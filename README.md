@@ -24,12 +24,15 @@ StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as m
 
 ### Dependencies
 
-painlessMesh makes use of the following library, which can both be installed through the Arduino Library Manager
+painlessMesh makes use of the following library, which can be installed through the Arduino Library Manager
 
 - [ArduinoJson](https://github.com/bblanchon/ArduinoJson)
-- [TaskScheduler](https://github.com/arkhipenko/TaskScheduler)
 
 If platformio is used to install the library, then the dependency will be installed automatically.
+
+# Getting help
+
+There is help available on the [wiki](https://gitlab.com/BlackEdder/painlessMesh/wikis/home) and you can also reach us on our [gitter channel](https://gitter.im/painlessMesh/Lobby)
 
 # painlessMesh API
 
@@ -146,5 +149,3 @@ Nodes try to keep a common time base synchronizing to each other using [an SNTP 
 Sends a node a packet to measure network trip delay to that node. Returns true if nodeId is connected to the mesh, false otherwise. After calling this function, user program have to wait to the response in the form of a callback specified by `void painlessMesh::onNodeDelayReceived(nodeDelayCallback_t onDelayReceived)`.
 
 nodeDelayCallback_t is a funtion in the form of `void (uint32_t nodeId, int32_t delay)`.
-
-
