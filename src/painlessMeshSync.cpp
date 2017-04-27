@@ -152,6 +152,22 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(ConnectionList::iterator con
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %d\n", conn->nodeId, remoteNodeId);
         conn->nodeId = remoteNodeId;
 
+        if (conn->newConnection == true) { 
+            conn->newConnectionTask.set(0, 1, [conn, this]() {
+                this->debugMsg(SYNC,
+                    "newConnectionTask():\n");
+                if (conn->newConnection) { // Check that still new
+                    if (this->newConnectionCallback) {
+                        this->newConnectionCallback(conn->nodeId);
+                    }
+                    conn->newConnection = false;
+                    this->debugMsg(SYNC,
+                            "newConnectionTask(): true -> false\n");
+                }
+            });
+            scheduler.addTask(conn->newConnectionTask);
+            conn->newConnectionTask.enable();
+        }
     }
 
     // check to see if subs have changed.

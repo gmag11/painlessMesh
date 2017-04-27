@@ -108,17 +108,6 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
             ++connIt;
             continue;
         }
-
-        if (connection->newConnection == true) {  // we should only get here once first nodeSync and timeSync are complete
-            if (newConnectionCallback) {
-                newConnectionCallback(connection->nodeId);
-            }
-            connection->newConnection = false;
-            debugMsg(SYNC, "connection->newConnection. True --> false\n");
-            connIt++;
-            continue;
-        }
-
         // check to see if we've recieved something lately.  Else, flag for new sync.
         // Stagger AP and STA so that they don't try to start a sync at the same time.
         uint32_t nodeTime = getNodeTime();

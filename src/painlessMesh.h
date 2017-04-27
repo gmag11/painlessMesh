@@ -92,6 +92,7 @@ struct meshConnectionType {
 
     Task                nodeTimeoutTask;
     Task                nodeSyncTask;
+    Task                newConnectionTask;
 };
 
 using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType> >;
