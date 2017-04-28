@@ -125,6 +125,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(ConnectionList::iterator con
         conn->nodeId = remoteNodeId;
 
         if (conn->newConnection == true) { 
+            // TODO: Move this to its own function
             conn->newConnectionTask.set(0, 1, [conn, this]() {
                 this->debugMsg(SYNC,
                     "newConnectionTask():\n");
@@ -139,6 +140,23 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(ConnectionList::iterator con
             });
             scheduler.addTask(conn->newConnectionTask);
             conn->newConnectionTask.enable();
+
+            // Initially interval is every 10 seconds, 
+            // this will slow down to TIME_SYNC_INTERVAL
+            // after first succesfull sync
+            conn->timeSyncTask.set(10*TASK_SECOND, TASK_FOREVER,
+                    [connIt, this]() {
+                this->debugMsg(S_TIME,
+                    "timeSyncTask(): %u\n", (*connIt)->nodeId);
+                startTimeSync(connIt);
+            });
+            scheduler.addTask(conn->timeSyncTask);
+            if (conn->esp_conn->proto.tcp->local_port != _meshPort)
+                // We are STA, request time immediately
+                conn->timeSyncTask.enable();
+            else
+                // We are the AP, give STA the change to initiate time sync 
+                conn->timeSyncTask.enableDelayed();
         }
     }
 
@@ -167,10 +185,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(ConnectionList::iterator con
     }
     case NODE_SYNC_REPLY:
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %u\n", conn->nodeId);
-        if (conn->lastTimeSync == 0) {
-            debugMsg(S_TIME, "handleNodeSync(): timeSyncStatus changed to NEEDED (1)\n");
-            conn->timeSyncStatus = NEEDED;
-        }
         break;
     default:
         debugMsg(ERROR, "handleNodeSync(): weird type? %d\n", message_type);
@@ -194,16 +208,12 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(ConnectionList::iterator conn
     auto adopt = adoptionCalc(connIt);
     if (adopt) {
         timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
-        debugMsg(S_TIME, "startTimeSync(): timeSyncStatus changed to IN_PROGRESS\n", conn->nodeId);
-        conn->timeSyncStatus = IN_PROGRESS;
+        debugMsg(S_TIME, "startTimeSync(): Requesting %u to adopt our time\n", conn->nodeId);
     } else {
         timeStamp = conn->time.buildTimeStamp(TIME_SYNC_REQUEST); // Tell other party to ask me the time
-        debugMsg(S_TIME, "startTimeSync(): timeSyncStatus changed to COMPLETE\n", conn->nodeId);
-        conn->timeSyncStatus = COMPLETE;
+        debugMsg(S_TIME, "startTimeSync(): Requesting time from %u\n", conn->nodeId);
     }
     sendMessage(connIt, conn->nodeId, _nodeId, TIME_SYNC, timeStamp, true);
-    conn->timeSyncLastRequested = system_get_time(); // It is compared in manageConnections() to check response for timeout
-                                                     // Using nodeTime may cause problems when node updates time because counter discontinuity.
 }
 
 //***********************************************************************
@@ -232,17 +242,12 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(ConnectionList::iterator connI
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(ConnectionList::iterator connIt, JsonObject& root, uint32_t receivedAt) {
     auto conn = (*connIt);
-    // TODO: TIME
-    // - Remove half of startTimeSync (adopt calculation should always happen)
-
     auto timeSyncMessageType = static_cast<timeSyncMessageType_t>(root["msg"]["type"].as<int>());
-    //timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStamp(timeStamp); // Extract timestamps and get type of message
-
     String msg;
 
     switch (timeSyncMessageType) {
     case (TIME_SYNC_REQUEST):  // Other party request me to ask it for time
-        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync. Status = %d\n", conn->timeSyncStatus);
+        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync with node: %u\n", conn->nodeId);
         root["msg"]["type"] = static_cast<int>(TIME_REQUEST);
         root["msg"]["t0"] = getNodeTime();
         msg = root["msg"].as<String>();
@@ -255,58 +260,48 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(ConnectionList::iterator con
         root["msg"]["t2"] = getNodeTime();
         msg = root["msg"].as<String>();
         staticThis->sendMessage(connIt, conn->nodeId, _nodeId, TIME_SYNC, msg, true);
-        conn->timeSyncStatus == IN_PROGRESS;
 
         // Build time response
-
         debugMsg(S_TIME, "handleTimeSync(): Response sent %s\n", msg.c_str());
-        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u changed to COMPLETE\n", conn->nodeId);
+        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
 
         // After response is sent I assume sync is completed
-        conn->timeSyncStatus == COMPLETE;
-        conn->lastTimeSync = getNodeTime();
+        conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
         break;
 
     case (TIME_RESPONSE):
         debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE received.\n");
-        if (conn->timeSyncStatus == IN_PROGRESS) {
-            uint32_t times[NUMBER_OF_TIMESTAMPS] = {
-                root["msg"]["t0"],
-                root["msg"]["t1"],
-                root["msg"]["t2"],
-                receivedAt};
+        uint32_t times[NUMBER_OF_TIMESTAMPS] = {
+            root["msg"]["t0"],
+            root["msg"]["t1"],
+            root["msg"]["t2"],
+            receivedAt};
 
-            int32_t offset = conn->time.calcAdjustment(times); // Adjust time and get calculated offset
+        int32_t offset = conn->time.calcAdjustment(times); // Adjust time and get calculated offset
 
-            // flag all connections for re-timeSync
-            if (nodeTimeAdjustedCallback) {
-                nodeTimeAdjustedCallback(offset);
-            }
-
-            if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
-                // mark complete only if offset was less than 10 ms
-                conn->timeSyncStatus = COMPLETE;
-                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to COMPLETE\n", conn->nodeId);
-
-                // Time has changed, update other nodes
-                for (auto &&connection : _connections) {
-                    if (connection != conn) {  // exclude this connection
-                        connection->timeSyncStatus = NEEDED;
-                        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED (2)\n", connection->nodeId);
-                    }
-                }
-            } else {
-                // Iterate sync procedure if accuracy was not enough
-                conn->timeSyncStatus = NEEDED;
-                debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %d changed to NEEDED (3)\n", conn->nodeId);
-
-            }
-            conn->lastTimeSync = getNodeTime();
-        } else {
-            debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE ignored.\n");
-            conn->timeSyncStatus == COMPLETE;
+        // flag all connections for re-timeSync
+        if (nodeTimeAdjustedCallback) {
+            nodeTimeAdjustedCallback(offset);
         }
 
+        if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
+            // mark complete only if offset was less than 10 ms
+            conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
+            debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
+
+            // Time has changed, update other nodes
+            for (auto &&connection : _connections) {
+                if (connection != conn) {  // exclude this connection
+                    connection->timeSyncTask.forceNextIteration();
+                    debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u brought forward\n", connection->nodeId);
+                }
+            }
+        } else {
+            // Iterate sync procedure if accuracy was not enough
+            conn->timeSyncTask.delay(200); // Small delay
+            debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u needs further tries\n", conn->nodeId);
+
+        }
         break;
     }
 

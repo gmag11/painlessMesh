@@ -84,46 +84,6 @@ void ICACHE_FLASH_ATTR painlessMesh::manageConnections(void) {
             connIt = closeConnection(connIt);
             if (changedConnectionsCallback)
                 changedConnectionsCallback(); // Connection dropped. Signal user
-            continue;
-        }
-
-        if (connection->nodeId == 0) {
-            ++connIt;
-            continue;
-        }
-
-        switch (connection->timeSyncStatus) {
-        case NEEDED:
-            debugMsg(S_TIME, "manageConnections(): timeStatus = NEEDED. Starting timeSync\n");
-            startTimeSync(connIt);
-
-        case IN_PROGRESS:
-            if (system_get_time() - connection->timeSyncLastRequested > SYNC_RESPONSE_TIMEOUT) {
-                // A time sync response did not arrive within maximum time out.
-                connection->timeSyncStatus = COMPLETE;
-                debugMsg(ERROR, "manageConnections(): timeSync response from %d timed out. Status changed to COMPLETE\n", connection->nodeId);
-                //} else {
-                    //debugMsg(S_TIME | DEBUG, "manageConnections(): timeSync IN_PROGRESS\n", connection->nodeId);
-            }
-            ++connIt;
-            continue;
-        }
-        // check to see if we've recieved something lately.  Else, flag for new sync.
-        // Stagger AP and STA so that they don't try to start a sync at the same time.
-        uint32_t nodeTime = getNodeTime();
-        // Start time sync periodically with a random delay 0,65 to 1.35 times TIME_SYNC_INTERVAL
-        if (nodeTime - connection->lastTimeSync > connection->nextTimeSyncPeriod) {
-            if (connection->nextTimeSyncPeriod != 0) { // Do not resync first time
-                debugMsg(S_TIME, "manageConnections(): Periodic sync:%u Sync changed to NEEDED (4)\n", nodeTime);
-                connection->timeSyncStatus = NEEDED;
-                connection->lastTimeSync = nodeTime; // Avoid multiple calls
-            }
-            // Add random delay to avoid collisions
-            float randomDelay = (float)(random(650, 1350)) / 1000; // 35%
-            connection->nextTimeSyncPeriod = TIME_SYNC_INTERVAL*randomDelay;
-
-            debugMsg(S_TIME, "manageConnections(): New time sync period = %u sec\n", connection->nextTimeSyncPeriod / 1000000);
-
         }
         connIt++;
     }
@@ -280,11 +240,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
 
     staticThis->_connections.push_back(newConn);
     auto sta = true;
-
     if (newConn->esp_conn->proto.tcp->local_port != staticThis->_meshPort) { // we are the station, start nodeSync
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
-        staticThis->debugMsg(S_TIME, "meshConnectedCb(): New connection. timeSync changed to NEEDED (5)\n");
-        newConn->timeSyncStatus = NEEDED;
     } else {
         sta = false;
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");

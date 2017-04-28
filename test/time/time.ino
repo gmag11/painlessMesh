@@ -8,48 +8,42 @@ extern uint32_t timeAdjuster;
 void test_adjust_calc() {
     timeSync ts;
 
+    uint32_t times[4];
+    times[0] = 0; times[1] = 0;
+    times[2] = 0; times[3] = 0;
+    TEST_ASSERT_EQUAL(0x7FFFFFFF, ts.calcAdjustment(times));
     TEST_ASSERT_EQUAL(0, timeAdjuster);
 
-    // ts.times are invalid, should lead to max value
-    TEST_ASSERT_EQUAL(0, ts.times[0]);
-    TEST_ASSERT_EQUAL(0, ts.times[1]);
-    TEST_ASSERT_EQUAL(0, ts.times[2]);
-    TEST_ASSERT_EQUAL(0, ts.times[3]);
-    TEST_ASSERT_EQUAL(0x7FFFFFFF, ts.calcAdjustment());
+    times[0] = 1; times[1] = 1;
+    times[2] = 1; times[3] = 1;
+    TEST_ASSERT_EQUAL(0, ts.calcAdjustment(times));
     TEST_ASSERT_EQUAL(0, timeAdjuster);
 
-    ts.times[0] = 1; ts.times[1] = 1;
-    ts.times[2] = 1; ts.times[3] = 1;
-    TEST_ASSERT_EQUAL(0, ts.calcAdjustment());
+    times[0] = 1; times[1] = 3;
+    times[2] = 1; times[3] = 3;
+    TEST_ASSERT_EQUAL(0, ts.calcAdjustment(times));
     TEST_ASSERT_EQUAL(0, timeAdjuster);
 
-    ts.times[0] = 1; ts.times[1] = 3;
-    ts.times[2] = 1; ts.times[3] = 3;
-    TEST_ASSERT_EQUAL(0, ts.calcAdjustment());
-    TEST_ASSERT_EQUAL(0, timeAdjuster);
-
-    ts.times[0] = 1; ts.times[1] = 3;
-    ts.times[2] = 3; ts.times[3] = 1;
-    TEST_ASSERT_EQUAL(2, ts.calcAdjustment());
+    times[0] = 1; times[1] = 3;
+    times[2] = 3; times[3] = 1;
+    TEST_ASSERT_EQUAL(2, ts.calcAdjustment(times));
     TEST_ASSERT_EQUAL(2, timeAdjuster);
 
-    ts.times[0] = 1; ts.times[1] = 3;
-    ts.times[2] = 5; ts.times[3] = 1;
-    TEST_ASSERT_EQUAL(3, ts.calcAdjustment());
+    times[0] = 1; times[1] = 3;
+    times[2] = 5; times[3] = 1;
+    TEST_ASSERT_EQUAL(3, ts.calcAdjustment(times));
     TEST_ASSERT_EQUAL(5, timeAdjuster);
     timeAdjuster = 0;
 
-    ts.times[0] = 3; ts.times[1] = 1;
-    ts.times[2] = 1; ts.times[3] = 3;
-    TEST_ASSERT_EQUAL(-2, ts.calcAdjustment());
+    times[0] = 3; times[1] = 1;
+    times[2] = 1; times[3] = 3;
+    TEST_ASSERT_EQUAL(-2, ts.calcAdjustment(times));
     TEST_ASSERT_EQUAL(0xFFFFFFFF-1, timeAdjuster);
 
-    ts.times[0] = 0xFFFFFFFF; ts.times[1] = 1;
-    ts.times[2] = 1; ts.times[3] = 0xFFFFFFFF;
-    TEST_ASSERT_EQUAL(2, ts.calcAdjustment());
+    times[0] = 0xFFFFFFFF; times[1] = 1;
+    times[2] = 1; times[3] = 0xFFFFFFFF;
+    TEST_ASSERT_EQUAL(2, ts.calcAdjustment(times));
     TEST_ASSERT_EQUAL(0, timeAdjuster);
-
-
 }
 
 void setup() {
