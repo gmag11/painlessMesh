@@ -34,13 +34,6 @@ enum nodeMode {
     STA_AP
 };
 
-enum syncStatusType {
-    NEEDED = 0,
-    REQUESTED = 1,
-    IN_PROGRESS = 2,
-    COMPLETE = 3
-};
-
 enum meshPackageType {
     TIME_DELAY = 3,
     TIME_SYNC = 4,
