@@ -153,7 +153,7 @@ protected:
     // in painlessMeshSync.cpp
     //must be accessable from callback
     void                handleNodeSync(ConnectionList::iterator conn, JsonObject& root);
-    void                startTimeSync(ConnectionList::iterator conn, boolean checkAdopt = true);
+    void                startTimeSync(ConnectionList::iterator conn);
     void                handleTimeSync(ConnectionList::iterator conn, JsonObject& root, uint32_t receivedAt);
     void                handleTimeDelay(ConnectionList::iterator conn, JsonObject& root, uint32_t receivedAt);
     bool                adoptionCalc(ConnectionList::iterator conn);
