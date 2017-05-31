@@ -86,10 +86,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(std::shared_ptr<meshConnectionT
                 debugMsg(COMMUNICATION, "sendPackage(): Package sent -> %s\n", package.c_str());
                 return true;
             } else {
-                debugMsg(ERROR, "sendPackage()a: espconn_send Failed node=%u\n", connection->nodeId);
-                debugMsg(ERROR, "sendPackage()a: espconn_send Failed err=%d\n", errCode);
-                debugMsg(ERROR, "sendPackage()b: espconn_send Failed err=%d\n", connection->esp_conn == NULL);
-                debugMsg(ERROR, "sendPackage()c: espconn_send Failed err=%d\n", connection->esp_conn->state);
+                debugMsg(ERROR, "sendPackage(): espconn_send Failed node=%u, err=%d\n", connection->nodeId, errCode);
                 return false;
             }
         } else {
