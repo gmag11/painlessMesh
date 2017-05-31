@@ -64,6 +64,22 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
     nodeDelayReceivedCallback = cb;
 }
 
+void ICACHE_FLASH_ATTR closeConnectionIt(ConnectionList &connections,
+        ConnectionList::iterator conn) {
+    auto connection = (*conn);
+    connection->timeSyncTask.setCallback(NULL);
+    connection->nodeSyncTask.setCallback(NULL);
+    connection->newConnectionTask.setCallback(NULL);
+    connection->nodeTimeoutTask.setCallback(NULL);
+    connections.erase(conn);
+
+    if (connection.use_count()>2) {
+        // After closing the use count should be 2 (one copy here and one in the caller)
+        // This should then cause the destructor to be called after those last two users
+        // go out of scope
+        staticThis->debugMsg(ERROR, "closeConnection(): error, use should be below 2, conn-use=%u\n", connection.use_count());
+    }
+}
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::closeConnection(std::shared_ptr<meshConnectionType> conn) {
@@ -75,13 +91,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnection(std::shared_ptr<meshConnect
     auto connection = _connections.begin();
     while (connection != _connections.end()) {
         if (connection->get()->nodeId == conn->nodeId) {
-            // These contain links to the shared_ptr and need to reset 
-            conn->timeSyncTask.setCallback(NULL);
-            conn->nodeSyncTask.setCallback(NULL);
-            conn->newConnectionTask.setCallback(NULL);
-            conn->nodeTimeoutTask.setCallback(NULL);
-
-            _connections.erase(connection);
+            closeConnectionIt(_connections, connection);
             found = true;
             break;
         }
@@ -89,25 +99,19 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnection(std::shared_ptr<meshConnect
     }
     debugMsg(CONNECTION, "closeConnection(): done, conn-no=%u, conn-use=%u\n",
             _connections.size(), conn.use_count());
-
-    if (conn.use_count()>2) {
-        // After closing the use count should be 2 (one copy here and one in the caller)
-        // This should then cause the destructor to be called after those last two users
-        // go out of scope
-        debugMsg(ERROR, "closeConnection(): error, use should be below 2, conn-use=%u\n",
-            _connections.size(), conn.use_count());
-    }
     return found;
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 {
     auto connection = _connections.begin();
-    for (auto &&connection : _connections) {
-        if (connection->esp_conn->proto.tcp->local_port != _meshPort) {
+    while (connection != _connections.end()) {
+        if (connection->get()->esp_conn->proto.tcp->local_port != _meshPort) {
             // We found the STA connection, close it
-            return closeConnection(connection);
+            closeConnectionIt(_connections, connection);
+            return true;
         }
+        ++connection;
     }
     return false;
 }
@@ -195,6 +199,12 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
 
     String ret = "[";
     for (auto &&sub : connections) {
+        if (sub->esp_conn->state == ESPCONN_CLOSE) {
+            debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection");
+            // Close connection and start over
+            closeConnection(sub);
+            return subConnectionJsonHelper(_connections, exclude);
+        }
         if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
             if (ret.length() > 1)
                 ret += String(",");
