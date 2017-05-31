@@ -78,7 +78,6 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
     scheduler.execute();
-    manageStation();
     return;
 }
 

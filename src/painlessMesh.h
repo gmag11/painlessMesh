@@ -164,9 +164,6 @@ protected:
     shared_ptr<meshConnectionType> findConnection(uint32_t nodeId);
     shared_ptr<meshConnectionType> findConnection(espconn *conn);
 
-    // in painlessMeshSTA.cpp
-    void                manageStation(void);
-
     // in painlessMeshAP.cpp
     void                apInit(void);
     void                tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
