@@ -6,29 +6,29 @@
 
 void test_findConnection() {
     painlessMesh mesh;
-    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(1));
+    TEST_ASSERT(NULL == mesh.findConnection(1));
 
-    std::shared_ptr<meshConnectionType> conn(new meshConnectionType);
+    auto conn = std::make_shared<meshConnectionType>();
     mesh._connections.push_back(conn);
-    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(1));
+    TEST_ASSERT(NULL == mesh.findConnection(1));
 
-    std::shared_ptr<meshConnectionType> conn2(new meshConnectionType);
+    auto conn2 = std::make_shared<meshConnectionType>();
     conn2->nodeId = 1;
     mesh._connections.push_back(conn2);
     TEST_ASSERT(mesh.findConnection(1));
 
     // Add test for meshConnection with indirect connection
-    std::shared_ptr<meshConnectionType> conn3(new meshConnectionType);
+    auto conn3 = std::make_shared<meshConnectionType>();
     conn3->nodeId = 2;
     conn3->subConnections = "[{\"nodeId\":887034362,\"subs\":[{\"nodeId\":43,\"subs\":[]}]}]";
     mesh._connections.push_back(conn3);
     TEST_ASSERT(mesh.findConnection(887034362));
 
-    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(70));
-    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(88));
-    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(87));
-    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(62));
-    TEST_ASSERT_EQUAL(NULL, mesh.findConnection(36));
+    TEST_ASSERT(NULL == mesh.findConnection(70));
+    TEST_ASSERT(NULL == mesh.findConnection(88));
+    TEST_ASSERT(NULL == mesh.findConnection(87));
+    TEST_ASSERT(NULL == mesh.findConnection(62));
+    TEST_ASSERT(NULL == mesh.findConnection(36));
     // 43 should match again
     TEST_ASSERT(mesh.findConnection(43));
 }
@@ -51,8 +51,8 @@ void test_comparison() {
 }
 
 void test_subConnectionJsonHelper() {
-    std::shared_ptr<meshConnectionType> node1(new meshConnectionType);
-    std::shared_ptr<meshConnectionType> node2(new meshConnectionType);
+    auto node1 = std::make_shared<meshConnectionType>();
+    auto node2 = std::make_shared<meshConnectionType>();
     node1->nodeId = -1; // Max uint value
     node1->subConnections = String("[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]");
     
@@ -76,15 +76,16 @@ void test_subConnectionJsonHelper() {
 }
 
 void test_approxNoNodes() {
-    meshConnectionType node1, node2;
-    node1.subConnections = String("[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]");
+    auto node1 = std::make_shared<meshConnectionType>();
+    auto node2 = std::make_shared<meshConnectionType>();
+    node1->subConnections = String("[{\"nodeId\":886599975,\"subs\":[{\"nodeId\":2139268534,\"subs\":[{\"nodeId\":2132113212,\"subs\":[{\"nodeId\":2132046046}]}]}]}]");
     painlessMesh mesh;
 
-    TEST_ASSERT_EQUAL(4, mesh.approxNoNodes(node1.subConnections));
+    TEST_ASSERT_EQUAL(4, mesh.approxNoNodes(node1->subConnections));
     
     
-    node2.subConnections = String("[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]");
-    TEST_ASSERT_EQUAL(2, mesh.approxNoNodes(node2.subConnections));
+    node2->subConnections = String("[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]");
+    TEST_ASSERT_EQUAL(2, mesh.approxNoNodes(node2->subConnections));
 }
 
 void test_jsonnodeid() {

@@ -31,9 +31,10 @@ Task logServerTask(10000, TASK_FOREVER, []() {
 void setup() {
   Serial.begin(115200);
     
-  mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION );  // set before init() so that you can see startup messages
+  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG ); // all types on
+  mesh.setDebugMsgTypes( ERROR | CONNECTION | SYNC );  // set before init() so that you can see startup messages
 
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 1 );
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 6 );
   mesh.onReceive(&receivedCallback);
 
   // Add the task to the mesh scheduler

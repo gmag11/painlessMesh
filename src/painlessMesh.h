@@ -71,13 +71,15 @@ struct meshConnectionType {
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
 
-    Task                nodeTimeoutTask;
-    Task                nodeSyncTask;
-    Task                timeSyncTask;
-    Task                newConnectionTask;
+    Task nodeTimeoutTask;
+    Task nodeSyncTask;
+    Task timeSyncTask;
+    Task newConnectionTask;
+
+    ~meshConnectionType();
 };
 
-using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType> >;
+using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType>>;
 
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
 typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
@@ -132,36 +134,35 @@ protected:
 #endif
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(ConnectionList::iterator conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+    bool                sendMessage(std::shared_ptr<meshConnectionType> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
-    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, ConnectionList::iterator exclude = NULL);
+    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<meshConnectionType> exclude = NULL);
 
-    bool                sendPackage(ConnectionList::iterator connection, String &package, bool priority = false);
+    bool                sendPackage(std::shared_ptr<meshConnectionType> connection, String &package, bool priority = false);
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
 
     // in painlessMeshSync.cpp
     //must be accessable from callback
-    void                handleNodeSync(ConnectionList::iterator conn, JsonObject& root);
-    void                startTimeSync(ConnectionList::iterator conn);
-    void                handleTimeSync(ConnectionList::iterator conn, JsonObject& root, uint32_t receivedAt);
-    void                handleTimeDelay(ConnectionList::iterator conn, JsonObject& root, uint32_t receivedAt);
-    bool                adoptionCalc(ConnectionList::iterator conn);
+    void                handleNodeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root);
+    void                startTimeSync(std::shared_ptr<meshConnectionType> conn);
+    void                handleTimeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt);
+    void                handleTimeDelay(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt);
+    bool                adoptionCalc(std::shared_ptr<meshConnectionType> conn);
 
     // in painlessMeshConnection.cpp
-    void                manageConnections(void);
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
-    ConnectionList::iterator closeConnection(ConnectionList::iterator conn);
-    ConnectionList::iterator closeConnectionSTA(); 
-    String              subConnectionJson(ConnectionList::iterator exclude);
+    bool closeConnection(shared_ptr<meshConnectionType> conn);
+    bool closeConnectionSTA(); 
+    String              subConnectionJson(std::shared_ptr<meshConnectionType> exclude);
     String              subConnectionJsonHelper(
                             ConnectionList &connections,
                             uint32_t exclude = 0);
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
-    ConnectionList::iterator findConnection(uint32_t nodeId);
-    ConnectionList::iterator findConnection(espconn *conn);
+    shared_ptr<meshConnectionType> findConnection(uint32_t nodeId);
+    shared_ptr<meshConnectionType> findConnection(espconn *conn);
 
     // in painlessMeshSTA.cpp
     void                manageStation(void);
@@ -206,6 +207,8 @@ protected:
 
     espconn     _stationConn;
     esp_tcp     _stationTcp;
+
+    Task closingTask;
 
     friend class StationScan;
 };
