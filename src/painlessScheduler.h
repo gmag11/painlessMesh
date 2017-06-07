@@ -371,9 +371,9 @@ Task::Task( unsigned long aInterval, long aIterations, callback_t aCallback, Sch
 }
 
 Task::~Task() {
-    disable();
     if (iScheduler)
         iScheduler->deleteTask(*this);
+    disable();
 }
 
 
@@ -645,6 +645,8 @@ void Scheduler::init() {
  * @note Task can only be part of the chain once.
  */
  void Scheduler::addTask(Task& aTask) {
+     if (aTask.iScheduler == this)
+         return;
 
 	aTask.iScheduler = this;
 // First task situation: 
@@ -666,31 +668,36 @@ void Scheduler::init() {
  * @param &aTask - reference to the task to be deleted from the chain
  */
 void Scheduler::deleteTask(Task& aTask) {
-	if (aTask.iPrev == NULL) {
-		if (aTask.iNext == NULL) {
-			iFirst = NULL;
-			iLast = NULL;
-			return;
-		}
-		else {
-			aTask.iNext->iPrev = NULL;
-			iFirst = aTask.iNext;
-			aTask.iNext = NULL;
-			return;
-		}
-	}
+    if (!aTask.iScheduler) {
+        return;
+    } else {
+        aTask.iScheduler = NULL;
+        if (aTask.iPrev == NULL) {
+            if (aTask.iNext == NULL) {
+                iFirst = NULL;
+                iLast = NULL;
+                return;
+            }
+            else {
+                aTask.iNext->iPrev = NULL;
+                iFirst = aTask.iNext;
+                aTask.iNext = NULL;
+                return;
+            }
+        }
 
-	if (aTask.iNext == NULL) {
-		aTask.iPrev->iNext = NULL;
-		iLast = aTask.iPrev;
-		aTask.iPrev = NULL;
-		return;
-	}
+        if (aTask.iNext == NULL) {
+            aTask.iPrev->iNext = NULL;
+            iLast = aTask.iPrev;
+            aTask.iPrev = NULL;
+            return;
+        }
 
-	aTask.iPrev->iNext = aTask.iNext;
-	aTask.iNext->iPrev = aTask.iPrev;
-	aTask.iPrev = NULL;
-	aTask.iNext = NULL;
+        aTask.iPrev->iNext = aTask.iNext;
+        aTask.iNext->iPrev = aTask.iPrev;
+        aTask.iPrev = NULL;
+        aTask.iNext = NULL;
+    }
 }
 
 /** Disables all tasks in the execution chain

@@ -108,46 +108,45 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
 
     meshPackageType message_type = (meshPackageType)(int)root["type"];
     uint32_t        remoteNodeId = root["from"];
-    uint32_t        destId = root["dest"];
     bool            reSyncAllSubConnections = false;
 
-    if (conn->nodeId != remoteNodeId) {
-        auto rconn = findConnection(remoteNodeId);
-        if (rconn && rconn != conn) {
-            // this is the first NODE_SYNC_REQUEST from a station
-            // but we are already connected, so drop this connection
-            debugMsg(SYNC, "handleNodeSync(): Already connected to node %u.  Dropping\n", rconn->nodeId);
-            closeConnection(rconn);
-        }
+    for (auto && connection : _connections) {
+        debugMsg(SYNC, "handleNodeSync(): Sanity check %d\n", connection->esp_conn);
+        debugMsg(SYNC, "handleNodeSync(): Sanity check Id %u\n", connection->nodeId);
+    }
 
+    if (conn->nodeId != remoteNodeId) {
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
         conn->nodeId = remoteNodeId;
 
-        if (conn->newConnection == true) { 
+        if (conn->newConnection) {
+            debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
+
             // TODO: Move this to its own function
-            conn->newConnectionTask.set(0, 1, [conn, this]() {
-                this->debugMsg(SYNC,
-                    "newConnectionTask():\n");
-                if (conn->newConnection) { // Check that still new
-                    if (this->newConnectionCallback) {
-                        this->newConnectionCallback(conn->nodeId);
-                    }
-                    conn->newConnection = false;
-                    this->debugMsg(SYNC,
-                            "newConnectionTask(): true -> false\n");
-                }
+            newConnectionTask.set(TASK_SECOND, TASK_ONCE, [nodeId = remoteNodeId]() {
+                staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
+                staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", nodeId, staticThis->getNodeTime());
+               if (staticThis->newConnectionCallback)
+                    staticThis->newConnectionCallback(nodeId); // Connection dropped. Signal user            
+               for (auto &&connection : staticThis->_connections) {
+                   if (connection->nodeId != nodeId) { // Exclude current
+                       connection->nodeSyncTask.forceNextIteration();
+                   }
+               }
             });
-            scheduler.addTask(conn->newConnectionTask);
-            conn->newConnectionTask.enable();
+
+            scheduler.addTask(newConnectionTask);
+            newConnectionTask.enable();
+            conn->newConnection = false;
 
             // Initially interval is every 10 seconds, 
             // this will slow down to TIME_SYNC_INTERVAL
             // after first succesfull sync
             conn->timeSyncTask.set(10*TASK_SECOND, TASK_FOREVER,
-                    [conn, this]() {
-                this->debugMsg(S_TIME,
+                    [conn]() {
+                staticThis->debugMsg(S_TIME,
                     "timeSyncTask(): %u\n", conn->nodeId);
-                startTimeSync(conn);
+                staticThis->startTimeSync(conn);
             });
             scheduler.addTask(conn->timeSyncTask);
             if (conn->esp_conn->proto.tcp->local_port != _meshPort)
@@ -264,7 +263,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<meshConnecti
         debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
 
         // After response is sent I assume sync is completed
-        conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
+        conn->timeSyncTask.delay(TIME_SYNC_INTERVAL/1000);
         break;
 
     case (TIME_RESPONSE):
@@ -284,7 +283,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<meshConnecti
 
         if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
             // mark complete only if offset was less than 10 ms
-            conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
+            conn->timeSyncTask.delay(TIME_SYNC_INTERVAL/1000);
             debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
 
             // Time has changed, update other nodes

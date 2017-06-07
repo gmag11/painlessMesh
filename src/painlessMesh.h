@@ -74,7 +74,6 @@ struct meshConnectionType {
     Task nodeTimeoutTask;
     Task nodeSyncTask;
     Task timeSyncTask;
-    Task newConnectionTask;
 
     ~meshConnectionType();
 };
@@ -211,7 +210,8 @@ protected:
     espconn     _stationConn;
     esp_tcp     _stationTcp;
 
-    Task closingTask;
+    Task droppedConnectionTask;
+    Task newConnectionTask;
 
     friend class StationScan;
 };
