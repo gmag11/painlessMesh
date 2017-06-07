@@ -46,6 +46,11 @@ void ICACHE_FLASH_ATTR painlessMesh::onNewConnection(newConnectionCallback_t cb)
     newConnectionCallback = cb;
 }
 
+void ICACHE_FLASH_ATTR painlessMesh::onDroppedConnection(droppedConnectionCallback_t cb) {
+    debugMsg(GENERAL, "onNewConnection():\n");
+    droppedConnectionCallback = cb;
+}
+
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::onChangedConnections(changedConnectionsCallback_t cb) {
     debugMsg(GENERAL, "onChangedConnections():\n");
@@ -64,7 +69,7 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
     nodeDelayReceivedCallback = cb;
 }
 
-void ICACHE_FLASH_ATTR closeConnectionIt(ConnectionList &connections,
+void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connections,
         ConnectionList::iterator conn) {
     auto connection = (*conn);
     connection->timeSyncTask.setCallback(NULL);
@@ -72,6 +77,25 @@ void ICACHE_FLASH_ATTR closeConnectionIt(ConnectionList &connections,
     connection->newConnectionTask.setCallback(NULL);
     connection->nodeTimeoutTask.setCallback(NULL);
     connections.erase(conn);
+
+    auto nodeId = connection->nodeId;
+
+    staticThis->closingTask.set(TASK_SECOND, TASK_ONCE, [nodeId]() {
+        staticThis->debugMsg(CONNECTION, "closingTask():\n");
+        staticThis->debugMsg(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId, staticThis->getNodeTime());
+       if (staticThis->changedConnectionsCallback)
+            staticThis->changedConnectionsCallback(); // Connection dropped. Signal user            
+       if (staticThis->droppedConnectionCallback)
+            staticThis->droppedConnectionCallback(nodeId); // Connection dropped. Signal user            
+       for (auto &&connection : staticThis->_connections) {
+           if (connection->nodeId != nodeId) { // Exclude current
+               connection->nodeSyncTask.forceNextIteration();
+           }
+       }
+    });
+    staticThis->scheduler.addTask(staticThis->closingTask);
+    staticThis->closingTask.enable();
+
 
     if (connection.use_count()>2) {
         // After closing the use count should be 2 (one copy here and one in the caller)
@@ -283,20 +307,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
             NODE_TIMEOUT/1000, TASK_ONCE, [conn](){
         staticThis->debugMsg(CONNECTION, "nodeTimeoutTask():\n");
         staticThis->debugMsg(CONNECTION, "nodeTimeoutTask(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
-        // We can't close a connection from within the meshConnection object
-        // Setting a task to close it as soon as possible
-        staticThis->closingTask.set(TASK_SECOND, TASK_ONCE, [conn]() {
-            staticThis->debugMsg(CONNECTION, "closingTask():\n");
-            if (conn) {
-                staticThis->debugMsg(CONNECTION, "closingTask(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
-               staticThis->closeConnection(conn);
-               if (staticThis->changedConnectionsCallback)
-                    staticThis->changedConnectionsCallback(); // Connection dropped. Signal user            
-               }
+
+        staticThis->closeConnection(conn);
             });
-        staticThis->scheduler.addTask(staticThis->closingTask);
-        staticThis->closingTask.enable();
-    });
 
     staticThis->scheduler.addTask(conn->nodeTimeoutTask);
     conn->nodeTimeoutTask.enableDelayed();
@@ -453,11 +466,6 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
         staticThis->debugMsg(CONNECTION, "Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
         // should start up automatically when station_status changes to IDLE
         wifi_station_disconnect();
-    }
-
-    // Sync the changed connections
-    for (auto &&conn : staticThis->_connections) {
-        conn->nodeSyncTask.forceNextIteration();
     }
 
     return;

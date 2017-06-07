@@ -82,6 +82,7 @@ struct meshConnectionType {
 using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType>>;
 
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
+typedef std::function<void(uint32_t nodeId)> droppedConnectionCallback_t;
 typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
@@ -106,6 +107,7 @@ public:
     // in painlessMeshConnection.cpp
     void                onReceive(receivedCallback_t  onReceive);
     void                onNewConnection(newConnectionCallback_t onNewConnection);
+    void                onDroppedConnection(droppedConnectionCallback_t onDroppedConnection);
     void                onChangedConnections(changedConnectionsCallback_t onChangedConnections);
     void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
     void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
@@ -155,6 +157,9 @@ protected:
     void                tcpConnect(void);
     bool closeConnection(shared_ptr<meshConnectionType> conn);
     bool closeConnectionSTA(); 
+
+    void closeConnectionIt(ConnectionList &connections, ConnectionList::iterator conn);
+
     String              subConnectionJson(std::shared_ptr<meshConnectionType> exclude);
     String              subConnectionJsonHelper(
                             ConnectionList &connections,
@@ -179,6 +184,7 @@ protected:
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
+    droppedConnectionCallback_t     droppedConnectionCallback;
     receivedCallback_t              receivedCallback;
     changedConnectionsCallback_t    changedConnectionsCallback;
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;

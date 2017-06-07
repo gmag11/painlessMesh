@@ -111,22 +111,15 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
     uint32_t        destId = root["dest"];
     bool            reSyncAllSubConnections = false;
 
-    if (destId == 0) {
-        auto foundBroken = false;
+    if (conn->nodeId != remoteNodeId) {
         auto rconn = findConnection(remoteNodeId);
-        if (rconn) {
+        if (rconn && rconn != conn) {
             // this is the first NODE_SYNC_REQUEST from a station
             // but we are already connected, so drop this connection
             debugMsg(SYNC, "handleNodeSync(): Already connected to node %u.  Dropping\n", rconn->nodeId);
             closeConnection(rconn);
-            foundBroken = true;
         }
-        
-        if (foundBroken)
-            return;
-    }
 
-    if (conn->nodeId != remoteNodeId) {
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
         conn->nodeId = remoteNodeId;
 

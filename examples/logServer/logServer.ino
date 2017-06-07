@@ -37,6 +37,14 @@ void setup() {
   mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 6 );
   mesh.onReceive(&receivedCallback);
 
+  mesh.onNewConnection([](size_t nodeId) {
+    Serial.printf("New Connection %u\n", nodeId);
+  });
+
+  mesh.onDroppedConnection([](size_t nodeId) {
+    Serial.printf("Dropped Connection %u\n", nodeId);
+  });
+
   // Add the task to the mesh scheduler
   mesh.scheduler.addTask(logServerTask);
   logServerTask.enable();
