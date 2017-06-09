@@ -86,6 +86,7 @@ void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connectio
                connection->nodeSyncTask.forceNextIteration();
            }
        }
+       staticThis->stability /= 2;
     });
     staticThis->scheduler.addTask(staticThis->droppedConnectionTask);
     staticThis->droppedConnectionTask.enable();
@@ -451,7 +452,6 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
-    staticThis->stability /= 2;
     struct espconn *disConn = (espconn *)arg;
 
     staticThis->debugMsg(CONNECTION, "meshDisconCb(): ");

@@ -133,6 +133,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
                        connection->nodeSyncTask.forceNextIteration();
                    }
                }
+               staticThis->stability /= 2;
             });
 
             scheduler.addTask(newConnectionTask);
@@ -165,12 +166,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
     if (!conn->subConnections.equals(inComingSubs)) {  // change in the network
         reSyncAllSubConnections = true;
         conn->subConnections = inComingSubs;
-        stability /= 2;
         if (changedConnectionsCallback)
             changedConnectionsCallback();
-    } else {
-        stability += min(1000-stability,(size_t)25);
-    }
+    }    
+    
     String tempstr;
     root.printTo(tempstr);
     debugMsg(SYNC, "handleNodeSync(): json = %s\n", tempstr.c_str());
@@ -196,7 +195,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
                 connection->nodeSyncTask.forceNextIteration();
             }
         }
+        stability /= 2;
+    } else {
+        stability += min(1000-stability,(size_t)25);
     }
+
 }
 
 //***********************************************************************
