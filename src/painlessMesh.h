@@ -5,11 +5,14 @@
 #error Only ESP8266 platform is allowed
 #endif // !ESP8266
 
+#define _TASK_STD_FUNCTION
+
 #include <painlessScheduler.h>
 #include <Arduino.h>
 #include <SimpleList.h>
 #include <ArduinoJson.h>
 #include <functional>
+#include <memory>
 using namespace std;
 
 extern "C" {
@@ -25,25 +28,10 @@ extern "C" {
 #define MAX_MESSAGE_QUEUE   50 // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5 // Max message busrt
 
-
-enum nodeStatusType {
-    INITIALIZING = 0,
-    SEARCHING = 1,
-    FOUND_MESH = 2,
-    CONNECTED = 3
-};
-
 enum nodeMode {
     AP_ONLY,
     STA_ONLY,
     STA_AP
-};
-
-enum syncStatusType {
-    NEEDED = 0,
-    REQUESTED = 1,
-    IN_PROGRESS = 2,
-    COMPLETE = 3
 };
 
 enum meshPackageType {
@@ -76,23 +64,24 @@ struct meshConnectionType {
     uint32_t            nodeId = 0;
     String              subConnections;
     timeSync            time;
-    uint32_t            lastReceived = 0;
     bool                newConnection = true;
 
-    syncStatusType      nodeSyncStatus = NEEDED;
-    uint32_t            nodeSyncLastRequested = 0;
-
-    syncStatusType      timeSyncStatus = NEEDED;
-    uint32_t            timeSyncLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
     uint32_t            timeDelayLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
-    uint32_t            lastTimeSync = 0; // Timestamp to trigger periodic time sync
-    uint32_t            nextTimeSyncPeriod = 0; // 
 
     bool                sendReady = true;
     SimpleList<String>  sendQueue;
+
+    Task nodeTimeoutTask;
+    Task nodeSyncTask;
+    Task timeSyncTask;
+
+    ~meshConnectionType();
 };
 
+using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType>>;
+
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
+typedef std::function<void(uint32_t nodeId)> droppedConnectionCallback_t;
 typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
@@ -117,6 +106,7 @@ public:
     // in painlessMeshConnection.cpp
     void                onReceive(receivedCallback_t  onReceive);
     void                onNewConnection(newConnectionCallback_t onNewConnection);
+    void                onDroppedConnection(droppedConnectionCallback_t onDroppedConnection);
     void                onChangedConnections(changedConnectionsCallback_t onChangedConnections);
     void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
     void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
@@ -145,40 +135,38 @@ protected:
 #endif
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+    bool                sendMessage(std::shared_ptr<meshConnectionType> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
-    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, meshConnectionType *exclude = NULL);
+    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<meshConnectionType> exclude = NULL);
 
-    bool                sendPackage(meshConnectionType *connection, String &package, bool priority = false);
+    bool                sendPackage(std::shared_ptr<meshConnectionType> connection, String &package, bool priority = false);
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
 
     // in painlessMeshSync.cpp
     //must be accessable from callback
-    void                startNodeSync(meshConnectionType *conn);
-    void                handleNodeSync(meshConnectionType *conn, JsonObject& root);
-    void                startTimeSync(meshConnectionType *conn, boolean checkAdopt = true);
-    void                handleTimeSync(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt);
-    void                handleTimeDelay(meshConnectionType *conn, JsonObject& root, uint32_t receivedAt);
-    bool                adoptionCalc(meshConnectionType *conn);
+    void                handleNodeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root);
+    void                startTimeSync(std::shared_ptr<meshConnectionType> conn);
+    void                handleTimeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt);
+    void                handleTimeDelay(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt);
+    bool                adoptionCalc(std::shared_ptr<meshConnectionType> conn);
 
     // in painlessMeshConnection.cpp
-    void                manageConnections(void);
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
-    meshConnectionType* closeConnection(meshConnectionType *conn);
-    meshConnectionType* closeConnectionSTA(); 
-    String              subConnectionJson(meshConnectionType *exclude);
+    bool closeConnection(shared_ptr<meshConnectionType> conn);
+    bool closeConnectionSTA(); 
+
+    void closeConnectionIt(ConnectionList &connections, ConnectionList::iterator conn);
+
+    String              subConnectionJson(std::shared_ptr<meshConnectionType> exclude);
     String              subConnectionJsonHelper(
-                            SimpleList<meshConnectionType> &connections,
+                            ConnectionList &connections,
                             uint32_t exclude = 0);
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
-    meshConnectionType* findConnection(uint32_t nodeId);
-    meshConnectionType* findConnection(espconn *conn);
-
-    // in painlessMeshSTA.cpp
-    void                manageStation(void);
+    shared_ptr<meshConnectionType> findConnection(uint32_t nodeId);
+    shared_ptr<meshConnectionType> findConnection(espconn *conn);
 
     // in painlessMeshAP.cpp
     void                apInit(void);
@@ -195,6 +183,7 @@ protected:
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
+    droppedConnectionCallback_t     droppedConnectionCallback;
     receivedCallback_t              receivedCallback;
     changedConnectionsCallback_t    changedConnectionsCallback;
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
@@ -210,9 +199,8 @@ protected:
     uint8_t     _meshHidden;
     uint8_t     _meshMaxConn;
 
-    nodeStatusType                  _nodeStatus = INITIALIZING;
     SimpleList<bss_info>            _meshAPs;
-    SimpleList<meshConnectionType>  _connections;
+    ConnectionList  _connections;
 
     os_timer_t  _scanTimer;
 
@@ -221,6 +209,9 @@ protected:
 
     espconn     _stationConn;
     esp_tcp     _stationTcp;
+
+    Task droppedConnectionTask;
+    Task newConnectionTask;
 
     friend class StationScan;
 };

@@ -78,8 +78,6 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
     scheduler.execute();
-    manageStation();
-    manageConnections();
     return;
 }
 
@@ -97,10 +95,9 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg) {
 
 bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
     String timeStamp;
-    meshConnectionType *conn;
     debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
 
-    conn = findConnection(nodeId);
+    auto conn = findConnection(nodeId);
 
     if (conn) {
         timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());

@@ -1,6 +1,7 @@
 #ifndef   _PAINLESS_MESH_STA_H_
 #define   _PAINLESS_MESH_STA_H_
 
+#define _TASK_STD_FUNCTION
 #include <painlessScheduler.h>
 
 #define SCAN_INTERVAL       10000 // AP scan period in ms

@@ -1,5 +1,3 @@
-// Adaption of the TaskScheduler library, which supports std::function
-
 // Cooperative multitasking library for Arduino
 // Copyright (c) 2015, 2016 Anatoli Arkhipenko
 //
@@ -126,6 +124,7 @@
  *  #define _TASK_LTS_POINTER       // Compile with support for local task storage pointer
  *  #define _TASK_PRIORITY			// Support for layered scheduling priority
  *  #define _TASK_MICRO_RES			// Support for microsecond resolution
+ *  #define _TASK_STD_FUNCTION      // Support for std::function
  */
 
 
@@ -199,6 +198,17 @@ class StatusRequest {
 };
 #endif  // _TASK_STATUS_REQUEST
 
+#ifdef _TASK_STD_FUNCTION
+#define _TASK_STD_FUNCTION
+#include <functional>
+typedef std::function<void()> callback_t;
+typedef std::function<void()> onDisable_cb_t;
+typedef std::function<bool()> onEnable_cb_t;
+#else
+typedef void (*callback_t)();
+typedef void (*onDisable_cb_t)();
+typedef bool (*onEnable_cb_t)();
+#endif
 
 typedef struct  {
 	bool enabled : 1;							// indicates that task is enabled or not.
@@ -215,17 +225,14 @@ class Scheduler;
 	static unsigned int __task_id_counter = 0;		// global task ID counter for assiging task IDs automatically. 
 #endif  // _TASK_WDT_IDS
 
-#include <functional>
-typedef std::function<void()> callback_t;
-
 class Task {
     friend class Scheduler;
     public:
-		inline Task(unsigned long aInterval=0, long aIterations=0, 
-                callback_t aCallback = [](){}, Scheduler* aScheduler=NULL, bool aEnable=false, bool (*aOnEnable)()=NULL, void (*aOnDisable)()=NULL);
+		inline Task(unsigned long aInterval=0, long aIterations=0, callback_t aCallback=NULL, Scheduler* aScheduler=NULL, bool aEnable=false, onEnable_cb_t aOnEnable=NULL, onDisable_cb_t aOnDisable=NULL);
 #ifdef _TASK_STATUS_REQUEST
-		inline Task(callback_t aCallback = [](){}, Scheduler* aScheduler=NULL, bool (*aOnEnable)()=NULL, void (*aOnDisable)()=NULL);
+		inline Task(callback_t aCallback=NULL, Scheduler* aScheduler=NULL, onEnable_cb_t aOnEnable=NULL, onDisable_cb_t aOnDisable=NULL);
 #endif  // _TASK_STATUS_REQUEST
+        inline ~Task();
 
 		inline void enable();
 		inline bool enableIfNot();
@@ -236,15 +243,15 @@ class Task {
 		inline void restartDelayed(unsigned long aDelay=0);
 		inline bool disable();
 		inline bool isEnabled() { return iStatus.enabled; }
-		inline void set(unsigned long aInterval, long aIterations, callback_t aCallback = [](){},bool (*aOnEnable)()=NULL, void (*aOnDisable)()=NULL);
+		inline void set(unsigned long aInterval, long aIterations, callback_t aCallback,onEnable_cb_t aOnEnable=NULL, onDisable_cb_t aOnDisable=NULL);
 		inline void setInterval(unsigned long aInterval);
 		inline unsigned long getInterval() { return iInterval; }
 		inline void setIterations(long aIterations);
 		inline long getIterations() { return iIterations; }
 		inline unsigned long getRunCounter() { return iRunCounter; }
 		inline void setCallback(callback_t aCallback) { iCallback = aCallback; }
-		inline void setOnEnable(bool (*aCallback)()) { iOnEnable = aCallback; }
-		inline void setOnDisable(void (*aCallback)()) { iOnDisable = aCallback; }
+		inline void setOnEnable(onEnable_cb_t aCallback) { iOnEnable = aCallback; }
+		inline void setOnDisable(callback_t aCallback) { iOnDisable = aCallback; }
 		inline void yield(callback_t aCallback);
 		inline void yieldOnce(callback_t aCallback);
 #ifdef _TASK_TIMECRITICAL
@@ -285,8 +292,8 @@ class Task {
 		long					iSetIterations; 		// number of iterations originally requested (for restarts)
 		unsigned long			iRunCounter;		// current number of iteration (starting with 1). Resets on enable. 
 		callback_t				iCallback;		// pointer to the void callback method
-		bool					(*iOnEnable)();		// pointer to the bolol OnEnable callback method
-		void					(*iOnDisable)();	// pointer to the void OnDisable method
+		onEnable_cb_t		    iOnEnable;		// pointer to the bolol OnEnable callback method
+		onDisable_cb_t			iOnDisable;	// pointer to the void OnDisable method
 		Task					*iPrev, *iNext;		// pointers to the previous and next tasks in the chain
 		Scheduler				*iScheduler;		// pointer to the current scheduler
 #ifdef _TASK_STATUS_REQUEST
@@ -350,7 +357,7 @@ class Scheduler {
 /** Constructor, uses default values for the parameters
  * so could be called with no parameters.
  */
-Task::Task( unsigned long aInterval, long aIterations, callback_t aCallback, Scheduler* aScheduler, bool aEnable, bool (*aOnEnable)(), void (*aOnDisable)() ) {
+Task::Task( unsigned long aInterval, long aIterations, callback_t aCallback, Scheduler* aScheduler, bool aEnable, onEnable_cb_t aOnEnable, onDisable_cb_t aOnDisable ) {
 	reset();
 	set(aInterval, aIterations, aCallback, aOnEnable, aOnDisable);
 	if (aScheduler) aScheduler->addTask(*this);
@@ -363,13 +370,19 @@ Task::Task( unsigned long aInterval, long aIterations, callback_t aCallback, Sch
 	if (aEnable) enable();
 }
 
+Task::~Task() {
+    if (iScheduler)
+        iScheduler->deleteTask(*this);
+    disable();
+}
+
 
 #ifdef _TASK_STATUS_REQUEST
 
 /** Constructor with reduced parameter list for tasks created for 
  *  StatusRequest only triggering (always immediate and only 1 iteration)
  */
-Task::Task( void (*aCallback)(), Scheduler* aScheduler, bool (*aOnEnable)(), void (*aOnDisable)() ) {
+Task::Task( callback_t aCallback, Scheduler* aScheduler, onEnable_cb_t aOnEnable, onDisable_cb_t aOnDisable ) {
 	reset();
 	set(TASK_IMMEDIATE, TASK_ONCE, aCallback, aOnEnable, aOnDisable);
 	if (aScheduler) aScheduler->addTask(*this);
@@ -458,7 +471,7 @@ void Task::reset() {
  * @param aOnEnable - pointer to the callback method which is called on enable()
  * @param aOnDisable - pointer to the callback method which is called on disable()
  */
-void Task::set(unsigned long aInterval, long aIterations, callback_t aCallback, bool (*aOnEnable)(), void (*aOnDisable)()) {
+void Task::set(unsigned long aInterval, long aIterations, callback_t aCallback, onEnable_cb_t aOnEnable, onDisable_cb_t aOnDisable) {
 	setInterval(aInterval); 
 	iSetIterations = iIterations = aIterations;
 	iCallback = aCallback;
@@ -507,7 +520,7 @@ void Task::enable() {
 			Task *current = iScheduler->iCurrent;
 			iScheduler->iCurrent = this;
 			iStatus.inonenable = true;		// Protection against potential infinite loop
-			iStatus.enabled = (*iOnEnable)();
+			iStatus.enabled = iOnEnable();
 			iStatus.inonenable = false;	  	// Protection against potential infinite loop
 			iScheduler->iCurrent = current;
 		}
@@ -579,7 +592,7 @@ bool Task::disable() {
 	if (previousEnabled && iOnDisable) {
 		Task *current = iScheduler->iCurrent;
 		iScheduler->iCurrent = this;
-		(*iOnDisable)();
+		iOnDisable();
 		iScheduler->iCurrent = current;
 	}
 #ifdef _TASK_STATUS_REQUEST
@@ -632,6 +645,8 @@ void Scheduler::init() {
  * @note Task can only be part of the chain once.
  */
  void Scheduler::addTask(Task& aTask) {
+     if (aTask.iScheduler == this)
+         return;
 
 	aTask.iScheduler = this;
 // First task situation: 
@@ -653,31 +668,36 @@ void Scheduler::init() {
  * @param &aTask - reference to the task to be deleted from the chain
  */
 void Scheduler::deleteTask(Task& aTask) {
-	if (aTask.iPrev == NULL) {
-		if (aTask.iNext == NULL) {
-			iFirst = NULL;
-			iLast = NULL;
-			return;
-		}
-		else {
-			aTask.iNext->iPrev = NULL;
-			iFirst = aTask.iNext;
-			aTask.iNext = NULL;
-			return;
-		}
-	}
+    if (!aTask.iScheduler) {
+        return;
+    } else {
+        aTask.iScheduler = NULL;
+        if (aTask.iPrev == NULL) {
+            if (aTask.iNext == NULL) {
+                iFirst = NULL;
+                iLast = NULL;
+                return;
+            }
+            else {
+                aTask.iNext->iPrev = NULL;
+                iFirst = aTask.iNext;
+                aTask.iNext = NULL;
+                return;
+            }
+        }
 
-	if (aTask.iNext == NULL) {
-		aTask.iPrev->iNext = NULL;
-		iLast = aTask.iPrev;
-		aTask.iPrev = NULL;
-		return;
-	}
+        if (aTask.iNext == NULL) {
+            aTask.iPrev->iNext = NULL;
+            iLast = aTask.iPrev;
+            aTask.iPrev = NULL;
+            return;
+        }
 
-	aTask.iPrev->iNext = aTask.iNext;
-	aTask.iNext->iPrev = aTask.iPrev;
-	aTask.iPrev = NULL;
-	aTask.iNext = NULL;
+        aTask.iPrev->iNext = aTask.iNext;
+        aTask.iNext->iPrev = aTask.iPrev;
+        aTask.iPrev = NULL;
+        aTask.iNext = NULL;
+    }
 }
 
 /** Disables all tasks in the execution chain

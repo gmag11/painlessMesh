@@ -31,10 +31,20 @@ Task logServerTask(10000, TASK_FOREVER, []() {
 void setup() {
   Serial.begin(115200);
     
-  mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION );  // set before init() so that you can see startup messages
+  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG ); // all types on
+  //mesh.setDebugMsgTypes( ERROR | CONNECTION | SYNC | S_TIME );  // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes( ERROR | CONNECTION | S_TIME );  // set before init() so that you can see startup messages
 
   mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 6 );
   mesh.onReceive(&receivedCallback);
+
+  mesh.onNewConnection([](size_t nodeId) {
+    Serial.printf("New Connection %u\n", nodeId);
+  });
+
+  mesh.onDroppedConnection([](size_t nodeId) {
+    Serial.printf("Dropped Connection %u\n", nodeId);
+  });
 
   // Add the task to the mesh scheduler
   mesh.scheduler.addTask(logServerTask);

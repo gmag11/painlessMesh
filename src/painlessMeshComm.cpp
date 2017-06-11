@@ -16,9 +16,8 @@ extern painlessMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(meshConnectionType *conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
-    debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%u destId=%u type=%d msg=%s\n",
-             conn->nodeId, destId, (uint8_t)type, msg.c_str());
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(std::shared_ptr<meshConnectionType> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
+    debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%u destId=%u type=%d msg=%s\n", conn->nodeId, destId, (uint8_t)type, msg.c_str());
 
     String package = buildMeshPackage(destId, fromId, type, msg);
 
@@ -30,7 +29,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromI
     debugMsg(COMMUNICATION, "In sendMessage(destId): destId=%u type=%d, msg=%s\n",
              destId, type, msg.c_str());
 
-    meshConnectionType *conn = findConnection(destId);
+    std::shared_ptr<meshConnectionType> conn = findConnection(destId);
     if (conn) {
         return sendMessage(conn, destId, fromId, type, msg, priority);
     } else {
@@ -41,42 +40,42 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromI
 
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(uint32_t from,
-                                                      meshPackageType type,
-                                                      String &msg,
-                                                      meshConnectionType *exclude) {
+bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
+        uint32_t from,
+        meshPackageType type,
+        String &msg,
+        std::shared_ptr<meshConnectionType> exclude) {
 
     // send a message to every node on the mesh
     bool errCode = false;
 
     if (exclude != NULL)
-        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=%u\n",
-                 from, type, msg.c_str(), exclude->nodeId);
+        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=%u\n", from, type, msg.c_str(), exclude->nodeId);
     else
-        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n",
-                 from, type, msg.c_str());
+        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n", from, type, msg.c_str());
 
-    SimpleList<meshConnectionType>::iterator connection = _connections.begin();
+    auto connection = _connections.begin();
     if (_connections.size() > 0)
         errCode = true; // Assume true if at least one connections
-    while (connection != _connections.end()) {
-        if (connection != exclude) {
+    for (auto &&connection : _connections) {
+        if (!exclude || connection->nodeId != exclude->nodeId) {
             if (!sendMessage(connection, connection->nodeId, from, type, msg))
                 errCode = false; // If any error return 0
         }
-        connection++;
     }
     return errCode;
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection, String &package, bool priority) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(std::shared_ptr<meshConnectionType> connection, String &package, bool priority) {
     debugMsg(COMMUNICATION, "Sending to %u-->%s<--\n", connection->nodeId, package.c_str());
 
     if (package.length() > 1400) {
         debugMsg(ERROR, "sendPackage(): err package too long length=%d\n", package.length());
         return false;
     }
+
+    connection = findConnection(connection->nodeId);
 
     if (connection) { // Protect against null pointer
         if (connection->sendReady == true) {
@@ -87,7 +86,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(meshConnectionType *connection,
                 debugMsg(COMMUNICATION, "sendPackage(): Package sent -> %s\n", package.c_str());
                 return true;
             } else {
-                debugMsg(ERROR, "sendPackage(): espconn_send Failed err=%d\n", errCode);
+                debugMsg(ERROR, "sendPackage(): espconn_send Failed node=%u, err=%d\n", connection->nodeId, errCode);
                 return false;
             }
         } else {

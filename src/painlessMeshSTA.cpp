@@ -32,44 +32,6 @@ void ICACHE_FLASH_ATTR painlessMesh::stationManual(
     stationScan.manual = true;
 }
 
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::manageStation(void) {
-    debugMsg(GENERAL, "manageStation():\n");
-
-    static uint8_t previousStatus;
-    uint8_t stationStatus = wifi_station_get_connect_status();
-
-    if (stationStatus != previousStatus) {
-        switch (stationStatus) {
-        case STATION_IDLE:
-            debugMsg(MESH_STATUS, "stationStatus Changed to STATION_IDLE\n");
-            break;
-        case STATION_CONNECTING:
-            debugMsg(MESH_STATUS, "stationStatus Changed to STATION_CONNECTING\n");
-            break;
-
-        case STATION_WRONG_PASSWORD:
-            debugMsg(MESH_STATUS, "stationStatus Changed to STATION_WRONG_PASSWORD\n");
-            break;
-
-        case STATION_NO_AP_FOUND:
-            debugMsg(MESH_STATUS, "stationStatus Changed to STATION_NO_AP_FOUND\n");
-            break;
-
-        case STATION_CONNECT_FAIL:
-            debugMsg(MESH_STATUS, "stationStatus Changed to STATION_CONNECT_FAIL\n");
-            break;
-
-        case STATION_GOT_IP:
-            debugMsg(MESH_STATUS, "stationStatus Changed to STATION_GOT_IP\n");
-            break;
-
-        }
-        previousStatus = stationStatus;
-    }
-}
-
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     // TODO: move to Connection or StationConnection? 
