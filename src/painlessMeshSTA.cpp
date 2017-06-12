@@ -144,7 +144,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete(bss_info *bssInfo) {
         staticThis->debugMsg(CONNECTION, " MESH< ---");
         aps.push_back(*bssInfo);
         staticThis->debugMsg(CONNECTION, "\n");
-#ifndef STAILQ_NEXT
+#ifdef STAILQ_NEXT
         bssInfo = STAILQ_NEXT(bssInfo, next);
 #else
         bssInfo->next;
