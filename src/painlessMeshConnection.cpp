@@ -67,6 +67,7 @@ void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connectio
     connection->timeSyncTask.setCallback(NULL);
     connection->nodeSyncTask.setCallback(NULL);
     connection->nodeTimeoutTask.setCallback(NULL);
+    connection->nodeId = 0;
     /*connection->timeSyncTask.disable();
     connection->nodeSyncTask.disable();
     connection->nodeTimeoutTask.disable();*/

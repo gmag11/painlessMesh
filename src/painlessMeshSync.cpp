@@ -110,12 +110,25 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
     uint32_t        remoteNodeId = root["from"];
     bool            reSyncAllSubConnections = false;
 
-    for (auto && connection : _connections) {
+    /*for (auto && connection : _connections) {
         debugMsg(SYNC, "handleNodeSync(): Sanity check %d\n", connection->esp_conn);
         debugMsg(SYNC, "handleNodeSync(): Sanity check Id %u\n", connection->nodeId);
-    }
+    }*/
 
     if (conn->nodeId != remoteNodeId) {
+        if (auto oldConnection = findConnection(remoteNodeId)) {
+            if (oldConnection->nodeId == remoteNodeId) {
+                // Direct connection.
+                debugMsg(SYNC, "handleNodeSync(): Already connected, close connection %u.\n",
+                        remoteNodeId);
+                closeConnection(oldConnection);
+            } else {
+                debugMsg(SYNC, "handleNodeSync(): Out of date subConnection information %u.\n",
+                        remoteNodeId);
+                oldConnection->subConnections = "";
+                oldConnection->nodeSyncTask.forceNextIteration();
+            }
+        }
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
         conn->nodeId = remoteNodeId;
 
