@@ -355,6 +355,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         return;
     }
 
+    // reset timeout 
+    receiveConn->nodeTimeoutTask.delay();
+
 
     String somestring(data);      //copy data before json parsing FIXME: can someone explain why this works?
 
@@ -369,6 +372,8 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
+
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", system_get_time(), receiveConn->nodeId, t_message);
 
     switch (t_message) {
     case NODE_SYNC_REQUEST:
@@ -412,9 +417,6 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         return;
     }
 
-    // reset timeout 
-    receiveConn->nodeTimeoutTask.delay();
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", system_get_time(), receiveConn->nodeId, t_message);
     return;
 }
 
@@ -491,8 +493,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, sint8 err) {
-    //staticThis->debugMsg(CONNECTION, "meshReconCb(): err=%d.\n", err);
-    staticThis->debugMsg(CONNECTION, "meshReconCb(): err=%d. Forwarding to meshDisconCb\n", err);
+    // Doing nothing, mesh should recover
+    staticThis->debugMsg(CONNECTION, "meshReconCb(): err=%d.\n", err);
+    /*staticThis->debugMsg(CONNECTION, "meshReconCb(): err=%d. Forwarding to meshDisconCb\n", err);
     struct espconn *disConn = (espconn *)arg;
     auto conn = staticThis->findConnection(disConn);
     if (conn) {
@@ -501,7 +504,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, sint8 err) {
     } else {
         staticThis->debugMsg(ERROR, "meshReconCb(): err=%d. Forwarding to meshDisconCb\n", err);
         meshDisconCb(arg);
-    }
+    }*/
 }
 
 //***********************************************************************
