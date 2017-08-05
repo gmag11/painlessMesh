@@ -147,7 +147,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete(bss_info *bssInfo) {
 #ifdef STAILQ_NEXT
         bssInfo = STAILQ_NEXT(bssInfo, next);
 #else
-        bssInfo->next;
+        bssInfo = bssInfo->next;
 #endif
     }
     staticThis->debugMsg(CONNECTION, "\tFound % d nodes\n", aps.size());
