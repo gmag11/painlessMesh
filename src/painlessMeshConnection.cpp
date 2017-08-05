@@ -311,7 +311,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     }
 
     conn->nodeTimeoutTask.set(
-            NODE_TIMEOUT/1000, TASK_ONCE, [conn](){
+            NODE_TIMEOUT, TASK_ONCE, [conn](){
         staticThis->debugMsg(CONNECTION, "nodeTimeoutTask():\n");
         staticThis->debugMsg(CONNECTION, "nodeTimeoutTask(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
 
@@ -321,9 +321,9 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     staticThis->scheduler.addTask(conn->nodeTimeoutTask);
     conn->nodeTimeoutTask.enableDelayed();
 
-    auto syncInterval = NODE_TIMEOUT/2000;
+    auto syncInterval = NODE_TIMEOUT/2;
     if (!sta)
-        syncInterval = NODE_TIMEOUT/500;
+        syncInterval = NODE_TIMEOUT*2;
 
     conn->nodeSyncTask.set(
             syncInterval, TASK_FOREVER, [conn](){

@@ -4,7 +4,7 @@
 #define _TASK_STD_FUNCTION
 #include <painlessScheduler.h>
 
-#define SCAN_INTERVAL       10000 // AP scan period in ms
+#define SCAN_INTERVAL       10*TASK_SECOND // AP scan period in ms
 
 class painlessMesh;
 

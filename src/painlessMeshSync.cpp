@@ -279,7 +279,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<meshConnecti
         debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
 
         // After response is sent I assume sync is completed
-        conn->timeSyncTask.delay(TIME_SYNC_INTERVAL/1000);
+        conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
         break;
 
     case (TIME_RESPONSE):
@@ -299,7 +299,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<meshConnecti
 
         if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
             // mark complete only if offset was less than 10 ms
-            conn->timeSyncTask.delay(TIME_SYNC_INTERVAL/1000);
+            conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
             debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
 
             // Time has changed, update other nodes
@@ -311,7 +311,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<meshConnecti
             }
         } else {
             // Iterate sync procedure if accuracy was not enough
-            conn->timeSyncTask.delay(200); // Small delay
+            conn->timeSyncTask.delay(200*TASK_MILLISECOND); // Small delay
             debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u needs further tries\n", conn->nodeId);
 
         }

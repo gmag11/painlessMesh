@@ -23,7 +23,7 @@ extern "C" {
 #include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
 
-#define NODE_TIMEOUT        10000000  //uSecs
+#define NODE_TIMEOUT        10*TASK_SECOND
 #define MIN_FREE_MEMORY     16000 // Minimum free memory, besides here all packets in queue are discarded.
 #define MAX_MESSAGE_QUEUE   50 // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5 // Max message busrt
