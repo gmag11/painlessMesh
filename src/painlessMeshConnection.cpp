@@ -233,6 +233,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
         if (sub->esp_conn && sub->esp_conn->state == ESPCONN_CLOSE) {
             debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n", 
                     sub->nodeId);
+            sub->nodeTimeoutTask.forceNextIteration();
             // Close connection and start over
             //closeConnection(sub);
             //return subConnectionJsonHelper(_connections, exclude);
