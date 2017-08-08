@@ -79,6 +79,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(std::shared_ptr<meshConnectionT
 
     if (connection) { // Protect against null pointer
         if (connection->sendReady == true) {
+            staticThis->debugMsg(DEBUG, "Calling esp_conn 1.\n");
             sint8 errCode = espconn_send(connection->esp_conn, (uint8*)package.c_str(), package.length());
             connection->sendReady = false;
 

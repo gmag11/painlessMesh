@@ -92,6 +92,7 @@ void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connectio
     staticThis->scheduler.addTask(staticThis->droppedConnectionTask);
     staticThis->droppedConnectionTask.enable();
 
+    staticThis->debugMsg(DEBUG, "Calling esp_conn 5.\n");
     if (connection->esp_conn && connection->esp_conn->state != ESPCONN_CLOSE) {
         if (connection->esp_conn->proto.tcp->local_port == staticThis->_meshPort) {
             espconn_regist_disconcb(connection->esp_conn, [](void *arg) {
@@ -102,6 +103,7 @@ void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connectio
             espconn_regist_disconcb(connection->esp_conn, [](void *arg) {
                 staticThis->debugMsg(CONNECTION, "dummy disconcb(): Station Connection! Find new node.\n");
                 // should start up automatically when station_status changes to IDLE
+                staticThis->debugMsg(DEBUG, "Calling wifi_station_disconnect() 2.\n");
                 wifi_station_disconnect();
             });
         }
@@ -141,6 +143,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 {
     auto connection = _connections.begin();
     while (connection != _connections.end()) {
+        staticThis->debugMsg(DEBUG, "Calling esp_conn 6.\n");
         if (connection->get()->esp_conn->proto.tcp->local_port != _meshPort) {
             // We found the STA connection, close it
             closeConnectionIt(_connections, connection);
@@ -203,6 +206,7 @@ std::shared_ptr<meshConnectionType> ICACHE_FLASH_ATTR painlessMesh::findConnecti
 std::shared_ptr<meshConnectionType>  ICACHE_FLASH_ATTR painlessMesh::findConnection(espconn *conn) {
     debugMsg(GENERAL, "In findConnection(esp_conn) conn=0x%x\n", conn);
 
+    staticThis->debugMsg(DEBUG, "Calling esp_conn 7.\n");
     for (auto &&connection : _connections) {
         if (connection->esp_conn == conn) {
             return connection;
@@ -230,6 +234,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
 
     String ret = "[";
     for (auto &&sub : connections) {
+        staticThis->debugMsg(DEBUG, "Calling esp_conn 8.\n");
         if (sub->esp_conn && sub->esp_conn->state == ESPCONN_CLOSE) {
             debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n", 
                     sub->nodeId);
@@ -297,6 +302,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg) {
     auto conn = std::make_shared<meshConnectionType>();
     staticThis->_connections.push_back(conn);
     //auto conn = staticThis->_connections.end()-1;
+    staticThis->debugMsg(DEBUG, "Calling esp_conn 9.\n");
     conn->esp_conn = (espconn *)arg;
     espconn_set_opt(conn->esp_conn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE);  // removes nagle, low latency, but soaks up bandwidth
     espconn_regist_recvcb(conn->esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
@@ -438,6 +444,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
         for (int i = 0; i < MAX_CONSECUTIVE_SEND; ++i) {
             String package = *meshConnection->sendQueue.begin();
 
+            staticThis->debugMsg(DEBUG, "Calling esp_conn 10.\n");
             sint8 errCode = espconn_send(meshConnection->esp_conn, 
                     (uint8*)package.c_str(), package.length());
             if (errCode != 0) {
@@ -474,6 +481,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
             staticThis->debugMsg(CONNECTION, "Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
             // should start up automatically when station_status changes to IDLE
             //staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
+            staticThis->debugMsg(DEBUG, "Calling wifi_station_disconnect() 1.\n");
             wifi_station_disconnect();
         }
     } else {
@@ -482,6 +490,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
         // This seems to be an error in the espconn library
         staticThis->debugMsg(ERROR, "meshDisconCb(): Invalid state\n");
         auto connection = staticThis->_connections.begin();
+        staticThis->debugMsg(DEBUG, "Calling esp_conn 11.\n");
         while (connection != staticThis->_connections.end()) {
             if ((*connection)->esp_conn->state == ESPCONN_CLOSE) {
                 staticThis->closeConnectionIt(staticThis->_connections, connection);

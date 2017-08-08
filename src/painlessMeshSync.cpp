@@ -163,6 +163,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
                 staticThis->startTimeSync(conn);
             });
             scheduler.addTask(conn->timeSyncTask);
+
+            staticThis->debugMsg(DEBUG, "Calling esp_conn 2.\n");
             if (conn->esp_conn->proto.tcp->local_port != _meshPort)
                 // We are STA, request time immediately
                 conn->timeSyncTask.enable();
@@ -219,6 +221,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(std::shared_ptr<meshConnectionType> conn) {
     String timeStamp;
 
+    staticThis->debugMsg(DEBUG, "Calling esp_conn 3.\n");
     debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
     auto adopt = adoptionCalc(conn);
     if (adopt) {
@@ -240,6 +243,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<meshConnection
     // We use length as an indicator for how many subconnections both nodes have
     uint16_t mySubCount = subConnectionJson(conn).length();  //exclude this connection.
     uint16_t remoteSubCount = conn->subConnections.length();
+    staticThis->debugMsg(DEBUG, "Calling esp_conn 4.\n");
     bool ap = conn->esp_conn->proto.tcp->local_port == _meshPort;
 
     // ToDo. Simplify this logic
