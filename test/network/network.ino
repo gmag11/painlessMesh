@@ -107,6 +107,12 @@ void test_node_status() {
     TEST_ASSERT_EQUAL(logNode, mesh.getNodeId());
 }
 
+void test_stop() {
+    mesh.stop();
+    //TEST_ASSERT_EQUAL(mesh.getNodeList().size(), 0);
+    //TEST_ASSERT(mesh.scheduler.empty());
+}
+
 void logMessages() {
     auto r = received.begin();
     auto e = expected.begin(); 
@@ -152,7 +158,7 @@ void loop() {
         RUN_TEST(test_received_equals_expected);
 
         //logMessages();
-        waitTask.set(30000, TASK_ONCE, []() {
+        waitTask.set(5*TASK_SECOND, TASK_ONCE, []() {
             endTest = true;
         });
         mesh.scheduler.addTask(waitTask);
@@ -164,6 +170,7 @@ void loop() {
     }
     if (endTest) {
         RUN_TEST(test_node_status);
+        RUN_TEST(test_stop);
         UNITY_END();
     }
 }

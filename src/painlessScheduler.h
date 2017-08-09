@@ -329,6 +329,8 @@ class Scheduler {
 		inline void startNow(bool aRecursive = true); 			// reset ALL active tasks to immediate execution NOW.
 		inline Task& currentTask() {return *iCurrent; }
 		inline long timeUntilNextIteration(Task& aTask); // return number of ms until next iteration of a given Task
+
+        inline bool empty() { return iFirst == NULL; }
 #ifdef _TASK_SLEEP_ON_IDLE_RUN
 		inline void allowSleep(bool aState = true);
 #endif  // _TASK_SLEEP_ON_IDLE_RUN
