@@ -239,7 +239,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         } else {
             // else scan fast (SCAN_INTERVAL)
             mesh->debugMsg(CONNECTION, "connectToAP(): No unknown nodes found scan rate set to normal\n", statusCode);
-            task.delay(SCAN_INTERVAL); 
+            task.setInterval(SCAN_INTERVAL); 
         }
         mesh->stability += min(1000-mesh->stability,(size_t)25);
     } else {
