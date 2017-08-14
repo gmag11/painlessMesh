@@ -26,7 +26,7 @@ bool calc_delay = false;
 SimpleList<uint32_t> nodes;
 
 void sendMessage() ; // Prototype
-Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage ); // start with a one second interval
+Task taskSendMessage( TASK_MILLISECOND * 300 , TASK_FOREVER, &sendMessage ); // start with a one second interval
 
 // Task to blink the number of nodes
 Task blinkNoNodes;
@@ -38,7 +38,7 @@ void setup() {
   pinMode(LED, OUTPUT);
 
   //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-  mesh.setDebugMsgTypes(ERROR | DEBUG);  // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION);  // set before init() so that you can see startup messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, MESH_PORT);
   mesh.onReceive(&receivedCallback);
@@ -83,7 +83,9 @@ void loop() {
 void sendMessage() {
   String msg = "Hello from node ";
   msg += mesh.getNodeId();
-  bool error = mesh.sendBroadcast(msg + " myFreeMemory: " + String(ESP.getFreeHeap()));
+  msg += " myFreeMemory: " + String(ESP.getFreeHeap());
+  msg += " noTasks: " + String(mesh.scheduler.size());
+  bool error = mesh.sendBroadcast(msg);
 
   if (calc_delay) {
     SimpleList<uint32_t>::iterator node = nodes.begin();
@@ -93,8 +95,10 @@ void sendMessage() {
     }
     calc_delay = false;
   }
+
+  Serial.printf("Sending message: %s\n", msg.c_str());
   
-  taskSendMessage.setInterval( random( TASK_SECOND * 1, TASK_SECOND * 5 ));  // between 1 and 5 seconds
+  taskSendMessage.setInterval( random( TASK_MILLISECOND * 100, TASK_MILLISECOND * 500 ));  // between 1 and 5 seconds
 }
 
 
