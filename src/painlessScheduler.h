@@ -331,6 +331,11 @@ class Scheduler {
 		inline long timeUntilNextIteration(Task& aTask); // return number of ms until next iteration of a given Task
 
         inline bool empty() { return iFirst == NULL; }
+        /**
+         * \brief Return the number of tasks
+         */
+        inline size_t size();
+
 #ifdef _TASK_SLEEP_ON_IDLE_RUN
 		inline void allowSleep(bool aState = true);
 #endif  // _TASK_SLEEP_ON_IDLE_RUN
@@ -798,6 +803,19 @@ long Scheduler::timeUntilNextIteration(Task& aTask) {
 	return ( d );
 }
 
+
+/** Returns the size of the task lists (number of tasks)
+ *
+ */
+size_t Scheduler::size() {
+    size_t no = 0;
+    auto iTask = iFirst;
+    while (iTask) {
+        iTask = iTask->iNext;
+        ++no;
+    }
+    return no;
+}
 
 /** Makes one pass through the execution chain.
  * Tasks are executed in the order they were added to the chain

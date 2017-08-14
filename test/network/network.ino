@@ -109,7 +109,7 @@ void test_node_status() {
 
 void test_stop() {
     mesh.stop();
-    //TEST_ASSERT_EQUAL(mesh.getNodeList().size(), 0);
+    TEST_ASSERT_EQUAL(mesh.getNodeList().size(), 0);
     TEST_ASSERT(mesh.scheduler.empty());
 }
 
@@ -170,6 +170,8 @@ void loop() {
     }
     if (endTest) {
         RUN_TEST(test_node_status);
+        mesh.scheduler.deleteTask(waitTask);
+        mesh.scheduler.deleteTask(logServerTask);
         RUN_TEST(test_stop);
         UNITY_END();
     }
