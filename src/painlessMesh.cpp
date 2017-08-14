@@ -82,7 +82,7 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
     // Close all connections
     auto connection = _connections.begin();
     while (connection != _connections.end()) {
-        closeConnectionIt(_connections, connection);
+        connection = closeConnectionIt(_connections, connection);
     }
 
     // Stop scanning task 

@@ -162,7 +162,7 @@ protected:
     bool closeConnection(shared_ptr<meshConnectionType> conn);
     bool closeConnectionSTA(); 
 
-    void closeConnectionIt(ConnectionList &connections, ConnectionList::iterator conn);
+    ConnectionList::iterator closeConnectionIt(ConnectionList &connections, ConnectionList::iterator conn);
 
     String              subConnectionJson(std::shared_ptr<meshConnectionType> exclude);
     String              subConnectionJsonHelper(

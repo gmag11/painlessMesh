@@ -110,7 +110,7 @@ void test_node_status() {
 void test_stop() {
     mesh.stop();
     //TEST_ASSERT_EQUAL(mesh.getNodeList().size(), 0);
-    //TEST_ASSERT(mesh.scheduler.empty());
+    TEST_ASSERT(mesh.scheduler.empty());
 }
 
 void logMessages() {
