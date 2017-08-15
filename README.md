@@ -61,6 +61,10 @@ Initialize the mesh network.  This routine does the following things.
 `port` = the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
 [`connectMode`](https://gitlab.com/BlackEdder/painlessMesh/wikis/connect-mode:-ap_only,-sta_only,-sta_ap-mode) = switch between AP_ONLY, STA_ONLY and STA_AP (default) mode
 
+### void painlessMesh::stop()
+
+Stop the node. This will cause the node to disconnect from all other nodes and stop/sending messages.
+
 ### void painlessMesh::update( void )
 
 Add this to your loop() function

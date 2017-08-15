@@ -76,10 +76,6 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::stop() {
-    // TODO: write test (that also checks how many tasks are left)
-    // TODO: write API
-
-    debugMsg(DEBUG, "Size1: %u\n", scheduler.size());
     // Close all connections
     auto connection = _connections.begin();
     while (connection != _connections.end()) {
@@ -92,17 +88,14 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 
     // Note that this results in the droppedConnections not to be signalled
     // We might want to change this later
-    debugMsg(DEBUG, "Size2: %u\n", scheduler.size());
     newConnectionTask.setCallback(NULL);
     scheduler.deleteTask(newConnectionTask);
     droppedConnectionTask.setCallback(NULL);
     scheduler.deleteTask(droppedConnectionTask);
-    debugMsg(DEBUG, "Size3: %u\n", scheduler.size());
 
     // Shutdown wifi hardware
     wifi_station_disconnect();
     wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
-    debugMsg(DEBUG, "Size4: %u\n", scheduler.size());
 }
 
 //***********************************************************************
