@@ -24,11 +24,6 @@ extern "C" {
 #include <memory>
 using namespace std;
 
-extern "C" {
-#include "user_interface.h"
-#include "espconn.h"
-}
-
 #include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
 

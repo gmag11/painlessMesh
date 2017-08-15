@@ -11,11 +11,6 @@
 #include <algorithm>
 #include <memory>
 
-extern "C" {
-#include "user_interface.h"
-#include "espconn.h"
-}
-
 #include "painlessMeshSTA.h"
 #include "painlessMesh.h"
 

@@ -8,6 +8,8 @@
 
 class painlessMesh;
 
+struct bss_info;
+
 class StationScan {
   public:
     Task task; // Station scanning for connections

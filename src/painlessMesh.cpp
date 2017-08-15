@@ -2,14 +2,8 @@
 #include <ArduinoJson.h>
 #include <SimpleList.h>
 
-extern "C" {
-#include "user_interface.h"
-#include "espconn.h"
-}
-
 #include "painlessMesh.h"
 #include "painlessMeshSync.h"
-
 
 painlessMesh* staticThis;
 uint16_t  count = 0;

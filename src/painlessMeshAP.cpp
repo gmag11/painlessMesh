@@ -8,11 +8,6 @@
 
 #include <Arduino.h>
 
-extern "C" {
-#include "user_interface.h"
-#include "espconn.h"
-}
-
 #include "painlessMesh.h"
 
 
