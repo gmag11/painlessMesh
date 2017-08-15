@@ -125,7 +125,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
             } else {
                 debugMsg(SYNC, "handleNodeSync(): Out of date subConnection information %u.\n",
                         remoteNodeId);
-                oldConnection->subConnections = "";
+                oldConnection->subConnections = "[]";
                 oldConnection->nodeSyncTask.forceNextIteration();
             }
         }
