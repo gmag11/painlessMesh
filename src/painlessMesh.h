@@ -2,8 +2,17 @@
 #define   _EASY_MESH_H_
 
 #ifndef ESP8266
+#ifndef ESP32
 #error Only ESP8266 platform is allowed
-#endif // !ESP8266
+#else
+#include "esp32wrap.h"
+#endif
+#else
+extern "C" {
+#include "user_interface.h"
+#include "espconn.h"
+}
+#endif
 
 #define _TASK_STD_FUNCTION
 

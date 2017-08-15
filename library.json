@@ -9,7 +9,8 @@
     "version": "0.5.3",
     "frameworks": "arduino",
     "platforms": [
-        "espressif8266"
+        "espressif8266",
+        "espressif32"
     ],
     "dependencies": [
         { "name": "ArduinoJson" }
