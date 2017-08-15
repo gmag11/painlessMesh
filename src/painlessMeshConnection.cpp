@@ -61,8 +61,10 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
     nodeDelayReceivedCallback = cb;
 }
 
-void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connections,
+ConnectionList::iterator ICACHE_FLASH_ATTR 
+    painlessMesh::closeConnectionIt(ConnectionList &connections,
         ConnectionList::iterator conn) {
+
     auto connection = (*conn);
     connection->timeSyncTask.setCallback(NULL);
     connection->nodeSyncTask.setCallback(NULL);
@@ -71,7 +73,7 @@ void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connectio
     /*connection->timeSyncTask.disable();
     connection->nodeSyncTask.disable();
     connection->nodeTimeoutTask.disable();*/
-    connections.erase(conn);
+    auto nextIt = connections.erase(conn);
 
     auto nodeId = connection->nodeId;
 
@@ -108,12 +110,7 @@ void ICACHE_FLASH_ATTR painlessMesh::closeConnectionIt(ConnectionList &connectio
         espconn_disconnect(connection->esp_conn);
     }
 
-    if (connection.use_count()>3) {
-        // After closing the use count should be 3 (one copy here, 1 in closeConnection and one in the caller)
-        // This should then cause the destructor to be called after those last two users
-        // go out of scope
-        staticThis->debugMsg(ERROR, "closeConnection(): error, use should be below 3, conn-use=%u\n", connection.use_count());
-    }
+    return nextIt;
 }
 
 //***********************************************************************
