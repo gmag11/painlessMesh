@@ -174,7 +174,7 @@ protected:
 
     // in painlessMeshAP.cpp
     void                apInit(void);
-    void                tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
+    void                tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32_t port);
 
     // callbacks
     // in painlessMeshConnection.cpp
@@ -183,7 +183,7 @@ protected:
     static void         meshSentCb(void *arg);
     static void         meshRecvCb(void *arg, char *data, unsigned short length);
     static void         meshDisconCb(void *arg);
-    static void         meshReconCb(void *arg, sint8 err);
+    static void         meshReconCb(void *arg, int8_t err);
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
@@ -205,8 +205,6 @@ protected:
 
     SimpleList<bss_info>            _meshAPs;
     ConnectionList  _connections;
-
-    os_timer_t  _scanTimer;
 
     espconn     _meshServerConn;
     esp_tcp     _meshServerTcp;
