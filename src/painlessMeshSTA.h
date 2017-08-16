@@ -4,11 +4,11 @@
 #define _TASK_STD_FUNCTION
 #include <painlessScheduler.h>
 
+#include "espInterface.h"
+
 #define SCAN_INTERVAL       10*TASK_SECOND // AP scan period in ms
 
 class painlessMesh;
-
-struct bss_info;
 
 class StationScan {
   public:

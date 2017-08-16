@@ -1,20 +1,8 @@
 #ifndef   _EASY_MESH_H_
 #define   _EASY_MESH_H_
 
-#ifndef ESP8266
-#ifndef ESP32
-#error Only ESP8266 platform is allowed
-#else
-#include "esp32wrap.h"
-#endif
-#else
-extern "C" {
-#include "user_interface.h"
-#include "espconn.h"
-}
-#endif
-
 #define _TASK_STD_FUNCTION
+
 
 #include <painlessScheduler.h>
 #include <Arduino.h>
@@ -23,6 +11,8 @@ extern "C" {
 #include <functional>
 #include <memory>
 using namespace std;
+
+#include "espInterface.h"
 
 #include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
