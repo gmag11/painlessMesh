@@ -91,7 +91,7 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
-    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
     void                update(void);
     bool                sendSingle(uint32_t &destId, String &msg);
     bool                sendBroadcast(String &msg);
@@ -189,7 +189,7 @@ protected:
     String      _meshPassword;
     uint16_t    _meshPort;
     uint8_t     _meshChannel;
-    _auth_mode  _meshAuthMode;
+    wifi_auth_mode_t  _meshAuthMode;
     uint8_t     _meshHidden;
     uint8_t     _meshMaxConn;
 

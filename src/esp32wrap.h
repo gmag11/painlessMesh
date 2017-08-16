@@ -131,10 +131,11 @@ typedef wifi_auth_mode_t _auth_mode;
 #define PHY_MODE_11B WIFI_PROTOCOL_11B
 #define PHY_MODE_11G WIFI_PROTOCOL_11G
 #define PHY_MODE_11N WIFI_PROTOCOL_11B
+
 typedef int phy_mode_t;
 
 typedef struct bss_info {
-    STAILQ_ENTRY(bss_info)     next;
+    //STAILQ_ENTRY(bss_info)     next;
 
     uint8 bssid[6];
     uint8 ssid[32];

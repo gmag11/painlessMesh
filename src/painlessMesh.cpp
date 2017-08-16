@@ -10,7 +10,7 @@ uint16_t  count = 0;
 
 // general functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, _auth_mode authmode, uint8_t channel, phy_mode_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
+void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, phy_mode_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
     debugMsg(STARTUP, "init(): %d\n", wifi_station_set_auto_connect(0)); // Disable autoconnect
 
