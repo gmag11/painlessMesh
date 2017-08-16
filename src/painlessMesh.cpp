@@ -10,7 +10,7 @@ uint16_t  count = 0;
 
 // general functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, phy_mode_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
+void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
     debugMsg(STARTUP, "init(): %d\n", wifi_station_set_auto_connect(0)); // Disable autoconnect
 
@@ -25,7 +25,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     wifi_set_event_handler_cb(wifiEventCb); // Register Wi-Fi event handler
 
-    wifi_set_phy_mode(phymode); // allow setting PHY_MODE_11G / PHY_MODE_11B
+    wifi_set_phy_mode(static_cast<phy_mode_t>(phymode)); // allow setting PHY_MODE_11G / PHY_MODE_11B
     system_phy_set_max_tpw(maxtpw); //maximum value of RF Tx Power, unit : 0.25dBm, range [0,82]
 
     staticThis = this;  // provides a way for static callback methods to access "this" object;

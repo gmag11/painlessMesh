@@ -10,8 +10,12 @@ extern "C" {
 #define WIFI_AUTH_WPA2_PSK AUTH_WPA2_PSK 
 typedef _auth_mode wifi_auth_mode_t;
 
-/*
 
+#define WIFI_PROTOCOL_11B         PHY_MODE_11B
+#define WIFI_PROTOCOL_11G         PHY_MODE_11G
+#define WIFI_PROTOCOL_11N         PHY_MODE_11N
+
+/*
 #define PHY_MODE_11B WIFI_PROTOCOL_11B
 #define PHY_MODE_11G WIFI_PROTOCOL_11G
 #define PHY_MODE_11N WIFI_PROTOCOL_11B
