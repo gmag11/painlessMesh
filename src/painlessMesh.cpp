@@ -69,6 +69,29 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     scheduler.enableAll();
 }
 
+void ICACHE_FLASH_ATTR painlessMesh::stop() {
+    // Close all connections
+    auto connection = _connections.begin();
+    while (connection != _connections.end()) {
+        connection = closeConnectionIt(_connections, connection);
+    }
+
+    // Stop scanning task 
+    stationScan.task.setCallback(NULL);
+    scheduler.deleteTask(stationScan.task);
+
+    // Note that this results in the droppedConnections not to be signalled
+    // We might want to change this later
+    newConnectionTask.setCallback(NULL);
+    scheduler.deleteTask(newConnectionTask);
+    droppedConnectionTask.setCallback(NULL);
+    scheduler.deleteTask(droppedConnectionTask);
+
+    // Shutdown wifi hardware
+    wifi_station_disconnect();
+    wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
+}
+
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
     scheduler.execute();
