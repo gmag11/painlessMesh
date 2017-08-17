@@ -108,7 +108,7 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
     staticThis->debugMsg(CONNECTION, "stationScan(): %s\n", ssid.c_str());
 
     char tempssid[32];
-    struct scan_config scanConfig;
+    wifi_scan_config_t scanConfig;
     memset(&scanConfig, 0, sizeof(scanConfig));
     ssid.toCharArray(tempssid, ssid.length() + 1);
 
@@ -119,20 +119,14 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
 
     task.delay(1000*SCAN_INTERVAL); // Scan should be completed by them and next step called. If not then we restart here.
 
-    if (!wifi_station_scan(&scanConfig, 
-                [](void *arg, STATUS status){
-                    bss_info *bssInfo = (bss_info *) arg;
-                    staticThis->stationScan.scanComplete(bssInfo);
-                })) {
+    if (esp_wifi_scan_start(&scanConfig, false) != ESP_OK)
         staticThis->debugMsg(ERROR, "wifi_station_scan() failed!?\n");
-        return;
-    }
-    return;
 }
 
 void ICACHE_FLASH_ATTR StationScan::scanComplete(bss_info *bssInfo) {
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n", staticThis->getNodeTime());
     aps.clear();
+    /*
 
     while (bssInfo != NULL) {
         staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm", (char*) bssInfo->ssid, (int16_t) bssInfo->rssi);
@@ -144,7 +138,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete(bss_info *bssInfo) {
 #else
         bssInfo = bssInfo->next;
 #endif
-    }
+    }*/
     staticThis->debugMsg(CONNECTION, "\tFound % d nodes\n", aps.size());
 
     task.yield([this]() { 

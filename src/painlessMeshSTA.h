@@ -28,7 +28,7 @@ class StationScan {
     String password;
     painlessMesh *mesh;
     uint16_t port;
-    SimpleList<bss_info> aps;
+    SimpleList<wifi_ap_record_t> aps;
 
     void requestIP(bss_info* ap);
 

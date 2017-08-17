@@ -539,3 +539,17 @@ void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
         break;
     }
 }
+
+int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *event) {
+    switch (event->event_id) {
+    case SYSTEM_EVENT_SCAN_DONE:
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_SCAN_DONE\n");
+        // Call the same thing original callback called
+        staticThis->stationScan.scanComplete(NULL);
+        break;
+    default:
+        staticThis->debugMsg(ERROR, "Unexpected WiFi event: %d\n", event->event_id);
+        break;
+    }
+    return ESP_OK;
+}

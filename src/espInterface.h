@@ -8,20 +8,26 @@ extern "C" {
 }
 
 // TODO
-// - Create system_event_t framework
+// 0 Create system_event_t framework
 //   0 system_event_t struct
 //   0 function to subscribe to system_event_t
 //   0 Rename system_event_t in the current code back to System_Event_t
-// - Scan for AP
-//   - Create the esp get ap functions (make sure to empty the list after accessing it)
-//   - Finish esp_wifi_scan_start to call system_event_t and fill the ap list
+// 0 Scan for AP
+//   0 Create the esp get ap functions (make sure to empty the list after accessing it)
+//     0 Check whether: wifi_ap_record_t and bss_info are (mostly) compatible (MOSTLY, but not enough)
+//   0 Finish esp_wifi_scan_start 
+//     0 call system_event_t 
+//     0 fill the ap list (Or can we do this in the esp ap records?
 //   - Rewrite painlessMesh to use the new functions
-//     - Subscribe to esp_event_loop_t, listening for SYSTEM_EVENT_SCAN_DONE_
-//     - Copy relevant info into the aps simple list when scan done
+//     0 Subscribe to esp_event_loop_t, listening for SYSTEM_EVENT_SCAN_DONE_
+//     - Copy relevant info into the aps simple list when scan done (scanComplete()
 //     - call esp_wifi_scan_start instead of wifi_station_scan
 // - Connect to AP
-// - TCP connect
+// - TCP connections
+//   - espconn is a thin wrapper around lwip.h. Fastest would be to just keep using this.
 // - Setup AP
+// - Remove System_Event_t and add it here. We should probably register it in the esp_event_loop_init
+// - Default number of accepted clients of the AP is 10 instead of 4
 #define WIFI_AUTH_WPA2_PSK AUTH_WPA2_PSK 
 typedef _auth_mode wifi_auth_mode_t;
 
@@ -94,6 +100,49 @@ typedef esp_err_t (*system_event_cb_t)(void *ctx, system_event_t *event);
   * @return others : fail
   */
 esp_err_t esp_event_loop_init(system_event_cb_t cb, void *ctx);
+
+typedef struct {
+    uint8_t bssid[6];                     /**< MAC address of AP */
+    uint8_t ssid[33];                     /**< SSID of AP */
+    uint8_t primary;                      /**< channel of AP */
+    //wifi_second_chan_t second;            /**< second channel of AP */
+    int8_t  rssi;                         /**< signal strength of AP */
+    //wifi_auth_mode_t authmode;            /**< authmode of AP */
+    //uint32_t low_rate_enable:1;           /**< bit: 0 flag to identify if low rate is enabled or not */
+    //uint32_t reserved:31;                 /**< bit: 1..31 reserved */
+} wifi_ap_record_t;
+
+/**
+  * @brief     Get number of APs found in last scan
+  *
+  * @param[out] number  store number of APIs found in last scan
+  *
+  * @attention This API can only be called when the scan is completed, otherwise it may get wrong value.
+  *
+  * @return
+  *    - ESP_OK: succeed
+  *    - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by eps_wifi_init
+  *    - ESP_ERR_WIFI_NOT_STARTED: WiFi is not started by esp_wifi_start
+  *    - ESP_ERR_WIFI_ARG: invalid argument
+  */
+esp_err_t esp_wifi_scan_get_ap_num(uint16_t *number);
+
+/**
+  * @brief     Get AP list found in last scan
+  *
+  * @param[inout]  number As input param, it stores max AP number ap_records can hold. 
+  *                As output param, it receives the actual AP number this API returns.
+  * @param         ap_records  wifi_ap_record_t array to hold the found APs
+  *
+  * @return
+  *    - ESP_OK: succeed
+  *    - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by eps_wifi_init
+  *    - ESP_ERR_WIFI_NOT_STARTED: WiFi is not started by esp_wifi_start
+  *    - ESP_ERR_WIFI_ARG: invalid argument
+  *    - ESP_ERR_WIFI_NO_MEM: out of memory
+  */
+esp_err_t esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records);
+
 
 // Fields are similar except esp32
 typedef scan_config wifi_scan_config_t;

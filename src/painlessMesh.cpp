@@ -24,6 +24,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
 
     wifi_set_event_handler_cb(wifiEventCb); // Register Wi-Fi event handler
+    esp_event_loop_init(espWifiEventCb, NULL);
 
     wifi_set_phy_mode(static_cast<phy_mode_t>(phymode)); // allow setting PHY_MODE_11G / PHY_MODE_11B
     system_phy_set_max_tpw(maxtpw); //maximum value of RF Tx Power, unit : 0.25dBm, range [0,82]

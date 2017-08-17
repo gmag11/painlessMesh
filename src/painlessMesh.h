@@ -174,6 +174,7 @@ protected:
     // callbacks
     // in painlessMeshConnection.cpp
     static void         wifiEventCb(System_Event_t *event);
+    static int         espWifiEventCb(void * ctx, system_event_t *event);
     static void         meshConnectedCb(void *arg);
     static void         meshSentCb(void *arg);
     static void         meshRecvCb(void *arg, char *data, unsigned short length);
@@ -198,7 +199,6 @@ protected:
     uint8_t     _meshHidden;
     uint8_t     _meshMaxConn;
 
-    SimpleList<bss_info>            _meshAPs;
     ConnectionList  _connections;
 
     espconn     _meshServerConn;
