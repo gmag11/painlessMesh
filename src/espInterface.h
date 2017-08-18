@@ -14,17 +14,19 @@ extern "C" {
 //   0 Rename system_event_t in the current code back to System_Event_t
 // 0 Scan for AP
 //   0 Create the esp get ap functions (make sure to empty the list after accessing it)
-//     0 Check whether: wifi_ap_record_t and bss_info are (mostly) compatible (MOSTLY, but not enough)
+//     0 Check whether: wifi_ap_record_t and bss_info are (mostly) compatible (should be close enough. Might need one or two ifdef ESP32 in the code)
 //   0 Finish esp_wifi_scan_start 
 //     0 call system_event_t 
 //     0 fill the ap list (Or can we do this in the esp ap records?
-//   - Rewrite painlessMesh to use the new functions
+//   0 Rewrite painlessMesh to use the new functions
 //     0 Subscribe to esp_event_loop_t, listening for SYSTEM_EVENT_SCAN_DONE_
-//     - Copy relevant info into the aps simple list when scan done (scanComplete()
-//     - call esp_wifi_scan_start instead of wifi_station_scan
+//     0 call esp_wifi_scan_start instead of wifi_station_scan
 // - Connect to AP
+//   - Forward events to system_event_t (EVENT_STAMODE_CONNECTED, EVENT_STAMODE_GOT_IP
 // - TCP connections
 //   - espconn is a thin wrapper around lwip.h. Fastest would be to just keep using this.
+//   - Copy espconn wrapper into repository and wrap it in ifdef ESP32
+//   - Uncomment empty espconn struct in espInterface.h
 // - Setup AP
 // - Remove System_Event_t and add it here. We should probably register it in the esp_event_loop_init
 // - Default number of accepted clients of the AP is 10 instead of 4
