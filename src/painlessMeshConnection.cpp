@@ -519,9 +519,9 @@ void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
         break;
     case EVENT_STAMODE_DISCONNECTED:
         staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_DISCONNECTED\n");
-        //staticThis->closeConnectionSTA();
+        staticThis->closeConnectionSTA();
         staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-        //wifi_station_disconnect(); // Make sure we are disconnected
+        wifi_station_disconnect(); // Make sure we are disconnected
         break;
     case EVENT_STAMODE_AUTHMODE_CHANGE:
         staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_AUTHMODE_CHANGE\n");
