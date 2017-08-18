@@ -228,12 +228,13 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     String ret = "[";
     for (auto &&sub : connections) {
         if (sub->esp_conn && sub->esp_conn->state == ESPCONN_CLOSE) {
-            debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection");
+            debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n", 
+                    sub->nodeId);
+            sub->nodeTimeoutTask.forceNextIteration();
             // Close connection and start over
             //closeConnection(sub);
             //return subConnectionJsonHelper(_connections, exclude);
-        }
-        if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
+        } else if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
             if (ret.length() > 1)
                 ret += String(",");
             ret += String("{\"nodeId\":") + String(sub->nodeId) +
@@ -249,6 +250,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
 // Calculating the actual number of connected nodes is fairly expensive,
 // this calculates a cheap approximation
 size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes() {
+    debugMsg(GENERAL, "approxNoNodes()\n");
     auto sc = subConnectionJson();
     return approxNoNodes(sc);
 }
@@ -514,9 +516,9 @@ void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
         break;
     case EVENT_STAMODE_DISCONNECTED:
         staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_DISCONNECTED\n");
-        //staticThis->closeConnectionSTA();
+        staticThis->closeConnectionSTA();
         staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-        //wifi_station_disconnect(); // Make sure we are disconnected
+        wifi_station_disconnect(); // Make sure we are disconnected
         break;
     case EVENT_STAMODE_AUTHMODE_CHANGE:
         staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_AUTHMODE_CHANGE\n");
