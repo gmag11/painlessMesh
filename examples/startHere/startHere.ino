@@ -14,8 +14,8 @@
 // on my rig, this is 5, change to the right number of your LED.
 #define   LED             2       // GPIO number of connected LED, ON ESP-12 IS GPIO2
 
-#define   BLINK_PERIOD    3000000 // microseconds until cycle repeat
-#define   BLINK_DURATION  100000  // microseconds LED is on for
+#define   BLINK_PERIOD    3000 // milliseconds until cycle repeat
+#define   BLINK_DURATION  100  // milliseconds LED is on for
 
 #define   MESH_SSID       "whateverYouLike"
 #define   MESH_PASSWORD   "somethingSneaky"
@@ -26,7 +26,11 @@ bool calc_delay = false;
 SimpleList<uint32_t> nodes;
 
 void sendMessage() ; // Prototype
-Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage ); // start with a one second interval
+Task taskSendMessage( TASK_SECOND * 1, TASK_FOREVER, &sendMessage ); // start with a one second interval
+
+// Task to blink the number of nodes
+Task blinkNoNodes;
+bool onFlag = false;
 
 void setup() {
   Serial.begin(115200);
@@ -46,30 +50,42 @@ void setup() {
   mesh.scheduler.addTask( taskSendMessage );
   taskSendMessage.enable() ;
 
+  blinkNoNodes.set(BLINK_PERIOD, (mesh.getNodeList().size() + 1) * 2, []() {
+      // If on, switch off, else switch on
+      if (onFlag)
+        onFlag = false;
+      else
+        onFlag = true;
+      blinkNoNodes.delay(BLINK_DURATION);
+
+      if (blinkNoNodes.isLastIteration()) {
+        // Finished blinking. Reset task for next run 
+        // blink number of nodes (including this node) times
+        blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);
+        // Calculate delay based on current mesh time and BLINK_PERIOD
+        // This results in blinks between nodes being synced
+        blinkNoNodes.enableDelayed(BLINK_PERIOD - 
+            (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
+      }
+  });
+  mesh.scheduler.addTask(blinkNoNodes);
+  blinkNoNodes.enable();
+
   randomSeed(analogRead(A0));
 }
 
 void loop() {
-
   mesh.update();
-
-  // run the blinky
-  bool  onFlag = true;
-  uint32_t cycleTime = mesh.getNodeTime() % BLINK_PERIOD;
-  for (uint8_t i = 0; i < (mesh.getNodeList().size() + 1); i++) {
-    uint32_t onTime = BLINK_DURATION * i * 2;
-
-    if (cycleTime > onTime && cycleTime < onTime + BLINK_DURATION)
-      onFlag = false;
-  }
-  digitalWrite(LED, onFlag);
+  digitalWrite(LED, !onFlag);
 
 }
 
 void sendMessage() {
   String msg = "Hello from node ";
   msg += mesh.getNodeId();
-  bool error = mesh.sendBroadcast(msg + " myFreeMemory: " + String(ESP.getFreeHeap()));
+  msg += " myFreeMemory: " + String(ESP.getFreeHeap());
+  msg += " noTasks: " + String(mesh.scheduler.size());
+  bool error = mesh.sendBroadcast(msg);
 
   if (calc_delay) {
     SimpleList<uint32_t>::iterator node = nodes.begin();
@@ -79,8 +95,10 @@ void sendMessage() {
     }
     calc_delay = false;
   }
+
+  Serial.printf("Sending message: %s\n", msg.c_str());
   
-  taskSendMessage.setInterval( random( TASK_SECOND * 1, TASK_SECOND * 5 ));  // between 1 and 5 seconds
+  taskSendMessage.setInterval( random(TASK_SECOND * 1, TASK_SECOND * 5));  // between 1 and 5 seconds
 }
 
 
@@ -89,12 +107,21 @@ void receivedCallback(uint32_t from, String & msg) {
 }
 
 void newConnectionCallback(uint32_t nodeId) {
+  // Reset blink task
+  onFlag = false;
+  blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);
+  blinkNoNodes.enableDelayed(BLINK_PERIOD - (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
+ 
   Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
 }
 
 void changedConnectionCallback() {
   Serial.printf("Changed connections %s\n", mesh.subConnectionJson().c_str());
-
+  // Reset blink task
+  onFlag = false;
+  blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);
+  blinkNoNodes.enableDelayed(BLINK_PERIOD - (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
+ 
   nodes = mesh.getNodeList();
 
   Serial.printf("Num nodes: %d\n", nodes.size());

@@ -126,7 +126,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
                 debugMsg(SYNC, "handleNodeSync(): Out of date subConnection information %u.\n",
                         remoteNodeId);
                 oldConnection->subConnections = "[]";
-                oldConnection->nodeSyncTask.forceNextIteration();
+                oldConnection->nodeSyncTask.delay(100*TASK_MILLISECOND);
             }
         }
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
@@ -143,7 +143,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
                     staticThis->newConnectionCallback(nodeId); // Connection dropped. Signal user            
                for (auto &&connection : staticThis->_connections) {
                    if (connection->nodeId != nodeId) { // Exclude current
-                       connection->nodeSyncTask.forceNextIteration();
+                       connection->nodeSyncTask.delay(100*TASK_MILLISECOND);
                    }
                }
                staticThis->stability /= 2;
@@ -205,7 +205,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
     if (reSyncAllSubConnections == true) {
         for (auto &&connection : _connections) {
             if (connection->nodeId != conn->nodeId) { // Exclude current
-                connection->nodeSyncTask.forceNextIteration();
+                connection->nodeSyncTask.delay(100*TASK_MILLISECOND);
             }
         }
         stability /= 2;
