@@ -6,7 +6,7 @@
         "type": "git",
         "url": "https://gitlab.com/BlackEdder/painlessMesh"
     },
-    "version": "0.5.3",
+    "version": "0.5.4",
     "frameworks": "arduino",
     "platforms": [
         "espressif8266"
