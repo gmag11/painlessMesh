@@ -126,19 +126,18 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
 void ICACHE_FLASH_ATTR StationScan::scanComplete(bss_info *bssInfo) {
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n", staticThis->getNodeTime());
     aps.clear();
-    /*
 
-    while (bssInfo != NULL) {
-        staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm", (char*) bssInfo->ssid, (int16_t) bssInfo->rssi);
+    wifi_ap_record_t *records;
+    uint16_t num;
+    esp_wifi_scan_get_ap_num(&num);
+    records = (wifi_ap_record_t *)malloc(num*sizeof(wifi_ap_record_t));
+    esp_wifi_scan_get_ap_records(&num, records);
+    for (uint16_t i = 0; i < num; ++i) {
+        staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm", (char*) records[i].ssid, (int16_t) records[i].rssi);
         staticThis->debugMsg(CONNECTION, " MESH< ---");
-        aps.push_back(*bssInfo);
-        staticThis->debugMsg(CONNECTION, "\n");
-#ifdef STAILQ_NEXT
-        bssInfo = STAILQ_NEXT(bssInfo, next);
-#else
-        bssInfo = bssInfo->next;
-#endif
-    }*/
+        aps.push_back(records[i]);
+    }
+    free(records);
     staticThis->debugMsg(CONNECTION, "\tFound % d nodes\n", aps.size());
 
     task.yield([this]() { 

@@ -40,13 +40,7 @@ esp_err_t esp_wifi_scan_start(wifi_scan_config_t *config, bool block) {
         _ap_records.clear();
         bss_info *bssInfo = (bss_info *) arg;
         while (bssInfo != NULL) {
-            wifi_ap_record_t record;
-            memcpy(bssInfo->bssid, record.bssid, 6*sizeof(uint8_t));
-            memcpy(bssInfo->ssid, record.ssid, bssInfo->ssid_len*sizeof(uint8_t));
-            record.ssid[bssInfo->ssid_len] = '\0';
-            record.primary = bssInfo->channel;
-            record.rssi = bssInfo->rssi;
-            _ap_records.push_back(record);
+            _ap_records.push_back(*bssInfo);
 #ifdef STAILQ_NEXT
             bssInfo = STAILQ_NEXT(bssInfo, next);
 #else

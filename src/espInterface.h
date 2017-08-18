@@ -101,16 +101,7 @@ typedef esp_err_t (*system_event_cb_t)(void *ctx, system_event_t *event);
   */
 esp_err_t esp_event_loop_init(system_event_cb_t cb, void *ctx);
 
-typedef struct {
-    uint8_t bssid[6];                     /**< MAC address of AP */
-    uint8_t ssid[33];                     /**< SSID of AP */
-    uint8_t primary;                      /**< channel of AP */
-    //wifi_second_chan_t second;            /**< second channel of AP */
-    int8_t  rssi;                         /**< signal strength of AP */
-    //wifi_auth_mode_t authmode;            /**< authmode of AP */
-    //uint32_t low_rate_enable:1;           /**< bit: 0 flag to identify if low rate is enabled or not */
-    //uint32_t reserved:31;                 /**< bit: 1..31 reserved */
-} wifi_ap_record_t;
+typedef bss_info wifi_ap_record_t;
 
 /**
   * @brief     Get number of APs found in last scan
