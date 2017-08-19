@@ -515,6 +515,7 @@ int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *e
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_CONNECTED\n");
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
+        staticThis->_station_got_ip = false;
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_DISCONNECTED\n");
         staticThis->closeConnectionSTA();
         staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
@@ -524,6 +525,7 @@ int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *e
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_AUTHMODE_CHANGE\n");
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
+        staticThis->_station_got_ip = true;
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_GOT_IP\n");
         staticThis->tcpConnect(); // Connect to TCP port
         break;

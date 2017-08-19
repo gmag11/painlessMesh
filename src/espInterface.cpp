@@ -117,5 +117,37 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_init(wifi_init_config_t *config) {
     return ESP_OK;
 }
 
+esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_get_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info) {
+    if (wifi_get_ip_info(tcpip_if, ip_info))
+        return ESP_OK;
+    return ESP_FAIL;
+}
+
+esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info) {
+    if (wifi_set_ip_info(tcpip_if, ip_info))
+        return ESP_OK;
+    return ESP_FAIL;
+}
+
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf) {
+    if (ifx == ESP_IF_WIFI_STA)
+        if (wifi_station_set_config(&conf->sta))
+            return ESP_OK;
+    return ESP_FAIL;
+}
+
+esp_err_t esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf) {
+    if (ifx == ESP_IF_WIFI_STA)
+        if (wifi_station_get_config(&conf->sta))
+            return ESP_OK;
+    return ESP_FAIL;
+}
+
+esp_err_t esp_wifi_connect() {
+    if (wifi_station_connect())
+        return ESP_OK;
+    return ESP_FAIL;
+}
+
 #endif
 

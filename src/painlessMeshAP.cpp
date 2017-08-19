@@ -20,12 +20,12 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     IP4_ADDR(&ip, 10, (_nodeId & 0xFF00) >> 8, (_nodeId & 0xFF), 1);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
 
-    ip_info ipInfo;
+    tcpip_adapter_ip_info_t ipInfo;
     ipInfo.ip = ip;
     ipInfo.gw = ip;
     ipInfo.netmask = netmask;
-    if (!wifi_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo)) {
-        debugMsg(ERROR, "wifi_set_ip_info() failed\n");
+    if (tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo) != ESP_OK) {
+        debugMsg(ERROR, "tcpip_adapter_set_ip_info() failed\n");
     }
 
     debugMsg(STARTUP, "apInit(): Starting AP with SSID=%s IP=%d.%d.%d.%d GW=%d.%d.%d.%d NM=%d.%d.%d.%d\n",

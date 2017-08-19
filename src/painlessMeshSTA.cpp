@@ -33,10 +33,10 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     debugMsg(GENERAL, "tcpConnect():\n");
 
     // TODO: We could pass this to tcpConnect instead of loading it here
-    struct ip_info ipconfig;
-    wifi_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
+    tcpip_adapter_ip_info_t ipconfig;
+    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
 
-    if (wifi_station_get_connect_status() == STATION_GOT_IP && 
+    if (_station_got_ip && 
             ipconfig.ip.addr != 0) {
         // we have successfully connected to wifi as a station.
         debugMsg(CONNECTION, "tcpConnect(): Got local IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.ip));
@@ -48,12 +48,12 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         _stationConn.proto.tcp = &_stationTcp;
         _stationConn.proto.tcp->local_port = espconn_port(); // Get an available port
         _stationConn.proto.tcp->remote_port = stationScan.port; // Global mesh port
-        os_memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
+        memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
         if (stationScan.manualIP[0] == 0)
-            os_memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
+            memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
         else {
             debugMsg(CONNECTION, "tcpConnect(): using manual IP\n");
-            os_memcpy(_stationConn.proto.tcp->remote_ip, &stationScan.manualIP, 4);
+            memcpy(_stationConn.proto.tcp->remote_ip, &stationScan.manualIP, 4);
         }
         espconn_set_opt(&_stationConn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE); // low latency, but soaks up bandwidth
 
@@ -176,13 +176,15 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
 void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t* ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
             mesh->encodeNodeId(ap->bssid));
-    struct station_config stationConf;
+    wifi_sta_config_t stationConf;
     stationConf.bssid_set = 1;
     memcpy(&stationConf.bssid, ap->bssid, 6); // Connect to this specific HW Address
     memcpy(&stationConf.ssid, ap->ssid, 32);
     memcpy(&stationConf.password, password.c_str(), 64);
-    wifi_station_set_config(&stationConf);
-    wifi_station_connect();
+    wifi_config_t cfg;
+    cfg.sta = stationConf;
+    esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg);
+    esp_wifi_connect();
 }
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {
@@ -192,22 +194,21 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         stationScan();
     });
 
-    auto statusCode = wifi_station_get_connect_status();
     if (manual) {
-        station_config stationConf;
-        if (!wifi_station_get_config(&stationConf)) {
+        wifi_config_t stationConf;
+        if (esp_wifi_get_config(ESP_IF_WIFI_STA, &stationConf) != ESP_OK) {
             mesh->debugMsg(CONNECTION, "connectToAP(): failed to get current station config. Retrying later\n");
             task.delay(SCAN_INTERVAL);
             return;
         }
         
-        if (ssid.equals((char *) stationConf.ssid) && 
-                statusCode == STATION_GOT_IP) {
+        if (ssid.equals((char *) stationConf.sta.ssid) && 
+                mesh->_station_got_ip) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Already connected using manual connection. Disabling scanning.\n");
             task.disable();
             return;
         } else {
-            if (statusCode == STATION_GOT_IP) {
+            if (mesh->_station_got_ip) {
                 mesh->closeConnectionSTA();
                 task.enableDelayed(1000*SCAN_INTERVAL);
                 return;
@@ -221,18 +222,18 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
 
     if (aps.size() == 0) {
         // No unknown nodes found
-        if (statusCode == STATION_GOT_IP) {
+        if (mesh->_station_got_ip) {
             // if already connected -> scan slow
-            mesh->debugMsg(CONNECTION, "connectToAP(): Already connected, and no unknown nodes found: scan rate set to slow\n", statusCode);
+            mesh->debugMsg(CONNECTION, "connectToAP(): Already connected, and no unknown nodes found: scan rate set to slow\n");
             task.delay(random(25,36)*SCAN_INTERVAL);
         } else {
             // else scan fast (SCAN_INTERVAL)
-            mesh->debugMsg(CONNECTION, "connectToAP(): No unknown nodes found scan rate set to normal\n", statusCode);
+            mesh->debugMsg(CONNECTION, "connectToAP(): No unknown nodes found scan rate set to normal\n");
             task.setInterval(SCAN_INTERVAL); 
         }
         mesh->stability += min(1000-mesh->stability,(size_t)25);
     } else {
-        if (statusCode == STATION_GOT_IP) {
+        if (mesh->_station_got_ip) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Unknown nodes found. Current stability: %s\n", String(mesh->stability).c_str());
             auto prob = mesh->stability/mesh->approxNoNodes();
             if (random(0, 1000) < prob) {
@@ -253,7 +254,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
             aps.pop_front();  // drop bestAP from mesh list, so if doesn't work out, we can try the next one
             requestIP(ap);
             // Trying to connect, if that fails we will reconnect later
-            mesh->debugMsg(CONNECTION, "connectToAP(): Trying to connect, scan rate set to 4*normal\n", statusCode);
+            mesh->debugMsg(CONNECTION, "connectToAP(): Trying to connect, scan rate set to 4*normal\n");
             task.delay(4*SCAN_INTERVAL); 
         }
     }

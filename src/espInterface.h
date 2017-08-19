@@ -150,7 +150,6 @@ typedef struct {} wifi_init_config_t;
 esp_err_t esp_wifi_init(wifi_init_config_t *config);
 
 
-/* TODO: add Ethernet interface */
 typedef enum {
     TCPIP_ADAPTER_IF_STA = STATION_IF,     /**< ESP32 station interface */
     TCPIP_ADAPTER_IF_AP = SOFTAP_IF//,          /**< ESP32 soft-AP interface */
@@ -158,6 +157,42 @@ typedef enum {
     //TCPIP_ADAPTER_IF_MAX
 } tcpip_adapter_if_t;
 
+typedef ip_info tcpip_adapter_ip_info_t;
+
+esp_err_t tcpip_adapter_get_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info);
+
+esp_err_t tcpip_adapter_set_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info);
+
+typedef struct {
+    uint8_t ssid[32];           /**< SSID of ESP32 soft-AP */
+    uint8_t password[64];       /**< Password of ESP32 soft-AP */
+    uint8_t ssid_len;           /**< Length of SSID. If softap_config.ssid_len==0, check the SSID until there is a termination character; otherwise, set the SSID length according to softap_config.ssid_len. */
+    uint8_t channel;            /**< Channel of ESP32 soft-AP */
+    wifi_auth_mode_t authmode;  /**< Auth mode of ESP32 soft-AP. Do not support AUTH_WEP in soft-AP mode */
+    uint8_t ssid_hidden;        /**< Broadcast SSID or not, default 0, broadcast the SSID */
+    uint8_t max_connection;     /**< Max number of stations allowed to connect in, default 4, max 4 */
+    uint16_t beacon_interval;   /**< Beacon interval, 100 ~ 60000 ms, default 100 ms */
+} wifi_ap_config_t;
+
+typedef station_config wifi_sta_config_t;
+
+typedef union {
+    wifi_ap_config_t  ap;  /**< configuration of AP */
+    wifi_sta_config_t sta; /**< configuration of STA */
+} wifi_config_t;
+
+typedef enum {
+    ESP_IF_WIFI_STA = 0,     /**< ESP32 station interface */
+    ESP_IF_WIFI_AP,          /**< ESP32 soft-AP interface */
+    ESP_IF_ETH,              /**< ESP32 ethernet interface */
+    ESP_IF_MAX
+} wifi_interface_t;
+
+esp_err_t esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf);
+
+esp_err_t esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf);
+
+esp_err_t esp_wifi_connect();
 
 #else
 #ifdef ESP32

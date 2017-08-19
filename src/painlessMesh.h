@@ -205,6 +205,7 @@ protected:
 
     espconn     _stationConn;
     esp_tcp     _stationTcp;
+    bool        _station_got_ip = false;
 
     Task droppedConnectionTask;
     Task newConnectionTask;
