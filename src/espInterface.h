@@ -8,28 +8,7 @@ extern "C" {
 }
 
 // TODO
-// 0 Create system_event_t framework
-//   0 system_event_t struct
-//   0 function to subscribe to system_event_t
-//   0 Rename system_event_t in the current code back to System_Event_t
-// 0 Scan for AP
-//   0 Create the esp get ap functions (make sure to empty the list after accessing it)
-//     0 Check whether: wifi_ap_record_t and bss_info are (mostly) compatible (should be close enough. Might need one or two ifdef ESP32 in the code)
-//   0 Finish esp_wifi_scan_start 
-//     0 call system_event_t 
-//     0 fill the ap list (Or can we do this in the esp ap records?
-//   0 Rewrite painlessMesh to use the new functions
-//     0 Subscribe to esp_event_loop_t, listening for SYSTEM_EVENT_SCAN_DONE_
-//     0 call esp_wifi_scan_start instead of wifi_station_scan
-// - Connect to AP
-//   - Forward events to system_event_t (EVENT_STAMODE_CONNECTED, EVENT_STAMODE_GOT_IP
-// - TCP connections
-//   - espconn is a thin wrapper around lwip.h. Fastest would be to just keep using this.
-//   - Copy espconn wrapper into repository and wrap it in ifdef ESP32
-//   - Uncomment empty espconn struct in espInterface.h
-// - Setup AP
-// 0 Remove System_Event_t and add it here. We should probably register it in the esp_event_loop_init
-// - Default number of accepted clients of the AP is 10 instead of 4
+
 #define WIFI_AUTH_WPA2_PSK AUTH_WPA2_PSK 
 typedef _auth_mode wifi_auth_mode_t;
 
@@ -163,15 +142,12 @@ esp_err_t esp_wifi_scan_start(wifi_scan_config_t *config, bool block);
 
 #else
 #ifdef ESP32
+#include "espconn-esp32/espconn.h"
+
+#define ICACHE_FLASH_ATTR 
 
 #include "esp_wifi.h"
 #include "esp_event.h"
-//#include "esp32wrap.h"
-//
-struct espconn {};
-struct esp_tcp {};
-
-typedef int espconn_connect_callback;
 
 #else
 #error Only ESP8266 or ESP32 platform is allowed
