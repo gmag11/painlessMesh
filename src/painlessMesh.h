@@ -23,9 +23,9 @@ using namespace std;
 #define MAX_CONSECUTIVE_SEND 5 // Max message busrt
 
 enum nodeMode {
-    AP_ONLY,
-    STA_ONLY,
-    STA_AP
+    AP_ONLY = WIFI_MODE_AP,
+    STA_ONLY = WIFI_MODE_STA,
+    STA_AP = WIFI_MODE_APSTA
 };
 
 enum meshPackageType {

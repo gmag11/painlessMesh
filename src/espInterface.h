@@ -9,23 +9,27 @@ extern "C" {
 
 // TODO
 
+#define WIFI_AUTH_OPEN AUTH_OPEN 
+#define WIFI_AUTH_WEP AUTH_WEP 
+#define WIFI_AUTH_WPA_PSK AUTH_WPA_PSK 
 #define WIFI_AUTH_WPA2_PSK AUTH_WPA2_PSK 
 typedef _auth_mode wifi_auth_mode_t;
-
 
 #define WIFI_PROTOCOL_11B         PHY_MODE_11B
 #define WIFI_PROTOCOL_11G         PHY_MODE_11G
 #define WIFI_PROTOCOL_11N         PHY_MODE_11N
 
-/*
-#define PHY_MODE_11B WIFI_PROTOCOL_11B
-#define PHY_MODE_11G WIFI_PROTOCOL_11G
-#define PHY_MODE_11N WIFI_PROTOCOL_11B
-*/
-
 #define ESP_OK          0
 #define ESP_FAIL        -1
 typedef int32_t esp_err_t;
+
+typedef enum {
+    WIFI_MODE_STA = STATION_MODE,       /**< WiFi station mode */
+    WIFI_MODE_AP = SOFTAP_MODE,        /**< WiFi soft-AP mode */
+    WIFI_MODE_APSTA = STATIONAP_MODE     /**< WiFi station + soft-AP mode */
+} wifi_mode_t;
+
+esp_err_t esp_wifi_set_mode(wifi_mode_t mode);
 
 typedef enum {
     SYSTEM_EVENT_WIFI_READY = 0,           /**< ESP32 WiFi ready */
@@ -158,22 +162,17 @@ typedef enum {
 } tcpip_adapter_if_t;
 
 typedef ip_info tcpip_adapter_ip_info_t;
+typedef ip_addr_t ip4_addr_t;
 
 esp_err_t tcpip_adapter_get_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info);
 
 esp_err_t tcpip_adapter_set_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info);
 
-typedef struct {
-    uint8_t ssid[32];           /**< SSID of ESP32 soft-AP */
-    uint8_t password[64];       /**< Password of ESP32 soft-AP */
-    uint8_t ssid_len;           /**< Length of SSID. If softap_config.ssid_len==0, check the SSID until there is a termination character; otherwise, set the SSID length according to softap_config.ssid_len. */
-    uint8_t channel;            /**< Channel of ESP32 soft-AP */
-    wifi_auth_mode_t authmode;  /**< Auth mode of ESP32 soft-AP. Do not support AUTH_WEP in soft-AP mode */
-    uint8_t ssid_hidden;        /**< Broadcast SSID or not, default 0, broadcast the SSID */
-    uint8_t max_connection;     /**< Max number of stations allowed to connect in, default 4, max 4 */
-    uint16_t beacon_interval;   /**< Beacon interval, 100 ~ 60000 ms, default 100 ms */
-} wifi_ap_config_t;
+esp_err_t tcpip_adapter_dhcps_start(tcpip_adapter_if_t tcpip_if);
 
+esp_err_t tcpip_adapter_dhcps_stop(tcpip_adapter_if_t tcpip_if);
+
+typedef softap_config wifi_ap_config_t;
 typedef station_config wifi_sta_config_t;
 
 typedef union {
@@ -182,10 +181,8 @@ typedef union {
 } wifi_config_t;
 
 typedef enum {
-    ESP_IF_WIFI_STA = 0,     /**< ESP32 station interface */
-    ESP_IF_WIFI_AP,          /**< ESP32 soft-AP interface */
-    ESP_IF_ETH,              /**< ESP32 ethernet interface */
-    ESP_IF_MAX
+    ESP_IF_WIFI_STA = STATION_IF,     /**< ESP32 station interface */
+    ESP_IF_WIFI_AP = SOFTAP_IF,          /**< ESP32 soft-AP interface */
 } wifi_interface_t;
 
 esp_err_t esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf);
@@ -194,13 +191,17 @@ esp_err_t esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf);
 
 esp_err_t esp_wifi_connect();
 
+esp_err_t esp_wifi_get_mac(wifi_interface_t ifx, uint8_t mac[6]);
+
+esp_err_t esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap);
+
 #else
 #ifdef ESP32
+#define ICACHE_FLASH_ATTR 
+
 #include "lwip/ip.h"
 #include "espconn-esp32/dhcpserver.h"
 #include "espconn-esp32/espconn.h"
-
-#define ICACHE_FLASH_ATTR 
 
 #include "esp_wifi.h"
 #include "esp_event.h"

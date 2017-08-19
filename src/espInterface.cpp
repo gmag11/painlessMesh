@@ -3,6 +3,12 @@
 #ifdef ESP8266
 #include "SimpleList.h"
 
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_mode(wifi_mode_t mode) {
+    if (wifi_set_opmode(mode))
+        return ESP_OK;
+    return ESP_FAIL;
+}
+
 static SimpleList<wifi_ap_record_t> _ap_records;
 
 static system_event_cb_t system_event_cb;
@@ -129,16 +135,41 @@ esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_ip_info(tcpip_adapter_if_t tcpip_i
     return ESP_FAIL;
 }
 
+esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_dhcps_start(tcpip_adapter_if_t tcpip_if) {
+    if (tcpip_if == TCPIP_ADAPTER_IF_AP) {
+        if (wifi_softap_dhcps_start())
+            return ESP_OK;
+    }
+    return ESP_FAIL;
+}
+
+esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_dhcps_stop(tcpip_adapter_if_t tcpip_if) {
+    if (tcpip_if == TCPIP_ADAPTER_IF_AP) {
+        if (wifi_softap_dhcps_stop())
+            return ESP_OK;
+    }
+    return ESP_FAIL;
+
+}
+
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf) {
     if (ifx == ESP_IF_WIFI_STA)
         if (wifi_station_set_config(&conf->sta))
             return ESP_OK;
-    return ESP_FAIL;
+
+    if (ifx == ESP_IF_WIFI_AP)
+        if (wifi_softap_set_config(&conf->ap))
+            return ESP_OK;
+     return ESP_FAIL;
 }
 
 esp_err_t esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf) {
     if (ifx == ESP_IF_WIFI_STA)
         if (wifi_station_get_config(&conf->sta))
+            return ESP_OK;
+
+    if (ifx == ESP_IF_WIFI_AP)
+        if (wifi_softap_get_config(&conf->ap))
             return ESP_OK;
     return ESP_FAIL;
 }
@@ -146,6 +177,22 @@ esp_err_t esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf) {
 esp_err_t esp_wifi_connect() {
     if (wifi_station_connect())
         return ESP_OK;
+    return ESP_FAIL;
+}
+
+esp_err_t esp_wifi_get_mac(wifi_interface_t ifx, uint8_t mac[6]) {
+    if (wifi_get_macaddr(ifx, mac))
+        return ESP_OK;
+    return ESP_FAIL;
+}
+
+
+esp_err_t esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap) {
+    // NOTE that esp8266 can't use a different mode for ap and station
+    if (ifx == ESP_IF_WIFI_STA ||
+        ifx == ESP_IF_WIFI_AP)
+        if (wifi_set_phy_mode(static_cast<phy_mode_t>(protocol_bitmap)))
+            return ESP_OK;
     return ESP_FAIL;
 }
 

@@ -16,31 +16,35 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
-    auto init_config = WIFI_INIT_CONFIG_DEFAULT();
+    wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
     if ((esp_wifi_init(&init_config)) != ESP_OK) {
         //debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", err);
     }
     
     if (connectMode == AP_ONLY || connectMode == STA_AP)
-        wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
+        tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
 
     esp_event_loop_init(espWifiEventCb, NULL);
 
-    wifi_set_phy_mode(static_cast<phy_mode_t>(phymode)); // allow setting PHY_MODE_11G / PHY_MODE_11B
+    // Should check whether AP_ONLY etc.
+    esp_wifi_set_protocol(ESP_IF_WIFI_STA, phymode);
+    esp_wifi_set_protocol(ESP_IF_WIFI_AP, phymode);
+#ifdef ESP8266
     system_phy_set_max_tpw(maxtpw); //maximum value of RF Tx Power, unit : 0.25dBm, range [0,82]
+#endif
 
     staticThis = this;  // provides a way for static callback methods to access "this" object;
 
     // start configuration
     switch (connectMode) {
     case STA_ONLY:
-        debugMsg(GENERAL, "wifi_set_opmode(STATION_MODE) succeeded? %d\n", wifi_set_opmode(STATION_MODE));
+        debugMsg(GENERAL, "esp_wifi_set_mode(STATION_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_STA) == ESP_OK);
         break;
     case AP_ONLY:
-        debugMsg(GENERAL, "wifi_set_opmode(SOFTAP_MODE) succeeded? %d\n", wifi_set_opmode(SOFTAP_MODE));
+        debugMsg(GENERAL, "esp_wifi_set_mode(AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_AP) == ESP_OK);
         break;
     default:
-        debugMsg(GENERAL, "wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode(STATIONAP_MODE));
+        debugMsg(GENERAL, "esp_wifi_set_mode(STATION_AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_APSTA) == ESP_OK);
     }
 
     _meshSSID = ssid;
@@ -49,12 +53,12 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     _meshChannel = channel;
     _meshAuthMode = authmode;
     if (password == "")
-        _meshAuthMode = AUTH_OPEN; //if no password ... set auth mode to open
+        _meshAuthMode = WIFI_AUTH_OPEN; //if no password ... set auth mode to open
     _meshHidden = hidden;
     _meshMaxConn = maxconn;
 
     uint8_t MAC[] = { 0,0,0,0,0,0 };
-    wifi_get_macaddr(SOFTAP_IF, MAC);
+    esp_wifi_get_mac(ESP_IF_WIFI_AP, MAC);
     _nodeId = encodeNodeId(MAC);
 
     if (connectMode == AP_ONLY || connectMode == STA_AP)
@@ -90,7 +94,7 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 
     // Shutdown wifi hardware
     esp_wifi_disconnect();
-    wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
+    tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
 }
 
 //***********************************************************************

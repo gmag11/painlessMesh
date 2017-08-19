@@ -39,8 +39,8 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     if (_station_got_ip && 
             ipconfig.ip.addr != 0) {
         // we have successfully connected to wifi as a station.
-        debugMsg(CONNECTION, "tcpConnect(): Got local IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.ip));
-        debugMsg(CONNECTION, "tcpConnect(): Dest IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.gw));
+        //debugMsg(CONNECTION, "tcpConnect(): Got local IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.ip));
+        //debugMsg(CONNECTION, "tcpConnect(): Dest IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.gw));
 
         // establish tcp connection
         _stationConn.type = ESPCONN_TCP; // TCP Connection
@@ -57,6 +57,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         }
         espconn_set_opt(&_stationConn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE); // low latency, but soaks up bandwidth
 
+        /*
         debugMsg(CONNECTION, "tcpConnect(): connecting type=%d, state=%d, local_ip=%d.%d.%d.%d, local_port=%d, remote_ip=%d.%d.%d.%d remote_port=%d\n",
                  _stationConn.type,
                  _stationConn.state,
@@ -64,6 +65,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
                  _stationConn.proto.tcp->local_port,
                  IP2STR(_stationConn.proto.tcp->remote_ip),
                  _stationConn.proto.tcp->remote_port);
+                 */
 
         espconn_regist_connectcb(&_stationConn, meshConnectedCb); // Register a connected callback which will be called on successful TCP connection (server or client)
         espconn_regist_recvcb(&_stationConn, meshRecvCb); // Register data receive function which will be called back when data are received
