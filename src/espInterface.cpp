@@ -7,7 +7,47 @@ static SimpleList<wifi_ap_record_t> _ap_records;
 
 static system_event_cb_t system_event_cb;
 
+void ICACHE_FLASH_ATTR wifiEventCb(System_Event_t *event) {
+    // Forward events to the esp32 system_event_t
+    if (system_event_cb) {
+        system_event_t system_event;
+        switch (event->event) {
+            case EVENT_STAMODE_CONNECTED:
+                system_event.event_id = SYSTEM_EVENT_STA_CONNECTED;
+                system_event_cb(NULL, &system_event);
+                break;
+            case EVENT_STAMODE_DISCONNECTED:
+                system_event.event_id = SYSTEM_EVENT_STA_DISCONNECTED;
+                system_event_cb(NULL, &system_event);
+                break;
+            case EVENT_STAMODE_AUTHMODE_CHANGE:
+                system_event.event_id = SYSTEM_EVENT_STA_AUTHMODE_CHANGE;
+                system_event_cb(NULL, &system_event);
+                break;
+            case EVENT_STAMODE_GOT_IP:
+                system_event.event_id = SYSTEM_EVENT_STA_GOT_IP;
+                system_event_cb(NULL, &system_event);
+                break;
+
+            case EVENT_SOFTAPMODE_STACONNECTED:
+                system_event.event_id = SYSTEM_EVENT_AP_STACONNECTED;
+                system_event_cb(NULL, &system_event);
+                break;
+
+            case EVENT_SOFTAPMODE_STADISCONNECTED:
+                system_event.event_id = SYSTEM_EVENT_AP_STADISCONNECTED;
+                system_event_cb(NULL, &system_event);
+                break;
+            
+            default:
+                //staticThis->debugMsg(ERROR, "Unexpected WiFi event: %d\n", event->event);
+                break;
+        }
+    }
+}
+
 esp_err_t esp_event_loop_init(system_event_cb_t cb, void *ctx) {
+    wifi_set_event_handler_cb(wifiEventCb);
     system_event_cb = cb;
 }
 

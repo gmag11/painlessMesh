@@ -19,7 +19,7 @@ class StationScan {
             uint16_t port);
 
     void stationScan();
-    void scanComplete(bss_info *bssInfo);
+    void scanComplete();
     void filterAPs();
     void connectToAP();
 
@@ -30,7 +30,7 @@ class StationScan {
     uint16_t port;
     SimpleList<wifi_ap_record_t> aps;
 
-    void requestIP(bss_info* ap);
+    void requestIP(wifi_ap_record_t* ap);
 
     // Manually configure network and ip 
     bool manual = false; 

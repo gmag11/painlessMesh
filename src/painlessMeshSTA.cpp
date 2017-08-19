@@ -123,7 +123,7 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
         staticThis->debugMsg(ERROR, "wifi_station_scan() failed!?\n");
 }
 
-void ICACHE_FLASH_ATTR StationScan::scanComplete(bss_info *bssInfo) {
+void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n", staticThis->getNodeTime());
     aps.clear();
 
@@ -172,7 +172,7 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
     }
 }
 
-void ICACHE_FLASH_ATTR StationScan::requestIP(bss_info* ap) {
+void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t* ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
             mesh->encodeNodeId(ap->bssid));
     struct station_config stationConf;

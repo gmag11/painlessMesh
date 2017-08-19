@@ -504,53 +504,40 @@ void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, sint8 err) {
 
 //***********************************************************************
 // Wifi event handler
-void ICACHE_FLASH_ATTR painlessMesh::wifiEventCb(System_Event_t *event) {
-    switch (event->event) {
-    case EVENT_STAMODE_CONNECTED:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_CONNECTED ssid=%s\n", (char*)event->event_info.connected.ssid);
-        break;
-    case EVENT_STAMODE_DISCONNECTED:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_DISCONNECTED\n");
-        staticThis->closeConnectionSTA();
-        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-        wifi_station_disconnect(); // Make sure we are disconnected
-        break;
-    case EVENT_STAMODE_AUTHMODE_CHANGE:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_AUTHMODE_CHANGE\n");
-        break;
-    case EVENT_STAMODE_GOT_IP:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_GOT_IP\n");
-        staticThis->tcpConnect(); // Connect to TCP port
-        break;
-
-    case EVENT_SOFTAPMODE_STACONNECTED:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_SOFTAPMODE_STACONNECTED\n");
-        break;
-
-    case EVENT_SOFTAPMODE_STADISCONNECTED:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_SOFTAPMODE_STADISCONNECTED\n");
-        break;
-    case EVENT_STAMODE_DHCP_TIMEOUT:
-        staticThis->debugMsg(CONNECTION, "wifiEventCb(): EVENT_STAMODE_DHCP_TIMEOUT\n");
-        break;
-    case EVENT_SOFTAPMODE_PROBEREQRECVED:
-        // debugMsg( GENERAL, "Event: EVENT_SOFTAPMODE_PROBEREQRECVED\n");  // dont need to know about every probe request
-        break;
-    default:
-        staticThis->debugMsg(ERROR, "Unexpected WiFi event: %d\n", event->event);
-        break;
-    }
-}
-
 int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *event) {
     switch (event->event_id) {
     case SYSTEM_EVENT_SCAN_DONE:
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_SCAN_DONE\n");
         // Call the same thing original callback called
-        staticThis->stationScan.scanComplete(NULL);
+        staticThis->stationScan.scanComplete();
         break;
+    case SYSTEM_EVENT_STA_CONNECTED:
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_CONNECTED\n");
+        break;
+    case SYSTEM_EVENT_STA_DISCONNECTED:
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_DISCONNECTED\n");
+        staticThis->closeConnectionSTA();
+        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
+        wifi_station_disconnect(); // Make sure we are disconnected
+        break;
+    case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_AUTHMODE_CHANGE\n");
+        break;
+    case SYSTEM_EVENT_STA_GOT_IP:
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_GOT_IP\n");
+        staticThis->tcpConnect(); // Connect to TCP port
+        break;
+
+    case SYSTEM_EVENT_AP_STACONNECTED:
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_AP_STACONNECTED\n");
+        break;
+
+    case SYSTEM_EVENT_AP_STADISCONNECTED:
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_AP_STADISCONNECTED\n");
+        break;
+
     default:
-        staticThis->debugMsg(ERROR, "Unexpected WiFi event: %d\n", event->event_id);
+        staticThis->debugMsg(ERROR, "Unhandled WiFi event: %d\n", event->event_id);
         break;
     }
     return ESP_OK;

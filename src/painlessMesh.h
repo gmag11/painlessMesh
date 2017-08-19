@@ -173,7 +173,6 @@ protected:
 
     // callbacks
     // in painlessMeshConnection.cpp
-    static void         wifiEventCb(System_Event_t *event);
     static int         espWifiEventCb(void * ctx, system_event_t *event);
     static void         meshConnectedCb(void *arg);
     static void         meshSentCb(void *arg);

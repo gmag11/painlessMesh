@@ -28,7 +28,7 @@ extern "C" {
 //   - Copy espconn wrapper into repository and wrap it in ifdef ESP32
 //   - Uncomment empty espconn struct in espInterface.h
 // - Setup AP
-// - Remove System_Event_t and add it here. We should probably register it in the esp_event_loop_init
+// 0 Remove System_Event_t and add it here. We should probably register it in the esp_event_loop_init
 // - Default number of accepted clients of the AP is 10 instead of 4
 #define WIFI_AUTH_WPA2_PSK AUTH_WPA2_PSK 
 typedef _auth_mode wifi_auth_mode_t;
