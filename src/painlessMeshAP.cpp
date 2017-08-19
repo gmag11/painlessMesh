@@ -16,7 +16,7 @@
 void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     //    String password( MESH_PASSWORD );
 
-    ip_addr ip, netmask;
+    ip_addr_t ip, netmask;
     IP4_ADDR(&ip, 10, (_nodeId & 0xFF00) >> 8, (_nodeId & 0xFF), 1);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
 
@@ -24,7 +24,7 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     ipInfo.ip = ip;
     ipInfo.gw = ip;
     ipInfo.netmask = netmask;
-    if (!wifi_set_ip_info(SOFTAP_IF, &ipInfo)) {
+    if (!wifi_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo)) {
         debugMsg(ERROR, "wifi_set_ip_info() failed\n");
     }
 

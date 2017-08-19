@@ -99,7 +99,7 @@ ConnectionList::iterator ICACHE_FLASH_ATTR
             espconn_regist_disconcb(connection->esp_conn, [](void *arg) {
                 staticThis->debugMsg(CONNECTION, "dummy disconcb(): Station Connection! Find new node.\n");
                 // should start up automatically when station_status changes to IDLE
-                wifi_station_disconnect();
+                esp_wifi_disconnect();
             });
         }
         espconn_disconnect(connection->esp_conn);
@@ -466,7 +466,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
             staticThis->debugMsg(CONNECTION, "Station Connection! Find new node. local_port=%d\n", disConn->proto.tcp->local_port);
             // should start up automatically when station_status changes to IDLE
             //staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-            wifi_station_disconnect();
+            esp_wifi_disconnect();
         }
     } else {
         // Sometimes we can't find the matching connection by disConn, but
@@ -518,7 +518,7 @@ int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *e
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_DISCONNECTED\n");
         staticThis->closeConnectionSTA();
         staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-        wifi_station_disconnect(); // Make sure we are disconnected
+        esp_wifi_disconnect(); // Make sure we are disconnected
         break;
     case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_AUTHMODE_CHANGE\n");

@@ -97,5 +97,25 @@ esp_err_t esp_wifi_scan_start(wifi_scan_config_t *config, bool block) {
     });
     return ESP_OK;
 }
+
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_disconnect(void) {
+    if (wifi_station_disconnect())
+        return ESP_OK;
+    return ESP_FAIL;
+}
+
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_auto_connect(bool en) {
+    if (wifi_station_set_auto_connect(en))
+        return ESP_OK;
+    return ESP_FAIL;
+}
+
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_init(wifi_init_config_t *config) {
+    if (wifi_station_get_connect_status() != STATION_IDLE) { // Check if WiFi is idle
+        esp_wifi_disconnect();
+    }
+    return ESP_OK;
+}
+
 #endif
 

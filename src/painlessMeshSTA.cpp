@@ -32,8 +32,9 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     // TODO: move to Connection or StationConnection? 
     debugMsg(GENERAL, "tcpConnect():\n");
 
+    // TODO: We could pass this to tcpConnect instead of loading it here
     struct ip_info ipconfig;
-    wifi_get_ip_info(STATION_IF, &ipconfig);
+    wifi_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
 
     if (wifi_station_get_connect_status() == STATION_GOT_IP && 
             ipconfig.ip.addr != 0) {
@@ -147,7 +148,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
         // Next task is to sort by strength
         task.yield([this] {
             std::sort(aps.begin(), aps.end(),
-                    [](bss_info a, bss_info b) {
+                    [](wifi_ap_record_t a, wifi_ap_record_t b) {
                     return a.rssi > b.rssi;
             });
             // Next task is to connect to the top ap

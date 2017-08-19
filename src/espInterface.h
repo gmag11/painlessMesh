@@ -140,14 +140,36 @@ typedef scan_config wifi_scan_config_t;
   */
 esp_err_t esp_wifi_scan_start(wifi_scan_config_t *config, bool block);
 
+// Disconnection station
+esp_err_t esp_wifi_disconnect();
+esp_err_t esp_wifi_set_auto_connect(bool en);
+
+
+typedef struct {} wifi_init_config_t;
+#define WIFI_INIT_CONFIG_DEFAULT() wifi_init_config_t();
+esp_err_t esp_wifi_init(wifi_init_config_t *config);
+
+
+/* TODO: add Ethernet interface */
+typedef enum {
+    TCPIP_ADAPTER_IF_STA = STATION_IF,     /**< ESP32 station interface */
+    TCPIP_ADAPTER_IF_AP = SOFTAP_IF//,          /**< ESP32 soft-AP interface */
+    //TCPIP_ADAPTER_IF_ETH,         /**< ESP32 ethernet interface */
+    //TCPIP_ADAPTER_IF_MAX
+} tcpip_adapter_if_t;
+
+
 #else
 #ifdef ESP32
+#include "lwip/ip.h"
+#include "espconn-esp32/dhcpserver.h"
 #include "espconn-esp32/espconn.h"
 
 #define ICACHE_FLASH_ATTR 
 
 #include "esp_wifi.h"
 #include "esp_event.h"
+#include "esp_event_loop.h"
 
 #else
 #error Only ESP8266 or ESP32 platform is allowed

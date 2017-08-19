@@ -12,14 +12,15 @@ uint16_t  count = 0;
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
-    debugMsg(STARTUP, "init(): %d\n", wifi_station_set_auto_connect(0)); // Disable autoconnect
+    debugMsg(STARTUP, "init(): %d\n", esp_wifi_set_auto_connect(false)); // Disable autoconnect
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
-    if (wifi_station_get_connect_status() != STATION_IDLE) { // Check if WiFi is idle
-        debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", wifi_station_get_connect_status());
-        wifi_station_disconnect();
+    auto init_config = WIFI_INIT_CONFIG_DEFAULT();
+    if ((esp_wifi_init(&init_config)) != ESP_OK) {
+        //debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", err);
     }
+    
     if (connectMode == AP_ONLY || connectMode == STA_AP)
         wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
 
@@ -88,7 +89,7 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
     scheduler.deleteTask(droppedConnectionTask);
 
     // Shutdown wifi hardware
-    wifi_station_disconnect();
+    esp_wifi_disconnect();
     wifi_softap_dhcps_stop(); // Disable ESP8266 Soft-AP DHCP server
 }
 
