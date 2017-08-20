@@ -26,11 +26,12 @@
 
 #include "esp_types.h"
 #include "lwip/mem.h"
-#include "espconn_tcp.h"
+#include "lwip/opt.h"
+#include "espconn-esp32/espconn_tcp.h"
 
 
 #define ICACHE_FLASH_ATTR
-#include "tcp_impl.h"
+#include "espconn-esp32/tcp_impl.h"
 
 #ifdef MEMLEAK_DEBUG
 static const char mem_debug_file[] ICACHE_RODATA_ATTR = __FILE__;
@@ -721,7 +722,7 @@ err_t ICACHE_FLASH_ATTR espconn_tcp_write(void *arg)
 	err_t err = ERR_OK;
 	struct tcp_pcb *pcb = (struct tcp_pcb *)(pwrite->pcommon.pcb);
 	/*for one active connection,limit the sender buffer space*/
-	if (tcp_nagle_disabled(pcb) && (pcb->snd_queuelen >= TCP_SND_QUEUELEN))
+	if (tcp_nagle_disabled(pcb) && (pcb->snd_queuelen >= TCP_SND_QUEUELEN(pcb)))
 		return ESPCONN_MEM;
 
 	while (tcp_sndbuf(pcb) != 0){

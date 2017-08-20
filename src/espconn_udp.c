@@ -23,11 +23,12 @@
 #include "lwip/udp.h"
 #include "esp_wifi.h"
 
-#include "espconn_udp.h"
+#include "espconn-esp32/espconn_udp.h"
 
-////////未对以下函数进行实现
+
 #include "tcpip_adapter.h"
-extern void wifi_get_ip_info(tcpip_adapter_if_t type, struct ip_info* ipinfo);
+typedef tcpip_adapter_ip_info_t ip_info;
+extern void wifi_get_ip_info(tcpip_adapter_if_t type, ip_info* ipinfo);
 extern uint8 igmp_leavegroup(ip_addr_t *host_ip, ip_addr_t *multicast_ip);
 extern uint8 igmp_joingroup(ip_addr_t *host_ip, ip_addr_t *multicast_ip);
 extern void* eagle_lwip_getif(uint8 type);
@@ -298,7 +299,7 @@ espconn_udp_recv(void *arg, struct udp_pcb *upcb, struct pbuf *p,
     struct pbuf *q = NULL;
     u8_t *pdata = NULL;
     u16_t length = 0;
-    struct ip_info ipconfig;
+    ip_info ipconfig;
 
     LWIP_DEBUGF(ESPCONN_UDP_DEBUG, ("espconn_udp_server_recv %d %p\n", __LINE__, upcb));
 

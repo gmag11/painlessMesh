@@ -19,11 +19,13 @@
 #include "lwip/ip.h"
 #include "lwip/init.h"
 #include "lwip/mem.h"
+#include "lwip/opt.h"
+#include "esp_system.h"
 #include "esp_wifi.h"
 
-#include "espconn_tcp.h"
-#include "espconn_udp.h"
-#include "espconn.h"
+#include "espconn-esp32/espconn_tcp.h"
+#include "espconn-esp32/espconn_udp.h"
+#include "espconn-esp32/espconn.h"
 #include "esp_event.h"
 
 
@@ -31,9 +33,10 @@
 
 
 #include "tcpip_adapter.h"
-extern uint8_t wifi_station_get_connect_status(void);
+typedef tcpip_adapter_ip_info_t ip_info;
+//extern uint8_t wifi_station_get_connect_status(void);
 void ICACHE_FLASH_ATTR
-wifi_get_ip_info(tcpip_adapter_if_t type, struct ip_info* ipinfo)
+wifi_get_ip_info(tcpip_adapter_if_t type, ip_info* ipinfo)
 {
 	tcpip_adapter_get_ip_info(type, ipinfo);
     // printf("wifi_get_ip_info:(ip: " IPSTR ", mask: " IPSTR ", gw: " IPSTR ")\n",
@@ -307,7 +310,7 @@ sint8 ICACHE_FLASH_ATTR
 espconn_connect(struct espconn *espconn)
 {
 	ip_addr_t ipaddr;
-	struct ip_info ipinfo;
+	tcpip_adapter_ip_info_t ipinfo;
 	uint8 connect_status = 0;
 	sint8 value = ESPCONN_OK;
 	espconn_msg *plist = NULL;
@@ -348,8 +351,13 @@ espconn_connect(struct espconn *espconn)
     	// espconn_printf("softap_addr = %x, remote_addr = %x\n", ipinfo.ip.addr, ipaddr.u_addr.ip4.addr);
 
     	if (ipaddr.u_addr.ip4.addr != ipinfo.ip.addr){
-
-    		connect_status = wifi_station_get_connect_status();
+            wifi_get_ip_info(TCPIP_ADAPTER_IF_STA,&ipinfo);
+            // espconn_printf("wifi_get_ip_info:(ip: " IPSTR ", mask: " IPSTR ", gw: " IPSTR ")\n",
+            //         IP2STR(&ipinfo.ip), IP2STR(&ipinfo.netmask), IP2STR(&ipinfo.gw));
+				if (ipinfo.ip.addr == 0)
+					return ESPCONN_RTE;
+            /*
+    		connect_status = esp_wifi_station_status();
     		
 			if (connect_status == SYSTEM_EVENT_STA_GOT_IP){
 				wifi_get_ip_info(TCPIP_ADAPTER_IF_STA,&ipinfo);
@@ -364,7 +372,7 @@ espconn_connect(struct espconn *espconn)
 				return ESPCONN_RTE;
 			} else {
 				return connect_status;
-			}
+			}*/
     	}
     }
     /*check the active node information whether is the same as the entity or not*/
@@ -448,8 +456,8 @@ espconn_sent(struct espconn *espconn, uint8 *psent, uint16 length)
 						if (espconn_tcp_get_buf_count(pnode->pcommon.pbuf) >= pnode ->pcommon.pbuf_num)
 							return ESPCONN_MAXNUM;
 					} else {
-						// struct tcp_pcb *pcb = (struct tcp_pcb *)pnode->pcommon.pcb;
-						if (((struct tcp_pcb *)pnode->pcommon.pcb)->snd_queuelen >= TCP_SND_QUEUELEN)
+						struct tcp_pcb *pcb = (struct tcp_pcb *)pnode->pcommon.pcb;
+						if (pcb->snd_queuelen >= TCP_SND_QUEUELEN(pcb))
 							return ESPCONN_MAXNUM;
 					}
 
@@ -544,7 +552,10 @@ uint8 ICACHE_FLASH_ATTR espconn_tcp_get_wnd(void)
 {
 	uint8 tcp_num = 0;
 
-	tcp_num = (TCP_WND / TCP_MSS);
+    // From lwip/opt.h : define TCP_WND(pcb)                         (4 * TCP_MSS)
+    // so we can replace:
+	// tcp_num = (TCP_WND / TCP_MSS);
+	tcp_num = (4);
 
 	return tcp_num;
 }
@@ -724,9 +735,22 @@ sint8 ICACHE_FLASH_ATTR espconn_tcp_set_max_con_allow(struct espconn *espconn, u
 *******************************************************************************/
 sint8 ICACHE_FLASH_ATTR espconn_tcp_set_buf_count(struct espconn *espconn, uint8 num)
 {
+	espconn_msg *pnode = NULL;
+	bool value = false;
 	espconn_msg *plist = NULL;
-	if (espconn == NULL || (num > TCP_SND_QUEUELEN))
-		return ESPCONN_ARG;
+
+    if (espconn == NULL)
+        return ESPCONN_ARG;
+
+    value = espconn_find_connection(espconn, &pnode);
+    if (value) {
+        struct tcp_pcb *pcb = pnode->pcommon.pcb;
+        if (pcb == NULL)
+            return ESPCONN_ARG;
+
+        if (num > TCP_SND_QUEUELEN(pcb))
+            return ESPCONN_ARG;
+    }
 
 	/*find the node from the active connection list*/
 	for (plist = plink_active; plist != NULL; plist = plist->pnext){
@@ -1085,7 +1109,7 @@ espconn_get_packet_info(struct espconn *espconn, struct espconn_packet* infoarg)
 		pnode->pcommon.packet_info.packseq_nxt = pcb->rcv_nxt;
 		pnode->pcommon.packet_info.packseqno = pcb->snd_nxt;
 		pnode->pcommon.packet_info.snd_buf_size = pcb->snd_buf;
-		pnode->pcommon.packet_info.total_queuelen = TCP_SND_QUEUELEN;
+		pnode->pcommon.packet_info.total_queuelen = TCP_SND_QUEUELEN(pcb);
 		pnode->pcommon.packet_info.snd_queuelen = pnode->pcommon.packet_info.total_queuelen - pcb->snd_queuelen;
 		memcpy(infoarg,(void*)&pnode->pcommon.packet_info, sizeof(struct espconn_packet));
 		return ESPCONN_OK;
@@ -1311,10 +1335,10 @@ espconn_port(void)
     static uint32 randnum = 0;
 
     do {
-        port = os_random();
+        port = esp_random();
 
         if (port < 0) {
-            port = os_random() - port;
+            port = esp_random() - port;
         }
 
         port %= 0xc350;

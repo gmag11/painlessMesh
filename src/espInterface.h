@@ -198,14 +198,15 @@ esp_err_t esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap);
 #else
 #ifdef ESP32
 #define ICACHE_FLASH_ATTR 
-
-#include "lwip/ip.h"
-#include "espconn-esp32/dhcpserver.h"
-#include "espconn-esp32/espconn.h"
-
+extern "C" {
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_event_loop.h"
+
+#include "lwip/ip.h"
+//#include "espconn-esp32/dhcpserver.h"
+#include "espconn-esp32/espconn.h"
+}
 
 #else
 #error Only ESP8266 or ESP32 platform is allowed
