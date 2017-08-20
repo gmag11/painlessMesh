@@ -163,7 +163,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
                 staticThis->startTimeSync(conn);
             });
             scheduler.addTask(conn->timeSyncTask);
-            if (conn->esp_conn->proto.tcp->local_port != _meshPort)
+            if (conn->esp_conn->local_port != _meshPort)
                 // We are STA, request time immediately
                 conn->timeSyncTask.enable();
             else
@@ -219,7 +219,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(std::shared_ptr<meshConnectionType> conn) {
     String timeStamp;
 
-    debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->esp_conn->proto.tcp->local_port);
+    debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->esp_conn->local_port);
     auto adopt = adoptionCalc(conn);
     if (adopt) {
         timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
@@ -240,7 +240,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<meshConnection
     // We use length as an indicator for how many subconnections both nodes have
     uint16_t mySubCount = subConnectionJson(conn).length();  //exclude this connection.
     uint16_t remoteSubCount = conn->subConnections.length();
-    bool ap = conn->esp_conn->proto.tcp->local_port == _meshPort;
+    bool ap = conn->esp_conn->local_port == _meshPort;
 
     // ToDo. Simplify this logic
     bool ret = (mySubCount > remoteSubCount) ? false : true;

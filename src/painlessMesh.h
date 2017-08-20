@@ -11,6 +11,9 @@
 #include <functional>
 #include <memory>
 using namespace std;
+extern "C" {
+#include "lwip/tcp.h"
+}
 
 #include "espInterface.h"
 
@@ -54,7 +57,7 @@ typedef int debugType;
 #define DEBUG 1<<11
 
 struct meshConnectionType {
-    espconn             *esp_conn;
+    tcp_pcb             *esp_conn;
     uint32_t            nodeId = 0;
     String              subConnections;
     timeSync            time;
@@ -80,6 +83,8 @@ typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
+
+typedef err_t (* tcpAcceptCallback_t)(void * arg, tcp_pcb * newpcb, err_t err);
 
 class painlessMesh {
 public:
@@ -165,16 +170,17 @@ protected:
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
     shared_ptr<meshConnectionType> findConnection(uint32_t nodeId);
-    shared_ptr<meshConnectionType> findConnection(espconn *conn);
+    shared_ptr<meshConnectionType> findConnection(tcp_pcb *conn);
 
     // in painlessMeshAP.cpp
     void                apInit(void);
-    void                tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32_t port);
+
+    void                tcpServerInit();
 
     // callbacks
     // in painlessMeshConnection.cpp
     static int         espWifiEventCb(void * ctx, system_event_t *event);
-    static void         meshConnectedCb(void *arg);
+    static void         meshConnectedCb(void *arg, tcp_pcb *new_pcb, err_t err);
     static void         meshSentCb(void *arg);
     static void         meshRecvCb(void *arg, char *data, unsigned short length);
     static void         meshDisconCb(void *arg);
@@ -200,11 +206,9 @@ protected:
 
     ConnectionList  _connections;
 
-    espconn     _meshServerConn;
-    esp_tcp     _meshServerTcp;
+    tcp_pcb     *_tcpListener;
 
-    espconn     _stationConn;
-    esp_tcp     _stationTcp;
+    tcp_pcb     *_tcpStationConnection;
     bool        _station_got_ip = false;
 
     Task droppedConnectionTask;

@@ -79,7 +79,9 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(std::shared_ptr<meshConnectionT
 
     if (connection) { // Protect against null pointer
         if (connection->sendReady == true) {
-            sint8 errCode = espconn_send(connection->esp_conn, (uint8*)package.c_str(), package.length());
+            // TODO: TCP_FIX
+            /*
+            int8_t errCode = espconn_send(connection->esp_conn, (uint8*)package.c_str(), package.length());
             connection->sendReady = false;
 
             if (errCode == 0) {
@@ -89,6 +91,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(std::shared_ptr<meshConnectionT
                 debugMsg(ERROR, "sendPackage(): espconn_send Failed node=%u, err=%d\n", connection->nodeId, errCode);
                 return false;
             }
+            */
         } else {
             if (ESP.getFreeHeap() - package.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
                 if (priority) {

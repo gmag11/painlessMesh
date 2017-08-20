@@ -10,6 +10,7 @@
 
 #include "painlessMesh.h"
 
+extern painlessMesh* staticThis;
 
 // AP functions
 //***********************************************************************
@@ -58,24 +59,28 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
         debugMsg(STARTUP, "DHCP server started\n");
 
     // establish AP tcpServers
-    tcpServerInit(_meshServerConn, _meshServerTcp, meshConnectedCb, _meshPort);
+    // TODO: TCP_FIX
+    //tcpServerInit(_tcpListener, meshConnectedCb, _meshPort);
+    tcpServerInit();
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port) {
-
+void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
     debugMsg(GENERAL, "tcpServerInit():\n");
 
-    serverConn.type = ESPCONN_TCP;
-    serverConn.state = ESPCONN_NONE;
-    serverConn.proto.tcp = &serverTcp;
-    serverConn.proto.tcp->local_port = port;
-    espconn_regist_connectcb(&serverConn, connectCb);
-    sint8 ret = espconn_accept(&serverConn);
-    if (ret == 0)
-        debugMsg(STARTUP, "AP tcp server established on port %d\n", port);
-    else
-        debugMsg(ERROR, "AP tcp server on port %d FAILED ret=%d\n", port, ret);
+    _tcpListener = tcp_new();
+    //tcpip_adapter_ip_info_t ip_info;
+    //tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info);
+    tcp_bind(_tcpListener, NULL, _meshPort);
+    _tcpListener = tcp_listen(_tcpListener);
 
+    //typedef err_t (* tcpAcceptCallback_t)(void * arg, tcp_pcb * newpcb, err_t err);
+    tcp_accept(_tcpListener, [](void * arg, tcp_pcb *newpcb, err_t err) {
+        staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
+        tcp_accepted(staticThis->_tcpListener);
+        return err;
+    });
+
+    debugMsg(STARTUP, "AP tcp server established on port %d\n", _meshPort);
     return;
 }

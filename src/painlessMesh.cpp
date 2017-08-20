@@ -5,6 +5,8 @@
 #include "painlessMesh.h"
 #include "painlessMeshSync.h"
 
+#include "lwip/init.h"
+
 painlessMesh* staticThis;
 uint16_t  count = 0;
 
@@ -15,6 +17,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
+    lwip_init();
     tcpip_adapter_init();
 
     wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
@@ -73,7 +76,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         scheduler.addTask(stationScan.task);
     }
 
-    debugMsg(STARTUP, "init(): tcp_max_con=%u, nodeId = %u\n", espconn_tcp_get_max_con(), _nodeId);
+    //debugMsg(STARTUP, "init(): tcp_max_con=%u, nodeId = %u\n", espconn_tcp_get_max_con(), _nodeId);
 
 
     scheduler.enableAll();

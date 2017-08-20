@@ -4,7 +4,6 @@
 #ifdef ESP8266
 extern "C" {
 #include "user_interface.h"
-#include "espconn.h"
 }
 
 // TODO
@@ -208,12 +207,7 @@ extern "C" {
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_event_loop.h"
-
-#include "lwip/ip.h"
-//#include "espconn-esp32/dhcpserver.h"
-#include "espconn-esp32/espconn.h"
 }
-
 #else
 #error Only ESP8266 or ESP32 platform is allowed
 #endif

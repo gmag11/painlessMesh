@@ -14,6 +14,8 @@
 #include "painlessMeshSTA.h"
 #include "painlessMesh.h"
 
+#include "lwip/ip_addr.h"
+
 extern painlessMesh* staticThis;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
@@ -38,6 +40,27 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
     if (_station_got_ip && 
             ipconfig.ip.addr != 0) {
+        _tcpStationConnection = tcp_new();
+        auto ip = ipconfig.gw;
+        if (stationScan.manualIP[0] != 0)
+            //ip = stationScan.manualIP;
+            memcpy(&ip, &stationScan.manualIP, 4);
+
+#ifdef ESP32
+        ip_addr_t ip_tmp;
+        ip_tmp.u_addr.ip4 = ip;
+#else
+        auto ip_tmp = ip;
+#endif
+
+        tcp_connect(_tcpStationConnection, &ip_tmp, stationScan.port, 
+                [](void * arg, tcp_pcb *newpcb, err_t err) {
+                    staticThis->debugMsg(CONNECTION, "New STA connection incoming\n");
+                    tcp_accepted(staticThis->_tcpListener);
+                    return err;
+        });
+ /*   if (_station_got_ip && 
+            ipconfig.ip.addr != 0) {
         // we have successfully connected to wifi as a station.
         //debugMsg(CONNECTION, "tcpConnect(): Got local IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.ip));
         //debugMsg(CONNECTION, "tcpConnect(): Dest IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.gw));
@@ -56,7 +79,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
             memcpy(_stationConn.proto.tcp->remote_ip, &stationScan.manualIP, 4);
         }
         espconn_set_opt(&_stationConn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE); // low latency, but soaks up bandwidth
-
+*/
         /*
         debugMsg(CONNECTION, "tcpConnect(): connecting type=%d, state=%d, local_ip=%d.%d.%d.%d, local_port=%d, remote_ip=%d.%d.%d.%d remote_port=%d\n",
                  _stationConn.type,
@@ -66,18 +89,19 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
                  IP2STR(_stationConn.proto.tcp->remote_ip),
                  _stationConn.proto.tcp->remote_port);
                  */
-
+/*
         espconn_regist_connectcb(&_stationConn, meshConnectedCb); // Register a connected callback which will be called on successful TCP connection (server or client)
         espconn_regist_recvcb(&_stationConn, meshRecvCb); // Register data receive function which will be called back when data are received
         espconn_regist_sentcb(&_stationConn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
         espconn_regist_reconcb(&_stationConn, meshReconCb); // This callback is entered when an error occurs, TCP connection broken
         espconn_regist_disconcb(&_stationConn, meshDisconCb); // Register disconnection function which will be called back under successful TCP disconnection
-
+*/
         if (_station_got_ip) {
-            sint8  errCode = espconn_connect(&_stationConn);
+            // TODO: TCP_FIX
+            /*sint8  errCode = espconn_connect(&_stationConn);
             if (errCode != 0) {
                 debugMsg(ERROR, "tcpConnect(): err espconn_connect() falied=%d\n", errCode);
-            } 
+            }*/
         } else {
             debugMsg(ERROR, "tcpConnect(): Haven't got an IP\n");
         }
@@ -89,7 +113,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 // Calculate NodeID from a hardware MAC address
 uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(uint8_t *hwaddr) {
     debugMsg(GENERAL, "encodeNodeId():\n");
-    uint32 value = 0;
+    uint32_t value = 0;
 
     value |= hwaddr[2] << 24; //Big endian (aka "network order"):
     value |= hwaddr[3] << 16;
