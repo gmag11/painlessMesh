@@ -26,7 +26,6 @@
 
 #include "esp_types.h"
 #include "lwip/mem.h"
-#include "lwip/opt.h"
 #include "espconn-esp32/espconn_tcp.h"
 
 
@@ -1446,4 +1445,5 @@ void ICACHE_FLASH_ATTR espconn_init(void)
 	// espcon_event_t even;
 	// xTaskCreatePinnedToCore(&espconn_Task, "espconn_Task", 4096, &even, 5, NULL, 0);
 }
+
 #endif

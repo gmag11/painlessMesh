@@ -51,7 +51,7 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     apConfig.ap.beacon_interval = 100;
     apConfig.ap.max_connection = _meshMaxConn; // how many stations can connect to ESP8266 softAP at most, max is 4
 
-    esp_wifi_get_config(ESP_IF_WIFI_AP, &apConfig);// Set ESP8266 softap config .
+    esp_wifi_set_config(ESP_IF_WIFI_AP, &apConfig);// Set ESP8266 softap config .
     if (tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP) != ESP_OK)
         debugMsg(ERROR, "DHCP server failed\n");
     else

@@ -19,9 +19,8 @@
 #include "lwip/ip.h"
 #include "lwip/init.h"
 #include "lwip/mem.h"
-#include "lwip/opt.h"
-#include "esp_system.h"
 #include "esp_wifi.h"
+#include "esp_system.h"
 
 #include "espconn-esp32/espconn_tcp.h"
 #include "espconn-esp32/espconn_udp.h"
@@ -33,10 +32,9 @@
 
 
 #include "tcpip_adapter.h"
-typedef tcpip_adapter_ip_info_t ip_info;
 //extern uint8_t wifi_station_get_connect_status(void);
 void ICACHE_FLASH_ATTR
-wifi_get_ip_info(tcpip_adapter_if_t type, ip_info* ipinfo)
+wifi_get_ip_info(tcpip_adapter_if_t type, tcpip_adapter_ip_info_t* ipinfo)
 {
 	tcpip_adapter_get_ip_info(type, ipinfo);
     // printf("wifi_get_ip_info:(ip: " IPSTR ", mask: " IPSTR ", gw: " IPSTR ")\n",
@@ -354,10 +352,12 @@ espconn_connect(struct espconn *espconn)
             wifi_get_ip_info(TCPIP_ADAPTER_IF_STA,&ipinfo);
             // espconn_printf("wifi_get_ip_info:(ip: " IPSTR ", mask: " IPSTR ", gw: " IPSTR ")\n",
             //         IP2STR(&ipinfo.ip), IP2STR(&ipinfo.netmask), IP2STR(&ipinfo.gw));
-				if (ipinfo.ip.addr == 0)
-					return ESPCONN_RTE;
-            /*
-    		connect_status = esp_wifi_station_status();
+
+            if (ipinfo.ip.addr == 0)
+                return ESPCONN_RTE;
+
+/*
+    		connect_status = wifi_station_get_connect_status();
     		
 			if (connect_status == SYSTEM_EVENT_STA_GOT_IP){
 				wifi_get_ip_info(TCPIP_ADAPTER_IF_STA,&ipinfo);
@@ -372,7 +372,8 @@ espconn_connect(struct espconn *espconn)
 				return ESPCONN_RTE;
 			} else {
 				return connect_status;
-			}*/
+			}
+*/
     	}
     }
     /*check the active node information whether is the same as the entity or not*/
@@ -456,7 +457,8 @@ espconn_sent(struct espconn *espconn, uint8 *psent, uint16 length)
 						if (espconn_tcp_get_buf_count(pnode->pcommon.pbuf) >= pnode ->pcommon.pbuf_num)
 							return ESPCONN_MAXNUM;
 					} else {
-						struct tcp_pcb *pcb = (struct tcp_pcb *)pnode->pcommon.pcb;
+						// struct tcp_pcb *pcb = (struct tcp_pcb *)pnode->pcommon.pcb;
+                        struct tcp_pcb *pcb = (struct tcp_pcb *)pnode->pcommon.pcb;
 						if (pcb->snd_queuelen >= TCP_SND_QUEUELEN(pcb))
 							return ESPCONN_MAXNUM;
 					}
@@ -554,8 +556,8 @@ uint8 ICACHE_FLASH_ATTR espconn_tcp_get_wnd(void)
 
     // From lwip/opt.h : define TCP_WND(pcb)                         (4 * TCP_MSS)
     // so we can replace:
-	// tcp_num = (TCP_WND / TCP_MSS);
-	tcp_num = (4);
+    // tcp_num = (TCP_WND / TCP_MSS);
+    tcp_num = (4);
 
 	return tcp_num;
 }
@@ -735,9 +737,9 @@ sint8 ICACHE_FLASH_ATTR espconn_tcp_set_max_con_allow(struct espconn *espconn, u
 *******************************************************************************/
 sint8 ICACHE_FLASH_ATTR espconn_tcp_set_buf_count(struct espconn *espconn, uint8 num)
 {
-	espconn_msg *pnode = NULL;
-	bool value = false;
-	espconn_msg *plist = NULL;
+    espconn_msg *pnode = NULL;
+    bool value = false;
+    espconn_msg *plist = NULL;
 
     if (espconn == NULL)
         return ESPCONN_ARG;
@@ -1390,5 +1392,4 @@ espconn_dns_setserver(u8_t numdns, ip_addr_t *dnsserver)
 {
 	dns_setserver(numdns,dnsserver);
 }
-
 #endif
