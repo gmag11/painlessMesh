@@ -12,14 +12,16 @@ uint16_t  count = 0;
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
-    debugMsg(STARTUP, "init(): %d\n", esp_wifi_set_auto_connect(false)); // Disable autoconnect
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
+
+    tcpip_adapter_init();
 
     wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
     if ((esp_wifi_init(&init_config)) != ESP_OK) {
         //debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", err);
     }
+    debugMsg(STARTUP, "init(): %d\n", esp_wifi_set_auto_connect(false)); // Disable autoconnect
     
     if (connectMode == AP_ONLY || connectMode == STA_AP)
         tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
@@ -58,7 +60,10 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     _meshMaxConn = maxconn;
 
     uint8_t MAC[] = { 0,0,0,0,0,0 };
-    esp_wifi_get_mac(ESP_IF_WIFI_AP, MAC);
+    if (esp_wifi_get_mac(ESP_IF_WIFI_AP, MAC) != ESP_OK) {
+        debugMsg(ERROR, "init(): esp_wifi_get_mac failed.\n");
+    }
+    esp_wifi_start();
     _nodeId = encodeNodeId(MAC);
 
     if (connectMode == AP_ONLY || connectMode == STA_AP)
@@ -95,6 +100,8 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
     // Shutdown wifi hardware
     esp_wifi_disconnect();
     tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
+    esp_wifi_stop();
+    esp_wifi_deinit();
 }
 
 //***********************************************************************

@@ -148,11 +148,15 @@ esp_err_t esp_wifi_scan_start(wifi_scan_config_t *config, bool block);
 esp_err_t esp_wifi_disconnect();
 esp_err_t esp_wifi_set_auto_connect(bool en);
 
-
 typedef struct {} wifi_init_config_t;
 #define WIFI_INIT_CONFIG_DEFAULT() wifi_init_config_t();
 esp_err_t esp_wifi_init(wifi_init_config_t *config);
 
+esp_err_t esp_wifi_deinit();
+
+esp_err_t esp_wifi_start();
+
+esp_err_t esp_wifi_stop();
 
 typedef enum {
     TCPIP_ADAPTER_IF_STA = STATION_IF,     /**< ESP32 station interface */
@@ -163,6 +167,8 @@ typedef enum {
 
 typedef ip_info tcpip_adapter_ip_info_t;
 typedef ip_addr_t ip4_addr_t;
+
+void tcpip_adapter_init();
 
 esp_err_t tcpip_adapter_get_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info);
 

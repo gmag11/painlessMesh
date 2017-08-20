@@ -73,9 +73,13 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         espconn_regist_reconcb(&_stationConn, meshReconCb); // This callback is entered when an error occurs, TCP connection broken
         espconn_regist_disconcb(&_stationConn, meshDisconCb); // Register disconnection function which will be called back under successful TCP disconnection
 
-        sint8  errCode = espconn_connect(&_stationConn);
-        if (errCode != 0) {
-            debugMsg(ERROR, "tcpConnect(): err espconn_connect() falied=%d\n", errCode);
+        if (_station_got_ip) {
+            sint8  errCode = espconn_connect(&_stationConn);
+            if (errCode != 0) {
+                debugMsg(ERROR, "tcpConnect(): err espconn_connect() falied=%d\n", errCode);
+            } 
+        } else {
+            debugMsg(ERROR, "tcpConnect(): Haven't got an IP\n");
         }
     } else {
         debugMsg(ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");

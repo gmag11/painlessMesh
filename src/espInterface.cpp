@@ -123,6 +123,20 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_init(wifi_init_config_t *config) {
     return ESP_OK;
 }
 
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_deinit() {
+    return ESP_OK;
+}
+
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_start() {
+    return ESP_OK;
+}
+
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_stop() {
+    return ESP_OK;
+}
+
+void ICACHE_FLASH_ATTR tcpip_adapter_init() {}
+
 esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_get_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info) {
     if (wifi_get_ip_info(tcpip_if, ip_info))
         return ESP_OK;
