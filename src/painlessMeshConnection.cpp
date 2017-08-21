@@ -412,6 +412,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     receiveConn->nodeTimeoutTask.delay();
 
     size_t total_length = p->tot_len;
+    auto p_start = p;
     char* data = new char[p->tot_len+1];
     data[p->tot_len] = '\0';
     memcpy(data, p->payload, p->len);
@@ -420,7 +421,8 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
         p = p->next;
         memcpy(curr_i, p->payload, p->len);
     }
-    free(p);
+
+    pbuf_free(p_start);
 
     // Signal that we are done
     tcp_recved(receiveConn->pcb, total_length);
@@ -432,7 +434,6 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. data=%s<--\n", data);
         return ERR_OK;
     }
-    //free(data);
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
