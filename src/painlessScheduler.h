@@ -569,7 +569,8 @@ void Task::enableDelayed(unsigned long aDelay) {
 void Task::delay(unsigned long aDelay) {
 //	if (!aDelay) aDelay = iInterval;
 	iDelay = aDelay ? aDelay : iInterval;
-	iPreviousMillis = _TASK_TIME_FUNCTION(); // - iInterval + aDelay;
+    // -1 is to make sure it is in the past
+	iPreviousMillis = _TASK_TIME_FUNCTION() - 1; // - iInterval + aDelay;
 }
 
 /** Schedules next iteration of Task for execution immediately (if enabled)

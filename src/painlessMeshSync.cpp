@@ -5,13 +5,22 @@
 #include "painlessMesh.h"
 #include "painlessMeshSync.h"
 
+#include "time.h"
+
 extern painlessMesh* staticThis;
 uint32_t timeAdjuster = 0;
 
 // timeSync Functions
 //***********************************************************************
 uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
-    uint32_t ret = system_get_time() + timeAdjuster;
+#ifdef ESP32
+    timeval tv;
+    gettimeofday(&tv, NULL);
+    auto base_time = tv.tv_sec*1000000 + tv.tv_usec;
+#else
+    auto base_time = system_get_time();
+#endif
+    uint32_t ret = base_time + timeAdjuster;
     debugMsg(GENERAL, "getNodeTime(): time=%u\n", ret);
     return ret;
 }

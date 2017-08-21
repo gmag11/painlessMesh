@@ -17,15 +17,29 @@ extern painlessMesh* staticThis;
 err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf * p, err_t err);
 err_t tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len);
 
-MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_station) {
+ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_station) {
     station = is_station;
     mesh = pMesh;
     pcb = tcp;
+
+    pcb->so_options |= SOF_KEEPALIVE;
+
     tcp_arg(pcb, static_cast<void*>(this));
 
     tcp_recv(pcb, meshRecvCb);
 
     tcp_sent(pcb, tcpSentCb);
+
+    tcp_poll(pcb, [](void * arg, tcp_pcb * tpcb) -> err_t {
+        if (arg == NULL) {
+            staticThis->debugMsg(COMMUNICATION, "tcp_poll(): no valid connection found\n");
+            return ERR_OK;
+        }
+        auto conn = static_cast<MeshConnection*>(arg);
+        conn->sendReady = true;
+        conn->writeNext();
+        return ERR_OK;
+    }, 4); // If idle this is called once per two seconds
 
     tcp_err(pcb, [](void * arg, err_t err) {
             if (arg == NULL)
@@ -73,7 +87,7 @@ MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_statio
     staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
 }
 
-MeshConnection::~MeshConnection() {
+ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
     staticThis->debugMsg(CONNECTION, "~MeshConnection():\n");
     /*if (esp_conn)
         espconn_disconnect(esp_conn);*/
@@ -174,6 +188,7 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     if (errCode == ERR_OK) {
         staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
         sendQueue.pop_front();
+        writeNext();
         return true;
     } else {
         sendReady = false;
@@ -438,7 +453,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", system_get_time(), receiveConn->nodeId, t_message);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", staticThis->getNodeTime(), receiveConn->nodeId, t_message);
 
     auto rConn = staticThis->findConnection(receiveConn->pcb);
     switch (t_message) {

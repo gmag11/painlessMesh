@@ -52,17 +52,17 @@ void ICACHE_FLASH_ATTR wifiEventCb(System_Event_t *event) {
     }
 }
 
-esp_err_t esp_event_loop_init(system_event_cb_t cb, void *ctx) {
+esp_err_t ICACHE_FLASH_ATTR esp_event_loop_init(system_event_cb_t cb, void *ctx) {
     wifi_set_event_handler_cb(wifiEventCb);
     system_event_cb = cb;
 }
 
-esp_err_t esp_wifi_scan_get_ap_num(uint16_t *number) {
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_scan_get_ap_num(uint16_t *number) {
     *number = static_cast<uint16_t>(_ap_records.size());
     return ESP_OK;
 }
 
-esp_err_t esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records) {
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records) {
     if (*number <= _ap_records.size()) {
         *number = _ap_records.size();
     }
@@ -76,7 +76,7 @@ esp_err_t esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_re
     return ESP_OK;
 }
 
-esp_err_t esp_wifi_scan_start(wifi_scan_config_t *config, bool block) {
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_scan_start(wifi_scan_config_t *config, bool block) {
     // TODO: throw error if block is used
     if (block)
         return ESP_FAIL;
@@ -177,7 +177,7 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_confi
      return ESP_FAIL;
 }
 
-esp_err_t esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf) {
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf) {
     if (ifx == ESP_IF_WIFI_STA)
         if (wifi_station_get_config(&conf->sta))
             return ESP_OK;
@@ -188,20 +188,20 @@ esp_err_t esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf) {
     return ESP_FAIL;
 }
 
-esp_err_t esp_wifi_connect() {
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_connect() {
     if (wifi_station_connect())
         return ESP_OK;
     return ESP_FAIL;
 }
 
-esp_err_t esp_wifi_get_mac(wifi_interface_t ifx, uint8_t mac[6]) {
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_get_mac(wifi_interface_t ifx, uint8_t mac[6]) {
     if (wifi_get_macaddr(ifx, mac))
         return ESP_OK;
     return ESP_FAIL;
 }
 
 
-esp_err_t esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap) {
+esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap) {
     // NOTE that esp8266 can't use a different mode for ap and station
     if (ifx == ESP_IF_WIFI_STA ||
         ifx == ESP_IF_WIFI_AP)
@@ -209,6 +209,5 @@ esp_err_t esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap) {
             return ESP_OK;
     return ESP_FAIL;
 }
-
 #endif
 
