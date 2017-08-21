@@ -14,10 +14,116 @@
 
 extern painlessMesh* staticThis;
 
-meshConnectionType::~meshConnectionType() {
-    staticThis->debugMsg(CONNECTION, "~meshConnectionType():\n");
+err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf * p, err_t err);
+err_t tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len);
+
+MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_station) {
+    station = is_station;
+    mesh = pMesh;
+    pcb = tcp;
+    tcp_arg(pcb, static_cast<void*>(this));
+
+    tcp_recv(pcb, meshRecvCb);
+
+    tcp_sent(pcb, tcpSentCb);
+
+    if (station) { // we are the station, start nodeSync
+        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
+    } else {
+        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");
+    }
+
+    this->nodeTimeoutTask.set(
+            NODE_TIMEOUT, TASK_ONCE, [this](){
+        staticThis->debugMsg(CONNECTION, "nodeTimeoutTask():\n");
+        staticThis->debugMsg(CONNECTION, "nodeTimeoutTask(): dropping %u now= %u\n", nodeId, staticThis->getNodeTime());
+
+        this->close();
+    });
+
+    staticThis->scheduler.addTask(this->nodeTimeoutTask);
+    this->nodeTimeoutTask.enableDelayed();
+
+    auto syncInterval = NODE_TIMEOUT/2;
+    if (!station)
+        syncInterval = NODE_TIMEOUT*2;
+
+    this->nodeSyncTask.set(
+            syncInterval, TASK_FOREVER, [this](){
+        staticThis->debugMsg(SYNC, "nodeSyncTask(): \n");
+        staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
+                this->nodeId);
+        /* TODO: TCPIP_FIX
+        String subs = staticThis->subConnectionJson(this);
+        staticThis->sendMessage(this, this->nodeId, 
+                staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
+                */
+    });
+    staticThis->scheduler.addTask(this->nodeSyncTask);
+    if (station)
+        this->nodeSyncTask.enable();
+    else
+        this->nodeSyncTask.enableDelayed();
+    staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
+}
+
+MeshConnection::~MeshConnection() {
+    staticThis->debugMsg(CONNECTION, "~MeshConnection():\n");
     /*if (esp_conn)
         espconn_disconnect(esp_conn);*/
+}
+
+void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
+    staticThis->debugMsg(ERROR, "MeshConnection::close(): not implemented.\n");
+    // Should set connected to false
+    // and call mesh->checkConnections();
+}
+
+
+bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String message, bool priority) {
+    if (message.length() > 1400) {
+        staticThis->debugMsg(ERROR, "addMessage(): err package too long length=%d\n", message.length());
+        return false;
+    }
+
+    if (ESP.getFreeHeap() - message.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
+        if (priority) {
+            sendQueue.push_front(message);
+            mesh->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue beginning -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+        } else {
+            if (sendQueue.size() < MAX_MESSAGE_QUEUE) {
+                sendQueue.push_back(message);
+                staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+            } else {
+                staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+                return false;
+            }
+
+        }
+        return true;
+    } else {
+        //connection->sendQueue.clear(); // Discard all messages if free memory is low
+        staticThis->debugMsg(DEBUG, "addMessage(): Memory low, message was discarded\n");
+        return false;
+    }
+}
+
+bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
+    if (sendQueue.empty()) {
+        staticThis->debugMsg(COMMUNICATION, "writeNext(): sendQueue is empty\n");
+        return false;
+    }
+    String package = (*sendQueue.begin());
+    auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), 
+            package.length(), TCP_WRITE_FLAG_COPY);
+    if (errCode == ERR_OK) {
+        staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
+        sendQueue.pop_front();
+        return true;
+    } else {
+        staticThis->debugMsg(ERROR, "writeNext(): tcp_write Failed node=%u, err=%d\n", nodeId, errCode);
+        return false;
+    }
 }
 
 // connection managment functions
@@ -110,7 +216,7 @@ ConnectionList::iterator ICACHE_FLASH_ATTR
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::closeConnection(std::shared_ptr<meshConnectionType> conn) {
+bool ICACHE_FLASH_ATTR painlessMesh::closeConnection(std::shared_ptr<MeshConnection> conn) {
     // A closed connection should (TODO: double check) result in a call to meshDisconCB, which will send sub sync messages
     debugMsg(CONNECTION, "closeConnection(): conn-nodeId=%u, conn-no=%u, conn-use=%u\n", 
             conn->nodeId, _connections.size(), conn.use_count());
@@ -134,7 +240,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 {
     auto connection = _connections.begin();
     while (connection != _connections.end()) {
-        if (connection->get()->esp_conn->local_port != _meshPort) {
+        if ((*connection)->station) {
             // We found the STA connection, close it
             closeConnectionIt(_connections, connection);
             return true;
@@ -172,7 +278,7 @@ bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
 
 //***********************************************************************
 // Search for a connection to a given nodeID
-std::shared_ptr<meshConnectionType> ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId) {
+std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId) {
     debugMsg(GENERAL, "In findConnection(nodeId)\n");
 
     for (auto &&connection : _connections) {
@@ -193,11 +299,11 @@ std::shared_ptr<meshConnectionType> ICACHE_FLASH_ATTR painlessMesh::findConnecti
 }
 
 //***********************************************************************
-std::shared_ptr<meshConnectionType>  ICACHE_FLASH_ATTR painlessMesh::findConnection(tcp_pcb *conn) {
+std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(tcp_pcb *conn) {
     debugMsg(GENERAL, "In findConnection(esp_conn) conn=0x%x\n", conn);
 
     for (auto &&connection : _connections) {
-        if (connection->esp_conn == conn) {
+        if (connection->pcb == conn) {
             return connection;
         }
     }
@@ -207,7 +313,7 @@ std::shared_ptr<meshConnectionType>  ICACHE_FLASH_ATTR painlessMesh::findConnect
 }
 
 //***********************************************************************
-String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(std::shared_ptr<meshConnectionType> exclude) {
+String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(std::shared_ptr<MeshConnection> exclude) {
     if (exclude == NULL)
         return subConnectionJsonHelper(_connections);
     else
@@ -223,7 +329,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
 
     String ret = "[";
     for (auto &&sub : connections) {
-        if (sub->esp_conn) {
+        if (sub->pcb) {
                 // TODO: TCP_FIX && sub->esp_conn->state == ESPCONN_CLOSE) {
             debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n", 
                     sub->nodeId);
@@ -289,7 +395,7 @@ SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
 void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg, tcp_pcb *new_pcb, err_t err) {
     /*staticThis->debugMsg(CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
     tcp_accepted(&_tcpListener);
-    auto conn = std::make_shared<meshConnectionType>();
+    auto conn = std::make_shared<MeshConnection>();
     staticThis->_connections.push_back(conn);
     //auto conn = staticThis->_connections.end()-1;
     conn->esp_conn = new_pcb;
@@ -342,32 +448,60 @@ void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg, tcp_pcb *new_pcb
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
-    auto receiveConn = staticThis->findConnection((tcp_pcb *)arg);
+}
+
+err_t ICACHE_FLASH_ATTR tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len) {
+    if (arg == NULL) {
+        staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
+        return ERR_OK;
+    }
+    auto conn = static_cast<MeshConnection*>(arg);
+    conn->writeNext();
+    return ESP_OK;
+}
+
+err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
+                              struct pbuf *p, err_t err) {
+    if (arg == NULL) {
+        staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
+        free(p);
+        return ERR_OK;
+    }
+    auto receiveConn = static_cast<MeshConnection*>(arg);
+    if (p == NULL) {
+        receiveConn->close();
+        return ERR_OK;
+    }
 
     uint32_t receivedAt = staticThis->getNodeTime();
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): data=%s fromId=%u\n", data, receiveConn ? receiveConn->nodeId : 0);
-
-    if (!receiveConn) {
-        staticThis->debugMsg(ERROR, "meshRecvCb(): recieved from unknown connection 0x%x ->%s<-\n", arg, data);
-        staticThis->debugMsg(ERROR, "meshRecvCb(): dropping this msg... see if we recover?\n");
-        return;
-    }
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
 
     // reset timeout 
     receiveConn->nodeTimeoutTask.delay();
 
+    size_t total_length = p->tot_len;
+    char* data = new char[p->tot_len+1];
+    data[p->tot_len] = '\0';
+    memcpy(data, p->payload, p->len);
+    while (p->next) {
+        char* curr_i = &data[p->len];
+        p = p->next;
+        memcpy(curr_i, p->payload, p->len);
+    }
+    free(p);
 
-    String somestring(data);      //copy data before json parsing FIXME: can someone explain why this works?
+    // Signal that we are done
+    tcp_recved(receiveConn->pcb, total_length);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", receiveConn->nodeId, data);
 
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(data);
     if (!root.success()) {   // Test if parsing succeeded.
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. data=%s<--\n", data);
-        return;
+        return ERR_OK;
     }
-
-    staticThis->debugMsg(GENERAL, "meshRecvCb(): Recvd from %u-->%s<--\n", receiveConn->nodeId, data);
+    free(data);
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
@@ -377,18 +511,18 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
     switch (t_message) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
-        staticThis->handleNodeSync(receiveConn, root);
+        //staticThis->handleNodeSync(receiveConn, root);
         break;
 
     case TIME_SYNC:
-        staticThis->handleTimeSync(receiveConn, root, receivedAt);
+        //staticThis->handleTimeSync(receiveConn, root, receivedAt);
         break;
 
     case SINGLE:
     case TIME_DELAY:
         if ((uint32_t)root["dest"] == staticThis->getNodeId()) {  // msg for us!
             if (t_message == TIME_DELAY) {
-                staticThis->handleTimeDelay(receiveConn, root, receivedAt);
+                //staticThis->handleTimeDelay(receiveConn, root, receivedAt);
             } else {
                 if (staticThis->receivedCallback)
                     staticThis->receivedCallback((uint32_t)root["from"], msg);
@@ -397,7 +531,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
             //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
             String tempStr;
             root.printTo(tempStr);
-            std::shared_ptr<meshConnectionType> conn = staticThis->findConnection((uint32_t)root["dest"]);
+            std::shared_ptr<MeshConnection> conn = staticThis->findConnection((uint32_t)root["dest"]);
             if (conn) {
                 staticThis->sendPackage(conn, tempStr);
                 staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
@@ -406,17 +540,17 @@ void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned 
         break;
 
     case BROADCAST:
-        staticThis->broadcastMessage((uint32_t)root["from"], BROADCAST, msg, receiveConn);
+        //staticThis->broadcastMessage((uint32_t)root["from"], BROADCAST, msg, receiveConn);
         if (staticThis->receivedCallback)
             staticThis->receivedCallback((uint32_t)root["from"], msg);
         break;
 
     default:
         staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
-        return;
+        return ERR_OK;
     }
 
-    return;
+    return ERR_OK;
 }
 
 //***********************************************************************
@@ -449,7 +583,7 @@ void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
                 break;
         }
     } else {
-        meshConnection->sendReady = true;
+        //meshConnection->sendReady = true;
     }
 }
 

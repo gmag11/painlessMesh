@@ -103,7 +103,7 @@ int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
 
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root) {
+void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root) {
     debugMsg(SYNC, "handleNodeSync(): with %u\n", conn->nodeId);
 
     meshPackageType message_type = (meshPackageType)(int)root["type"];
@@ -163,7 +163,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
                 staticThis->startTimeSync(conn);
             });
             scheduler.addTask(conn->timeSyncTask);
-            if (conn->esp_conn->local_port != _meshPort)
+            if (conn->station)
                 // We are STA, request time immediately
                 conn->timeSyncTask.enable();
             else
@@ -216,10 +216,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<meshConnecti
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(std::shared_ptr<meshConnectionType> conn) {
+void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
     String timeStamp;
 
-    debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->esp_conn->local_port);
+    debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->pcb->local_port);
     auto adopt = adoptionCalc(conn);
     if (adopt) {
         timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
@@ -232,7 +232,7 @@ void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(std::shared_ptr<meshConnectio
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<meshConnectionType> conn) {
+bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection> conn) {
     if (conn == NULL) // Missing connection
         return false;
     // make the adoption calulation. Figure out how many nodes I am connected to exclusive of this connection.
@@ -240,7 +240,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<meshConnection
     // We use length as an indicator for how many subconnections both nodes have
     uint16_t mySubCount = subConnectionJson(conn).length();  //exclude this connection.
     uint16_t remoteSubCount = conn->subConnections.length();
-    bool ap = conn->esp_conn->local_port == _meshPort;
+    bool ap = conn->pcb->local_port == _meshPort;
 
     // ToDo. Simplify this logic
     bool ret = (mySubCount > remoteSubCount) ? false : true;
@@ -254,7 +254,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<meshConnection
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt) {
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt) {
     auto timeSyncMessageType = static_cast<timeSyncMessageType_t>(root["msg"]["type"].as<int>());
     String msg;
 
@@ -322,7 +322,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<meshConnecti
 
 }
 
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt) {
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt) {
     String timeStamp = root["msg"];
     uint32_t from = root["from"];
     debugMsg(S_TIME, "handleTimeDelay(): from %u in timestamp = %s\n", from, timeStamp.c_str());

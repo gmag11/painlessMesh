@@ -78,6 +78,8 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
     tcp_accept(_tcpListener, [](void * arg, tcp_pcb *newpcb, err_t err) {
         staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
         tcp_accepted(staticThis->_tcpListener);
+        auto conn = std::make_shared<MeshConnection>(newpcb, staticThis, false);
+        staticThis->_connections.push_back(conn);
         return err;
     });
 

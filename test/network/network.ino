@@ -144,7 +144,7 @@ Task waitTask;
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
     //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG ); // all types on
-    mesh.setDebugMsgTypes(S_TIME | ERROR | CONNECTION | DEBUG);
+    mesh.setDebugMsgTypes(S_TIME | ERROR | CONNECTION | DEBUG | COMMUNICATION);
     mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT);
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onReceive(&receivedCallback);

@@ -56,7 +56,8 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         tcp_connect(_tcpStationConnection, &ip_tmp, stationScan.port, 
                 [](void * arg, tcp_pcb *newpcb, err_t err) {
                     staticThis->debugMsg(CONNECTION, "New STA connection incoming\n");
-                    tcp_accepted(staticThis->_tcpListener);
+                    auto conn = std::make_shared<MeshConnection>(newpcb, staticThis, true);
+                    staticThis->_connections.push_back(conn);
                     return err;
         });
  /*   if (_station_got_ip && 
