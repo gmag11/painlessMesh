@@ -125,7 +125,6 @@ protected:
     bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<MeshConnection> exclude = NULL);
 
-    bool                sendPackage(std::shared_ptr<MeshConnection> connection, String &package, bool priority = false);
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
 
@@ -140,10 +139,9 @@ protected:
     // in painlessMeshConnection.cpp
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
-    bool closeConnection(shared_ptr<MeshConnection> conn);
     bool closeConnectionSTA(); 
 
-    ConnectionList::iterator closeConnectionIt(ConnectionList &connections, ConnectionList::iterator conn);
+    void                eraseClosedConnections();
 
     String              subConnectionJson(std::shared_ptr<MeshConnection> exclude);
     String              subConnectionJsonHelper(
@@ -162,11 +160,6 @@ protected:
     // callbacks
     // in painlessMeshConnection.cpp
     static int         espWifiEventCb(void * ctx, system_event_t *event);
-    static void         meshConnectedCb(void *arg, tcp_pcb *new_pcb, err_t err);
-    static void         meshSentCb(void *arg);
-    static void         meshRecvCb(void *arg, char *data, unsigned short length);
-    static void         meshDisconCb(void *arg);
-    static void         meshReconCb(void *arg, int8_t err);
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;

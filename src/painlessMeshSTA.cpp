@@ -41,6 +41,11 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     if (_station_got_ip && 
             ipconfig.ip.addr != 0) {
         _tcpStationConnection = tcp_new();
+
+        tcp_err(_tcpStationConnection, [](void * arg, err_t err) {
+                staticThis->debugMsg(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
+        });
+
         auto ip = ipconfig.gw;
         if (stationScan.manualIP[0] != 0)
             //ip = stationScan.manualIP;
@@ -60,53 +65,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
                     staticThis->_connections.push_back(conn);
                     return err;
         });
- /*   if (_station_got_ip && 
-            ipconfig.ip.addr != 0) {
-        // we have successfully connected to wifi as a station.
-        //debugMsg(CONNECTION, "tcpConnect(): Got local IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.ip));
-        //debugMsg(CONNECTION, "tcpConnect(): Dest IP=%d.%d.%d.%d\n", IP2STR(&ipconfig.gw));
-
-        // establish tcp connection
-        _stationConn.type = ESPCONN_TCP; // TCP Connection
-        _stationConn.state = ESPCONN_NONE;
-        _stationConn.proto.tcp = &_stationTcp;
-        _stationConn.proto.tcp->local_port = espconn_port(); // Get an available port
-        _stationConn.proto.tcp->remote_port = stationScan.port; // Global mesh port
-        memcpy(_stationConn.proto.tcp->local_ip, &ipconfig.ip, 4);
-        if (stationScan.manualIP[0] == 0)
-            memcpy(_stationConn.proto.tcp->remote_ip, &ipconfig.gw, 4);
-        else {
-            debugMsg(CONNECTION, "tcpConnect(): using manual IP\n");
-            memcpy(_stationConn.proto.tcp->remote_ip, &stationScan.manualIP, 4);
-        }
-        espconn_set_opt(&_stationConn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE); // low latency, but soaks up bandwidth
-*/
-        /*
-        debugMsg(CONNECTION, "tcpConnect(): connecting type=%d, state=%d, local_ip=%d.%d.%d.%d, local_port=%d, remote_ip=%d.%d.%d.%d remote_port=%d\n",
-                 _stationConn.type,
-                 _stationConn.state,
-                 IP2STR(_stationConn.proto.tcp->local_ip),
-                 _stationConn.proto.tcp->local_port,
-                 IP2STR(_stationConn.proto.tcp->remote_ip),
-                 _stationConn.proto.tcp->remote_port);
-                 */
-/*
-        espconn_regist_connectcb(&_stationConn, meshConnectedCb); // Register a connected callback which will be called on successful TCP connection (server or client)
-        espconn_regist_recvcb(&_stationConn, meshRecvCb); // Register data receive function which will be called back when data are received
-        espconn_regist_sentcb(&_stationConn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
-        espconn_regist_reconcb(&_stationConn, meshReconCb); // This callback is entered when an error occurs, TCP connection broken
-        espconn_regist_disconcb(&_stationConn, meshDisconCb); // Register disconnection function which will be called back under successful TCP disconnection
-*/
-        if (_station_got_ip) {
-            // TODO: TCP_FIX
-            /*sint8  errCode = espconn_connect(&_stationConn);
-            if (errCode != 0) {
-                debugMsg(ERROR, "tcpConnect(): err espconn_connect() falied=%d\n", errCode);
-            }*/
-        } else {
-            debugMsg(ERROR, "tcpConnect(): Haven't got an IP\n");
-        }
-    } else {
+     } else {
         debugMsg(ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");
     }
 }

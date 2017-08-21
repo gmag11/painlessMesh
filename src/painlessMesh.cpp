@@ -84,9 +84,9 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
 void ICACHE_FLASH_ATTR painlessMesh::stop() {
     // Close all connections
-    auto connection = _connections.begin();
-    while (connection != _connections.end()) {
-        connection = closeConnectionIt(_connections, connection);
+    while (_connections.size() > 0) {
+        auto connection = _connections.begin();
+        (*connection)->close();
     }
 
     // Stop scanning task 

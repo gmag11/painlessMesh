@@ -21,7 +21,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(std::shared_ptr<MeshConnection>
 
     String package = buildMeshPackage(destId, fromId, type, msg);
 
-    return sendPackage(conn, package, priority);
+    return conn->addMessage(package, priority);
 }
 
 //***********************************************************************
@@ -64,59 +64,6 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
         }
     }
     return errCode;
-}
-
-//***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(std::shared_ptr<MeshConnection> connection, String &package, bool priority) {
-    debugMsg(COMMUNICATION, "Sending to %u-->%s<--\n", connection->nodeId, package.c_str());
-
-    if (package.length() > 1400) {
-        debugMsg(ERROR, "sendPackage(): err package too long length=%d\n", package.length());
-        return false;
-    }
-
-    connection = findConnection(connection->nodeId);
-
-    if (connection) { // Protect against null pointer
-            // TODO: TCP_FIX
-            /*
-        if (connection->sendReady == true) {
-            int8_t errCode = espconn_send(connection->esp_conn, (uint8*)package.c_str(), package.length());
-            connection->sendReady = false;
-
-            if (errCode == 0) {
-                debugMsg(COMMUNICATION, "sendPackage(): Package sent -> %s\n", package.c_str());
-                return true;
-            } else {
-                debugMsg(ERROR, "sendPackage(): espconn_send Failed node=%u, err=%d\n", connection->nodeId, errCode);
-                return false;
-            }
-        } else {
-            if (ESP.getFreeHeap() - package.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
-                if (priority) {
-                    connection->sendQueue.push_front(package);
-                    debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue beginning -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
-                } else {
-                    if (connection->sendQueue.size() < MAX_MESSAGE_QUEUE) {
-                        connection->sendQueue.push_back(package);
-                        debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue end -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
-                    } else {
-                        debugMsg(ERROR, "sendPackage(): Message queue full -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
-                        return false;
-                    }
-
-                }
-                return true;
-            } else {
-                //connection->sendQueue.clear(); // Discard all messages if free memory is low
-                debugMsg(DEBUG, "sendPackage(): Memory low, message was discarded\n");
-                return false;
-            }
-        }
-            */
-    } else {
-        return false;
-    }
 }
 
 //***********************************************************************

@@ -121,7 +121,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
                 // Direct connection.
                 debugMsg(SYNC, "handleNodeSync(): Already connected, close connection %u.\n",
                         remoteNodeId);
-                closeConnection(oldConnection);
+                oldConnection->close();
             } else {
                 debugMsg(SYNC, "handleNodeSync(): Out of date subConnection information %u.\n",
                         remoteNodeId);

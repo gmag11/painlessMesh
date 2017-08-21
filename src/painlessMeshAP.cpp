@@ -59,8 +59,6 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
         debugMsg(STARTUP, "DHCP server started\n");
 
     // establish AP tcpServers
-    // TODO: TCP_FIX
-    //tcpServerInit(_tcpListener, meshConnectedCb, _meshPort);
     tcpServerInit();
 }
 

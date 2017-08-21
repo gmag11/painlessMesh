@@ -27,6 +27,13 @@ MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_statio
 
     tcp_sent(pcb, tcpSentCb);
 
+    tcp_err(pcb, [](void * arg, err_t err) {
+            if (arg == NULL)
+                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection NULL %d\n", err);
+            else
+                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %d\n", err);
+            });
+
     if (station) { // we are the station, start nodeSync
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
     } else {
@@ -53,11 +60,10 @@ MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_statio
         staticThis->debugMsg(SYNC, "nodeSyncTask(): \n");
         staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
                 this->nodeId);
-        /* TODO: TCPIP_FIX
-        String subs = staticThis->subConnectionJson(this);
-        staticThis->sendMessage(this, this->nodeId, 
+        auto saveConn = staticThis->findConnection(this->pcb);
+        String subs = staticThis->subConnectionJson(saveConn);
+        staticThis->sendMessage(saveConn, this->nodeId, 
                 staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
-                */
     });
     staticThis->scheduler.addTask(this->nodeSyncTask);
     if (station)
@@ -74,13 +80,57 @@ MeshConnection::~MeshConnection() {
 }
 
 void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
-    staticThis->debugMsg(ERROR, "MeshConnection::close(): not implemented.\n");
-    // Should set connected to false
-    // and call mesh->checkConnections();
+    staticThis->debugMsg(CONNECTION, "MeshConnection::close().\n");
+    this->timeSyncTask.setCallback(NULL);
+    this->nodeSyncTask.setCallback(NULL);
+    this->nodeTimeoutTask.setCallback(NULL);
+    this->nodeId = 0;
+
+    auto nodeId = this->nodeId;
+
+    mesh->droppedConnectionTask.set(TASK_SECOND, TASK_ONCE, [nodeId]() {
+        staticThis->debugMsg(CONNECTION, "closingTask():\n");
+        staticThis->debugMsg(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId, staticThis->getNodeTime());
+       if (staticThis->changedConnectionsCallback)
+            staticThis->changedConnectionsCallback(); // Connection dropped. Signal user            
+       if (staticThis->droppedConnectionCallback)
+            staticThis->droppedConnectionCallback(nodeId); // Connection dropped. Signal user            
+       for (auto &&connection : staticThis->_connections) {
+           if (connection->nodeId != nodeId) { // Exclude current
+               connection->nodeSyncTask.forceNextIteration();
+           }
+       }
+       staticThis->stability /= 2;
+    });
+    mesh->scheduler.addTask(staticThis->droppedConnectionTask);
+    mesh->droppedConnectionTask.enable();
+
+    if (close_pcb) {
+        mesh->debugMsg(ERROR, "close(): Closing pcb\n");
+        tcp_arg(this->pcb, NULL);
+        auto err = tcp_close(this->pcb);
+        if (err != ERR_OK) {
+            mesh->debugMsg(ERROR, "close(): Failed to close the connection\n");
+        }
+    }
+
+    this->connected = false;
+
+    if (station) {
+        staticThis->debugMsg(CONNECTION, "close(): call esp_wifi_disconnect().\n");
+        auto err = tcp_close(mesh->_tcpStationConnection);
+        if (err != ERR_OK) {
+            mesh->debugMsg(ERROR, "close(): Failed to close station connection\n");
+        }
+        // should start up automatically when station_status changes to IDLE
+        //
+        esp_wifi_disconnect();
+    }
+    mesh->eraseClosedConnections();
 }
 
 
-bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String message, bool priority) {
+bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority) {
     if (message.length() > 1400) {
         staticThis->debugMsg(ERROR, "addMessage(): err package too long length=%d\n", message.length());
         return false;
@@ -96,14 +146,19 @@ bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String message, bool priority)
                 staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
             } else {
                 staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+                if (sendReady)
+                    writeNext();
                 return false;
             }
-
         }
+        if (sendReady)
+            writeNext();
         return true;
     } else {
         //connection->sendQueue.clear(); // Discard all messages if free memory is low
         staticThis->debugMsg(DEBUG, "addMessage(): Memory low, message was discarded\n");
+        if (sendReady)
+            writeNext();
         return false;
     }
 }
@@ -121,6 +176,7 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         sendQueue.pop_front();
         return true;
     } else {
+        sendReady = false;
         staticThis->debugMsg(ERROR, "writeNext(): tcp_write Failed node=%u, err=%d\n", nodeId, errCode);
         return false;
     }
@@ -162,78 +218,16 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
     nodeDelayReceivedCallback = cb;
 }
 
-ConnectionList::iterator ICACHE_FLASH_ATTR 
-    painlessMesh::closeConnectionIt(ConnectionList &connections,
-        ConnectionList::iterator conn) {
-
-    // TODO: TCP_FIX
-    /**
-    auto connection = (*conn);
-    connection->timeSyncTask.setCallback(NULL);
-    connection->nodeSyncTask.setCallback(NULL);
-    connection->nodeTimeoutTask.setCallback(NULL);
-    connection->nodeId = 0;
-    auto nextIt = connections.erase(conn);
-
-    auto nodeId = connection->nodeId;
-
-    staticThis->droppedConnectionTask.set(TASK_SECOND, TASK_ONCE, [nodeId]() {
-        staticThis->debugMsg(CONNECTION, "closingTask():\n");
-        staticThis->debugMsg(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId, staticThis->getNodeTime());
-       if (staticThis->changedConnectionsCallback)
-            staticThis->changedConnectionsCallback(); // Connection dropped. Signal user            
-       if (staticThis->droppedConnectionCallback)
-            staticThis->droppedConnectionCallback(nodeId); // Connection dropped. Signal user            
-       for (auto &&connection : staticThis->_connections) {
-           if (connection->nodeId != nodeId) { // Exclude current
-               connection->nodeSyncTask.forceNextIteration();
-           }
-       }
-       staticThis->stability /= 2;
-    });
-    staticThis->scheduler.addTask(staticThis->droppedConnectionTask);
-    staticThis->droppedConnectionTask.enable();
-
-    if (connection->esp_conn && connection->esp_conn->state != ESPCONN_CLOSE) {
-        if (connection->esp_conn->proto.tcp->local_port == staticThis->_meshPort) {
-            espconn_regist_disconcb(connection->esp_conn, [](void *arg) {
-                staticThis->debugMsg(CONNECTION, "dummy disconcb(): AP connection.  No new action needed.\n");
-            });
-
-        } else {
-            espconn_regist_disconcb(connection->esp_conn, [](void *arg) {
-                staticThis->debugMsg(CONNECTION, "dummy disconcb(): Station Connection! Find new node.\n");
-                // should start up automatically when station_status changes to IDLE
-                esp_wifi_disconnect();
-            });
-        }
-        espconn_disconnect(connection->esp_conn);
-    }
-
-    return nextIt;
-    */
-    return conn;
-}
-
-//***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::closeConnection(std::shared_ptr<MeshConnection> conn) {
-    // A closed connection should (TODO: double check) result in a call to meshDisconCB, which will send sub sync messages
-    debugMsg(CONNECTION, "closeConnection(): conn-nodeId=%u, conn-no=%u, conn-use=%u\n", 
-            conn->nodeId, _connections.size(), conn.use_count());
-
-    bool found = false;
+void ICACHE_FLASH_ATTR painlessMesh::eraseClosedConnections() {
     auto connection = _connections.begin();
     while (connection != _connections.end()) {
-        if ((*connection) == conn) {
-            closeConnectionIt(_connections, connection);
-            found = true;
-            break;
+        if (!(*connection)->connected) {
+            connection = _connections.erase(connection);
+            debugMsg(CONNECTION, "eraseClosedConnections():\n");
+        } else {
+            ++connection;
         }
-        ++connection;
     }
-    debugMsg(CONNECTION, "closeConnection(): done, conn-no=%u, conn-use=%u\n",
-            _connections.size(), conn.use_count());
-    return found;
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
@@ -242,7 +236,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
     while (connection != _connections.end()) {
         if ((*connection)->station) {
             // We found the STA connection, close it
-            closeConnectionIt(_connections, connection);
+            (*connection)->close();
             return true;
         }
         ++connection;
@@ -329,14 +323,10 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
 
     String ret = "[";
     for (auto &&sub : connections) {
-        if (sub->pcb) {
-                // TODO: TCP_FIX && sub->esp_conn->state == ESPCONN_CLOSE) {
+        if (!sub->connected) {
             debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n", 
                     sub->nodeId);
             sub->nodeTimeoutTask.forceNextIteration();
-            // Close connection and start over
-            //closeConnection(sub);
-            //return subConnectionJsonHelper(_connections, exclude);
         } else if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
             if (ret.length() > 1)
                 ret += String(",");
@@ -389,73 +379,13 @@ SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
 }
 
 //***********************************************************************
-// callback which will be called on successful TCP connection (server or client)
-// If we are the station party a node time sync is started
-
-void ICACHE_FLASH_ATTR painlessMesh::meshConnectedCb(void *arg, tcp_pcb *new_pcb, err_t err) {
-    /*staticThis->debugMsg(CONNECTION, "meshConnectedCb(): new meshConnection !!!\n");
-    tcp_accepted(&_tcpListener);
-    auto conn = std::make_shared<MeshConnection>();
-    staticThis->_connections.push_back(conn);
-    //auto conn = staticThis->_connections.end()-1;
-    conn->esp_conn = new_pcb;
-    espconn_set_opt(conn->esp_conn, ESPCONN_NODELAY | ESPCONN_KEEPALIVE);  // removes nagle, low latency, but soaks up bandwidth
-    espconn_regist_recvcb(conn->esp_conn, meshRecvCb); // Register data receive function which will be called back when data are received
-    espconn_regist_sentcb(conn->esp_conn, meshSentCb); // Register data sent function which will be called back when data are successfully sent
-    espconn_regist_reconcb(conn->esp_conn, meshReconCb); // This callback is entered when an error occurs, TCP connection broken
-    espconn_regist_disconcb(conn->esp_conn, meshDisconCb); // Register disconnection function which will be called back under successful TCP disconnection
-
-    auto sta = true;
-    if (conn->esp_conn->proto.tcp->local_port != staticThis->_meshPort) { // we are the station, start nodeSync
-        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
-    } else {
-        sta = false;
-        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");
-    }
-
-    conn->nodeTimeoutTask.set(
-            NODE_TIMEOUT, TASK_ONCE, [conn](){
-        staticThis->debugMsg(CONNECTION, "nodeTimeoutTask():\n");
-        staticThis->debugMsg(CONNECTION, "nodeTimeoutTask(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
-
-        staticThis->closeConnection(conn);
-            });
-
-    staticThis->scheduler.addTask(conn->nodeTimeoutTask);
-    conn->nodeTimeoutTask.enableDelayed();
-
-    auto syncInterval = NODE_TIMEOUT/2;
-    if (!sta)
-        syncInterval = NODE_TIMEOUT*2;
-
-    conn->nodeSyncTask.set(
-            syncInterval, TASK_FOREVER, [conn](){
-        staticThis->debugMsg(SYNC, "nodeSyncTask(): \n");
-        staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
-                conn->nodeId);
-        String subs = staticThis->subConnectionJson(conn);
-        staticThis->sendMessage(conn, conn->nodeId, 
-                staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
-    });
-    staticThis->scheduler.addTask(conn->nodeSyncTask);
-    if (sta)
-        conn->nodeSyncTask.enable();
-    else
-        conn->nodeSyncTask.enableDelayed();
-    staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
-    */
-}
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::meshRecvCb(void *arg, char *data, unsigned short length) {
-}
-
 err_t ICACHE_FLASH_ATTR tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len) {
     if (arg == NULL) {
         staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
         return ERR_OK;
     }
     auto conn = static_cast<MeshConnection*>(arg);
+    conn->sendReady = true;
     conn->writeNext();
     return ESP_OK;
 }
@@ -464,8 +394,9 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
                               struct pbuf *p, err_t err) {
     if (arg == NULL) {
         staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
-        free(p);
-        return ERR_OK;
+        //free(p);
+        staticThis->debugMsg(COMMUNICATION, "meshRecvCb()2: no valid connection found\n");
+        return !ERR_OK;
     }
     auto receiveConn = static_cast<MeshConnection*>(arg);
     if (p == NULL) {
@@ -501,147 +432,57 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. data=%s<--\n", data);
         return ERR_OK;
     }
-    free(data);
+    //free(data);
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
 
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", system_get_time(), receiveConn->nodeId, t_message);
 
+    auto rConn = staticThis->findConnection(receiveConn->pcb);
     switch (t_message) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
-        //staticThis->handleNodeSync(receiveConn, root);
+        // TODO: These findConnections are not the most efficient way of doing it.
+        staticThis->handleNodeSync(rConn, root);
         break;
 
     case TIME_SYNC:
-        //staticThis->handleTimeSync(receiveConn, root, receivedAt);
+        staticThis->handleTimeSync(rConn, root, receivedAt);
         break;
 
     case SINGLE:
     case TIME_DELAY:
         if ((uint32_t)root["dest"] == staticThis->getNodeId()) {  // msg for us!
             if (t_message == TIME_DELAY) {
-                //staticThis->handleTimeDelay(receiveConn, root, receivedAt);
+                staticThis->handleTimeDelay(rConn, root, receivedAt);
             } else {
                 if (staticThis->receivedCallback)
                     staticThis->receivedCallback((uint32_t)root["from"], msg);
             }
         } else {                                                    // pass it along
-            //staticThis->sendMessage( (uint32_t)root["dest"], (uint32_t)root["from"], SINGLE, msg );  //this is ineffiecnt
             String tempStr;
             root.printTo(tempStr);
-            std::shared_ptr<MeshConnection> conn = staticThis->findConnection((uint32_t)root["dest"]);
+            auto conn = staticThis->findConnection((uint32_t)root["dest"]);
             if (conn) {
-                staticThis->sendPackage(conn, tempStr);
+                conn->addMessage(tempStr);
                 staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
             }
         }
         break;
 
     case BROADCAST:
-        //staticThis->broadcastMessage((uint32_t)root["from"], BROADCAST, msg, receiveConn);
+        staticThis->broadcastMessage((uint32_t)root["from"], BROADCAST, msg, rConn);
         if (staticThis->receivedCallback)
             staticThis->receivedCallback((uint32_t)root["from"], msg);
         break;
 
     default:
         staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
-        return ERR_OK;
     }
 
+    free(data);
     return ERR_OK;
-}
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::meshSentCb(void *arg) {
-    staticThis->debugMsg(GENERAL, "meshSentCb():\n");    //data sent successfully
-    tcp_pcb *conn = (tcp_pcb*)arg;
-    auto meshConnection = staticThis->findConnection(conn);
-
-    if (!meshConnection) {
-        staticThis->debugMsg(ERROR, "meshSentCb(): err did not find meshConnection? Likely it was dropped for some reason\n");
-        return;
-    }
-    
-    if (!meshConnection->sendQueue.empty()) {
-        for (int i = 0; i < MAX_CONSECUTIVE_SEND; ++i) {
-            String package = *meshConnection->sendQueue.begin();
-
-            // TODO: TCP_FIX
-            /*
-            int8_t errCode = espconn_send(meshConnection->esp_conn, 
-                    (uint8*)package.c_str(), package.length());
-            if (errCode != 0) {
-                staticThis->debugMsg(CONNECTION, "meshSentCb(): espconn_send failed with err=%d Queue size %d. Will retry later\n", errCode, meshConnection->sendQueue.size());
-                break;
-            }*/
-
-            meshConnection->sendQueue.pop_front();
-
-            if (meshConnection->sendQueue.empty())
-                break;
-        }
-    } else {
-        //meshConnection->sendReady = true;
-    }
-}
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::meshDisconCb(void *arg) {
-    struct tcp_pcb *disConn = (tcp_pcb *)arg;
-
-    staticThis->debugMsg(CONNECTION, "meshDisconCb(): ");
-
-    auto connection = staticThis->findConnection(disConn);
-    if (connection) {
-        // Still connected, need to officially disconnect first
-        staticThis->closeConnection(connection);
-
-        //test to see if this connection was on the STATION interface by checking the local port
-        if (disConn->local_port == staticThis->_meshPort) {
-            staticThis->debugMsg(CONNECTION, "AP connection.  No new action needed. local_port=%d\n", disConn->local_port);
-
-        } else {
-            staticThis->debugMsg(CONNECTION, "Station Connection! Find new node. local_port=%d\n", disConn->local_port);
-            // should start up automatically when station_status changes to IDLE
-            //staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-            esp_wifi_disconnect();
-        }
-    } else {
-        // Sometimes we can't find the matching connection by disConn, but
-        // turns out that there is then still a closed connection somewhere that we need to close
-        // This seems to be an error in the espconn library
-        staticThis->debugMsg(ERROR, "meshDisconCb(): Invalid state\n");
-        auto connection = staticThis->_connections.begin();
-        while (connection != staticThis->_connections.end()) {
-            // TODO: TCP_FIX
-            /*
-            if ((*connection)->esp_conn->state == ESPCONN_CLOSE) {
-                staticThis->closeConnectionIt(staticThis->_connections, connection);
-                break;
-            }*/
-            ++connection;
-        }
-    }
-
-    return;
-}
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::meshReconCb(void *arg, int8_t err) {
-    // Doing nothing, mesh should recover
-    staticThis->debugMsg(CONNECTION, "meshReconCb(): err=%d.\n", err);
-    /*staticThis->debugMsg(CONNECTION, "meshReconCb(): err=%d. Forwarding to meshDisconCb\n", err);
-    struct espconn *disConn = (espconn *)arg;
-    auto conn = staticThis->findConnection(disConn);
-    if (conn) {
-        staticThis->debugMsg(ERROR, "meshReconCb(): err=%d. Closing failed connection\n", err);
-        staticThis->closeConnection(conn);
-    } else {
-        staticThis->debugMsg(ERROR, "meshReconCb(): err=%d. Forwarding to meshDisconCb\n", err);
-        meshDisconCb(arg);
-    }*/
 }
 
 //***********************************************************************

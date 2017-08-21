@@ -19,8 +19,9 @@ class MeshConnection {
 
         uint32_t            timeDelayLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
 
-        bool                addMessage(String message, bool priority);
+        bool                addMessage(String &message, bool priority = false);
         bool                writeNext();
+        bool                sendReady = true;
         SimpleList<String>  sendQueue;
 
         Task nodeTimeoutTask;
