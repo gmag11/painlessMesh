@@ -30,6 +30,8 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
 
     tcp_sent(pcb, tcpSentCb);
 
+    tcp_nagle_disable(pcb);
+
     tcp_poll(pcb, [](void * arg, tcp_pcb * tpcb) -> err_t {
         if (arg == NULL) {
             staticThis->debugMsg(COMMUNICATION, "tcp_poll(): no valid connection found\n");
@@ -183,18 +185,31 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         return false;
     }
     String package = (*sendQueue.begin());
-    auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), 
-            package.length(), TCP_WRITE_FLAG_COPY);
-    if (errCode == ERR_OK) {
-        staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
-        sendQueue.pop_front();
-        writeNext();
-        return true;
+    auto len = tcp_sndbuf(pcb);
+    if (package.length() < len) {
+
+        if (len > (2*pcb->mss)) {
+            len = 2*pcb->mss;
+            staticThis->debugMsg(ERROR, "writeNext(): Reducing length\n");
+        }
+        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, 0);//TCP_WRITE_FLAG_COPY);
+        tcp_output(pcb);
+        if (errCode == ERR_OK) {
+            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
+            sendQueue.pop_front();
+            writeNext();
+            return true;
+        } else {
+            sendReady = false;
+            staticThis->debugMsg(ERROR, "writeNext(): tcp_write Failed node=%u, err=%d. Resending later\n", nodeId, errCode);
+            return false;
+        }
     } else {
         sendReady = false;
-        staticThis->debugMsg(ERROR, "writeNext(): tcp_write Failed node=%u, err=%d\n", nodeId, errCode);
+        staticThis->debugMsg(COMMUNICATION, "writeNext(): tcp_sndbuf not enough space\n");
         return false;
     }
+
 }
 
 // connection managment functions
@@ -409,8 +424,6 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
                               struct pbuf *p, err_t err) {
     if (arg == NULL) {
         staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
-        //free(p);
-        staticThis->debugMsg(COMMUNICATION, "meshRecvCb()2: no valid connection found\n");
         return !ERR_OK;
     }
     auto receiveConn = static_cast<MeshConnection*>(arg);
@@ -427,6 +440,10 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     receiveConn->nodeTimeoutTask.delay();
 
     size_t total_length = p->tot_len;
+    if (total_length == 0) {
+        pbuf_free(p);
+        return ERR_OK;
+    }
     auto p_start = p;
     char* data = new char[p->tot_len+1];
     data[p->tot_len] = '\0';
@@ -446,7 +463,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(data);
     if (!root.success()) {   // Test if parsing succeeded.
-        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. data=%s<--\n", data);
+        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", total_length, data);
         return ERR_OK;
     }
 
