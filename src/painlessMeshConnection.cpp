@@ -190,21 +190,16 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         return false;
     }
     String package = (*sendQueue.begin());
-    auto len = tcp_sndbuf(pcb);
-    if (package.length() < len) {
-
-        /*
-        if (len > (2*pcb->mss)) {
-            len = 2*pcb->mss;
-            staticThis->debugMsg(ERROR, "writeNext(): Reducing length\n");
-        }*/
-        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, TCP_WRITE_FLAG_COPY);
-        //auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, 0);
-        tcp_output(pcb);
+    // TODO: split package up if it doesn't fit.
+    if (package.length() + 1 < tcp_sndbuf(pcb)) {
+        char* data = new char[package.length() + 1];
+        package.toCharArray(data, package.length());
+        data[package.length()] = '\0';
+        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), package.length() + 1, TCP_WRITE_FLAG_COPY);
         if (errCode != ERR_MEM) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
             sendQueue.pop_front();
-            sendReady = false;
+            writeNext();
             return true;
         } else {
             sendReady = false;
