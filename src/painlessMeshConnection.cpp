@@ -46,9 +46,16 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
     tcp_err(pcb, [](void * arg, err_t err) {
             if (arg == NULL)
                 staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection NULL %d\n", err);
-            else
+            else {
                 staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %d\n", err);
-            });
+                if (err == ERR_ABRT || 
+                        err == ERR_RST) {
+                    staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection closing\n");
+                    auto conn = static_cast<MeshConnection*>(arg);
+                    conn->close(false);
+                }
+            }
+        });
 
     if (station) { // we are the station, start nodeSync
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
@@ -64,8 +71,8 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
         this->close();
     });
 
-    staticThis->scheduler.addTask(this->nodeTimeoutTask);
-    this->nodeTimeoutTask.enableDelayed();
+    //staticThis->scheduler.addTask(this->nodeTimeoutTask);
+    //this->nodeTimeoutTask.enableDelayed();
 
     auto syncInterval = NODE_TIMEOUT/2;
     if (!station)
@@ -134,9 +141,11 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
 
     if (station) {
         staticThis->debugMsg(CONNECTION, "close(): call esp_wifi_disconnect().\n");
-        auto err = tcp_close(mesh->_tcpStationConnection);
-        if (err != ERR_OK) {
-            mesh->debugMsg(ERROR, "close(): Failed to close station connection\n");
+        if (close_pcb) {
+            auto err = tcp_close(mesh->_tcpStationConnection);
+            if (err != ERR_OK) {
+                mesh->debugMsg(ERROR, "close(): Failed to close station connection\n");
+            }
         }
         // should start up automatically when station_status changes to IDLE
         //
@@ -188,13 +197,14 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     auto len = tcp_sndbuf(pcb);
     if (package.length() < len) {
 
+        /*
         if (len > (2*pcb->mss)) {
             len = 2*pcb->mss;
             staticThis->debugMsg(ERROR, "writeNext(): Reducing length\n");
-        }
-        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, 0);//TCP_WRITE_FLAG_COPY);
+        }*/
+        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, 1);//TCP_WRITE_FLAG_COPY);
         tcp_output(pcb);
-        if (errCode == ERR_OK) {
+        if (errCode != ERR_MEM) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
             sendQueue.pop_front();
             writeNext();
@@ -437,7 +447,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
 
     // reset timeout 
-    receiveConn->nodeTimeoutTask.delay();
+    receiveConn->nodeTimeoutTask.delay(NODE_TIMEOUT);
 
     size_t total_length = p->tot_len;
     if (total_length == 0) {
@@ -470,7 +480,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%d type=%d\n", staticThis->getNodeTime(), receiveConn->nodeId, t_message);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%u type=%d\n", staticThis->getNodeTime(), receiveConn->nodeId, t_message);
 
     auto rConn = staticThis->findConnection(receiveConn->pcb);
     switch (t_message) {
@@ -533,9 +543,9 @@ int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *e
     case SYSTEM_EVENT_STA_DISCONNECTED:
         staticThis->_station_got_ip = false;
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_DISCONNECTED\n");
-        staticThis->closeConnectionSTA();
-        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
+        //staticThis->closeConnectionSTA();
         esp_wifi_disconnect(); // Make sure we are disconnected
+        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
         break;
     case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_AUTHMODE_CHANGE\n");
