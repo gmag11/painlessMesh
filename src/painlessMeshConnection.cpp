@@ -139,16 +139,12 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
 
     this->connected = false;
 
-    if (station) {
+    if (station && close_pcb) {
         staticThis->debugMsg(CONNECTION, "close(): call esp_wifi_disconnect().\n");
-        if (close_pcb) {
-            auto err = tcp_close(mesh->_tcpStationConnection);
-            if (err != ERR_OK) {
-                mesh->debugMsg(ERROR, "close(): Failed to close station connection\n");
-            }
+        auto err = tcp_close(mesh->_tcpStationConnection);
+        if (err != ERR_OK) {
+            mesh->debugMsg(ERROR, "close(): Failed to close station connection\n");
         }
-        // should start up automatically when station_status changes to IDLE
-        //
         esp_wifi_disconnect();
     }
     mesh->eraseClosedConnections();
@@ -202,12 +198,13 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
             len = 2*pcb->mss;
             staticThis->debugMsg(ERROR, "writeNext(): Reducing length\n");
         }*/
-        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, 1);//TCP_WRITE_FLAG_COPY);
+        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, TCP_WRITE_FLAG_COPY);
+        //auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, 0);
         tcp_output(pcb);
         if (errCode != ERR_MEM) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
             sendQueue.pop_front();
-            writeNext();
+            sendReady = false;
             return true;
         } else {
             sendReady = false;
@@ -474,6 +471,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     JsonObject& root = jsonBuffer.parseObject(data);
     if (!root.success()) {   // Test if parsing succeeded.
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", total_length, data);
+        delete data;
         return ERR_OK;
     }
 
@@ -524,7 +522,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
         staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
     }
 
-    free(data);
+    delete data;
     return ERR_OK;
 }
 
@@ -544,7 +542,9 @@ int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *e
         staticThis->_station_got_ip = false;
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_DISCONNECTED\n");
         //staticThis->closeConnectionSTA();
+#ifdef ESP8266
         esp_wifi_disconnect(); // Make sure we are disconnected
+#endif
         staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
         break;
     case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
