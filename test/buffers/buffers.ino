@@ -27,6 +27,10 @@ void test_string_split() {
     TEST_ASSERT_EQUAL(s3.length(), 9);
     TEST_ASSERT(s3.equals(String("ghiabcdef")));
 
+    char v1[6] = {'a', 'b', 'c', 'd', 'e', 'f'};
+    s1 = String(v1);
+    TEST_ASSERT_EQUAL(s1.length(), 6);
+
     // Next step is make sure we can actually send '\0' over tcp
 }
 
@@ -68,6 +72,13 @@ void test_string_parse() {
     rb.push(c4, 8);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 3);
+
+    rb.clear();
+    const char v1[4] = {'a', 'b', '\0', 'c'};
+    rb.push(v1, 4);
+    TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
+    TEST_ASSERT(rb.front().equals("ab"));
+    TEST_ASSERT_EQUAL(rb.buffer.length(), 1);
 }
 
 // Test freeing pbuf afterwards

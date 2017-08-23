@@ -19,14 +19,17 @@ ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
+    char *data = new char[length+1];
+    data[length] = '\0';
+    memcpy(data, cstr, length);
     do {
-        auto newBuffer = String(cstr);
+        auto newBuffer = String(data);
         buffer.concat(newBuffer);
         length -= newBuffer.length();
-        cstr += newBuffer.length();
+        data += newBuffer.length();
         if (length > 0) {
             length -= 1;
-            cstr += 1;
+            data += 1;
             if (buffer.length() > 0) { // skip empty buffers
                 jsonStrings.push_back(buffer);
                 buffer = String();
@@ -499,11 +502,14 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     auto p_start = p;
     char* data = new char[p->tot_len+1];
     data[p->tot_len] = '\0';
-    memcpy(data, p->payload, p->len);
-    while (p->next) {
-        char* curr_i = &data[p->len];
-        p = p->next;
+    char* curr_i = data;
+    while (true) {
         memcpy(curr_i, p->payload, p->len);
+        curr_i = curr_i + p->len;
+        if (p->next)
+            p = p->next;
+        else
+            break;
     }
 
     pbuf_free(p_start);
