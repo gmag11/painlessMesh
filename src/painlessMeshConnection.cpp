@@ -39,10 +39,11 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p) {
+    auto curr_p = p;
     do {
-        push(static_cast<const char*>(p->payload), p->len);
-        if (p->next != NULL)
-            p = p->next;
+        push(static_cast<const char*>(curr_p->payload), curr_p->len);
+        if (curr_p->next != NULL)
+            curr_p = curr_p->next;
         else
             break;
     } while(true);
@@ -83,7 +84,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
 
     tcp_sent(pcb, tcpSentCb);
 
-    tcp_nagle_disable(pcb);
+    //tcp_nagle_disable(pcb);
 
     tcp_poll(pcb, [](void * arg, tcp_pcb * tpcb) -> err_t {
         if (arg == NULL) {
@@ -146,7 +147,21 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
         this->nodeSyncTask.enable();
     else
         this->nodeSyncTask.enableDelayed();
+
+    readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
+        if (!this->receiveBuffer.empty()) {
+            String frnt = this->receiveBuffer.front();
+            this->handleMessage(frnt, staticThis->getNodeTime());
+            this->receiveBuffer.pop_front();
+            if (!this->receiveBuffer.empty())
+                this->readBufferTask.forceNextIteration();
+        }
+    });
+    staticThis->scheduler.addTask(readBufferTask);
+    readBufferTask.enable();
+    
     staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
+    receiveBuffer = ReceiveBuffer();
 }
 
 ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
@@ -160,6 +175,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
     this->timeSyncTask.setCallback(NULL);
     this->nodeSyncTask.setCallback(NULL);
     this->nodeTimeoutTask.setCallback(NULL);
+    this->readBufferTask.setCallback(NULL);
     this->nodeId = 0;
 
     auto nodeId = this->nodeId;
@@ -246,9 +262,10 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     // TODO: split package up if it doesn't fit.
     if (package.length() + 1 < tcp_sndbuf(pcb)) {
         char* data = new char[package.length() + 1];
-        package.toCharArray(data, package.length());
-        data[package.length()] = '\0';
+        package.toCharArray(data, package.length() + 1);
+        //data[package.length()+1] = '\0';
         auto errCode = tcp_write(pcb, static_cast<const void*>(data), package.length() + 1, TCP_WRITE_FLAG_COPY);
+        delete data;
         if (errCode != ERR_MEM) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
             sendQueue.pop_front();
@@ -499,39 +516,33 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
         pbuf_free(p);
         return ERR_OK;
     }
-    auto p_start = p;
-    char* data = new char[p->tot_len+1];
-    data[p->tot_len] = '\0';
-    char* curr_i = data;
-    while (true) {
-        memcpy(curr_i, p->payload, p->len);
-        curr_i = curr_i + p->len;
-        if (p->next)
-            p = p->next;
-        else
-            break;
-    }
 
-    pbuf_free(p_start);
+    receiveConn->receiveBuffer.push(p);
+    pbuf_free(p);
 
     // Signal that we are done
     tcp_recved(receiveConn->pcb, total_length);
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", receiveConn->nodeId, data);
+
+    receiveConn->readBufferTask.forceNextIteration(); 
+    return ERR_OK;
+}
+
+void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
     DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(data);
+    JsonObject& root = jsonBuffer.parseObject(buffer);
     if (!root.success()) {   // Test if parsing succeeded.
-        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", total_length, data);
-        delete data;
-        return ERR_OK;
+        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.c_str());
+        return;
     }
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%u type=%d\n", staticThis->getNodeTime(), receiveConn->nodeId, t_message);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%u type=%d\n", staticThis->getNodeTime(), this->nodeId, t_message);
 
-    auto rConn = staticThis->findConnection(receiveConn->pcb);
+    auto rConn = staticThis->findConnection(this->pcb);
     switch (t_message) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
@@ -572,9 +583,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     default:
         staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
     }
-
-    delete data;
-    return ERR_OK;
+    return;
 }
 
 //***********************************************************************

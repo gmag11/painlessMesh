@@ -47,13 +47,17 @@ class MeshConnection {
         bool                writeNext();
         bool                sendReady = true;
         SimpleList<String>  sendQueue;
+        ReceiveBuffer       receiveBuffer;
 
         Task nodeTimeoutTask;
         Task nodeSyncTask;
         Task timeSyncTask;
+        Task readBufferTask;
 
         MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool station);
         ~MeshConnection();
+
+        void handleMessage(String &msg, uint32_t receivedAt);
 
         void close(bool close_pcb = true);
         friend class painlessMesh;
