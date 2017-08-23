@@ -6,6 +6,8 @@
 
 #include "espInterface.h"
 
+#include<string>
+
 /** 
  * \brief ReceivedBuffer handles pbuf pointers.
  *
@@ -15,15 +17,15 @@
  */
 class ReceiveBuffer {
     public:
-        String buffer;
-        SimpleList<String> jsonStrings;
+        std::string buffer;
+        SimpleList<std::string> jsonStrings;
 
         ReceiveBuffer();
         
         void push(const char * cstr, size_t length);
         void push(pbuf *p);
 
-        String front();
+        std::string front();
         void pop_front();
 
         bool empty();
@@ -57,7 +59,7 @@ class MeshConnection {
         MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool station);
         ~MeshConnection();
 
-        void handleMessage(String &msg, uint32_t receivedAt);
+        void handleMessage(std::string &msg, uint32_t receivedAt);
 
         void close(bool close_pcb = true);
         friend class painlessMesh;

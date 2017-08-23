@@ -15,44 +15,50 @@
 extern painlessMesh* staticThis;
 
 ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
-    buffer = String();
+    buffer = std::string();
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
-    char *data = new char[length+1];
-    data[length] = '\0';
-    memcpy(data, cstr, length);
+    auto data_ptr = cstr;
     do {
-        auto newBuffer = String(data);
-        buffer.concat(newBuffer);
+        auto len = strnlen(data_ptr, length);
+        //char *cbuf = new char[len+1];
+        char *cbuf = (char *) malloc((len+1)*sizeof(char));
+        memcpy(cbuf, data_ptr, len);
+        cbuf[len] = '\0';
+        auto newBuffer = std::string(cbuf);
+        buffer += newBuffer;
         length -= newBuffer.length();
-        data += newBuffer.length();
+        data_ptr += newBuffer.length();
         if (length > 0) {
             length -= 1;
-            data += 1;
+            data_ptr += 1;
             if (buffer.length() > 0) { // skip empty buffers
                 jsonStrings.push_back(buffer);
-                buffer = String();
+                buffer = std::string();
             }
-        }    
+        }
+        free(cbuf); // free works, creating with new char[] and delete[] doesn't
+                    // Not sure why
     } while (length > 0);
+    staticThis->debugMsg(ERROR, "ReceiveBuffer::push(): buffer size=%u, %u\n", jsonStrings.size(), buffer.length());
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p) {
     auto curr_p = p;
     do {
         push(static_cast<const char*>(curr_p->payload), curr_p->len);
-        if (curr_p->next != NULL)
+        if (curr_p->len != curr_p->tot_len && curr_p->next != NULL)
             curr_p = curr_p->next;
         else
             break;
     } while(true);
 }
 
-String ICACHE_FLASH_ATTR ReceiveBuffer::front() {
+std::string ICACHE_FLASH_ATTR ReceiveBuffer::front() {
     if (!empty())
         return (*jsonStrings.begin());
-    return String();
+    return std::string();
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::pop_front() {
@@ -65,10 +71,10 @@ bool ICACHE_FLASH_ATTR ReceiveBuffer::empty() {
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
     jsonStrings.clear();
-    buffer = String();
+    buffer = std::string();
 }
 
-err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf * p, err_t err);
+err_t meshRecvCb(void * arg, tcp_pcb * tpcb, pbuf * p, err_t err);
 err_t tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len);
 
 ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_station) {
@@ -125,8 +131,8 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
         this->close();
     });
 
-    //staticThis->scheduler.addTask(this->nodeTimeoutTask);
-    //this->nodeTimeoutTask.enableDelayed();
+    staticThis->scheduler.addTask(this->nodeTimeoutTask);
+    this->nodeTimeoutTask.enableDelayed();
 
     auto syncInterval = NODE_TIMEOUT/2;
     if (!station)
@@ -150,7 +156,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
 
     readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
         if (!this->receiveBuffer.empty()) {
-            String frnt = this->receiveBuffer.front();
+            std::string frnt = this->receiveBuffer.front();
             this->handleMessage(frnt, staticThis->getNodeTime());
             this->receiveBuffer.pop_front();
             if (!this->receiveBuffer.empty())
@@ -263,9 +269,9 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     if (package.length() + 1 < tcp_sndbuf(pcb)) {
         char* data = new char[package.length() + 1];
         package.toCharArray(data, package.length() + 1);
-        //data[package.length()+1] = '\0';
+        data[package.length()] = '\0';
         auto errCode = tcp_write(pcb, static_cast<const void*>(data), package.length() + 1, TCP_WRITE_FLAG_COPY);
-        delete data;
+        delete[] data;
         if (errCode != ERR_MEM) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
             sendQueue.pop_front();
@@ -492,8 +498,8 @@ err_t ICACHE_FLASH_ATTR tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len) {
     return ESP_OK;
 }
 
-err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
-                              struct pbuf *p, err_t err) {
+err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, tcp_pcb * tpcb,
+                              pbuf *p, err_t err) {
     if (arg == NULL) {
         staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
         return !ERR_OK;
@@ -527,11 +533,11 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     return ERR_OK;
 }
 
-void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
+void ICACHE_FLASH_ATTR MeshConnection::handleMessage(std::string &buffer, uint32_t receivedAt) {
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
     DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(buffer);
+    JsonObject& root = jsonBuffer.parseObject(buffer.c_str());
     if (!root.success()) {   // Test if parsing succeeded.
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.c_str());
         return;
