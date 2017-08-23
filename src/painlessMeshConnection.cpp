@@ -191,7 +191,7 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     }
     String package = (*sendQueue.begin());
     auto len = tcp_sndbuf(pcb);
-    if (package.length() < len) {
+    if (package.length() + 1 < len) {
 
         /*
         if (len > (2*pcb->mss)) {
@@ -454,11 +454,14 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     auto p_start = p;
     char* data = new char[p->tot_len+1];
     data[p->tot_len] = '\0';
-    memcpy(data, p->payload, p->len);
-    while (p->next) {
-        char* curr_i = &data[p->len];
-        p = p->next;
+    char* curr_i = data;
+    while (true) {
         memcpy(curr_i, p->payload, p->len);
+        curr_i = curr_i + p->len;
+        if (p->next)
+            p = p->next;
+        else
+            break;
     }
 
     pbuf_free(p_start);
