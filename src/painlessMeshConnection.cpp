@@ -14,20 +14,55 @@
 
 extern painlessMesh* staticThis;
 
-ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {};
+ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
+    buffer = String();
+}
 
-void ICACHE_FLASH_ATTR push(const char * cstr, size_t length) {
-    buffer = String(cstr);
-    if (buffer.length() < length) {
-        jsonStrings.push_back(buffer);
-        buffer = String();
-    }
+void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
+    do {
+        auto newBuffer = String(cstr);
+        buffer.concat(newBuffer);
+        length -= newBuffer.length();
+        cstr += newBuffer.length();
+        if (length > 0) {
+            length -= 1;
+            cstr += 1;
+            if (buffer.length() > 0) { // skip empty buffers
+                jsonStrings.push_back(buffer);
+                buffer = String();
+            }
+        }    
+    } while (length > 0);
+}
+
+void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p) {
+    do {
+        push(static_cast<const char*>(p->payload), p->len);
+        if (p->next != NULL)
+            p = p->next;
+        else
+            break;
+    } while(true);
+}
+
+String ICACHE_FLASH_ATTR ReceiveBuffer::front() {
+    if (!empty())
+        return (*jsonStrings.begin());
+    return String();
+}
+
+void ICACHE_FLASH_ATTR ReceiveBuffer::pop_front() {
+    jsonStrings.pop_front();
+}
+
+bool ICACHE_FLASH_ATTR ReceiveBuffer::empty() {
+    return jsonStrings.empty();
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
     jsonStrings.clear();
     buffer = String();
-};
+}
 
 err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf * p, err_t err);
 err_t tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len);
@@ -210,7 +245,7 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         char* data = new char[package.length() + 1];
         package.toCharArray(data, package.length());
         data[package.length()] = '\0';
-        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), package.length() + 1, TCP_WRITE_FLAG_COPY);
+        auto errCode = tcp_write(pcb, static_cast<const void*>(data), package.length() + 1, TCP_WRITE_FLAG_COPY);
         if (errCode != ERR_MEM) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
             sendQueue.pop_front();

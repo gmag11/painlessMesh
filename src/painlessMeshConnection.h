@@ -18,11 +18,15 @@ class ReceiveBuffer {
         String buffer;
         SimpleList<String> jsonStrings;
 
-        ReceivedBuffer();
+        ReceiveBuffer();
         
         void push(const char * cstr, size_t length);
         void push(pbuf *p);
 
+        String front();
+        void pop_front();
+
+        bool empty();
         void clear();
 };
 

@@ -36,11 +36,81 @@ void test_string_parse() {
     rb.push(c1, 7);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
+    TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdef"));
+    rb.push(c1, 7);
+    TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 2);
+    TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
+
+    const char* c2 = "\0abcdef";
+    rb.push(c2, 7);
+    TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 2);
+    TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
+
+    const char* c3 = "ghi\0abcdef";
+    rb.push(c3, 10);
+    TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 3);
+    TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdefghi"));
+    TEST_ASSERT_EQUAL((rb.jsonStrings.end() - 1)->length(), 9);
+    TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
+
+    rb.push(c2, 7);
+    TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 4);
+    TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdef"));
+    TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
+
+
+    rb.clear();
+    TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 0);
+    TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
+
+    // Skip empty
+    const char* c4 = "abc\0\0def";
+    rb.push(c4, 8);
+    TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
+    TEST_ASSERT_EQUAL(rb.buffer.length(), 3);
 }
 
-// Test that it correctly starts a new buffer if last part of payload is \0
-
 // Test freeing pbuf afterwards
+void test_pbuf_parse() {
+    pbuf *p1 = pbuf_alloc(PBUF_RAW, 7, PBUF_POOL);
+    pbuf *p2 = pbuf_alloc(PBUF_RAW, 17, PBUF_POOL);
+    pbuf *p3 = pbuf_alloc(PBUF_RAW, 7, PBUF_POOL);
+
+    p1->len = 7;
+    p1->payload = (void*)"abcdef\0";
+    p1->tot_len = 7;
+
+    p2->len = 10;
+    p2->payload = (void*)"ghi\0jklmno";
+    p2->tot_len = 17;
+
+    p3->len = 7;
+    p3->payload = (void*)"pqr\0stu";
+    p3->tot_len = 7;
+
+    pbuf_cat(p2, p3);
+    TEST_ASSERT(p2->next != NULL);
+
+    auto rb = ReceiveBuffer();
+    rb.push(p1);
+    TEST_ASSERT_EQUAL(1, rb.jsonStrings.size());
+    TEST_ASSERT_EQUAL(0, rb.buffer.length());
+
+    rb.push(p2);
+    TEST_ASSERT_EQUAL(3, rb.jsonStrings.size());
+    TEST_ASSERT_EQUAL(3, rb.buffer.length());
+
+    //pbuf_free(p1); //This seems to crash always.
+    //pbuf_free(p2);
+
+    TEST_ASSERT(rb.front().equals("abcdef"));
+    rb.pop_front();
+    TEST_ASSERT(rb.front().equals("ghi"));
+    rb.pop_front();
+    TEST_ASSERT(rb.front().equals("jklmnopqr"));
+    rb.pop_front();
+    TEST_ASSERT(rb.empty());
+}
 
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
@@ -49,6 +119,7 @@ void setup() {
 void loop() {
     RUN_TEST(test_string_split);
     RUN_TEST(test_string_parse);
+    RUN_TEST(test_pbuf_parse);
     UNITY_END(); // stop unit testing
 }
 #endif
