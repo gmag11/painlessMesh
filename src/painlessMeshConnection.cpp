@@ -14,6 +14,21 @@
 
 extern painlessMesh* staticThis;
 
+ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {};
+
+void ICACHE_FLASH_ATTR push(const char * cstr, size_t length) {
+    buffer = String(cstr);
+    if (buffer.length() < length) {
+        jsonStrings.push_back(buffer);
+        buffer = String();
+    }
+}
+
+void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
+    jsonStrings.clear();
+    buffer = String();
+};
+
 err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf * p, err_t err);
 err_t tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len);
 

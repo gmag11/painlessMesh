@@ -6,6 +6,26 @@
 
 #include "espInterface.h"
 
+/** 
+ * \brief ReceivedBuffer handles pbuf pointers.
+ *
+ * Behaviour:
+ * When a split is encountered, it will store all the preceding text into the jsonObjects. 
+ * The pbuffer is copied.
+ */
+class ReceiveBuffer {
+    public:
+        String buffer;
+        SimpleList<String> jsonStrings;
+
+        ReceivedBuffer();
+        
+        void push(const char * cstr, size_t length);
+        void push(pbuf *p);
+
+        void clear();
+};
+
 class MeshConnection {
     public:
         tcp_pcb             *pcb;
