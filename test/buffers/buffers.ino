@@ -123,6 +123,86 @@ void test_pbuf_parse() {
     TEST_ASSERT(rb.empty());
 }
 
+void test_pushing_sent_buffer() {
+    SentBuffer sb;
+    TEST_ASSERT_EQUAL(0, sb.requestLength());
+    TEST_ASSERT(sb.empty());
+
+    // Make sure that we correctly add + 1 length for strings
+    String s1 = "abc";
+    sb.push(s1);
+    TEST_ASSERT_EQUAL(4, sb.requestLength());
+    TEST_ASSERT_EQUAL(1, sb.jsonStrings.size());
+    TEST_ASSERT(!sb.empty());
+
+    String s2 = "def";
+    sb.push(s2);
+
+    String s3 = "ghi";
+    sb.push(s3, true);
+    TEST_ASSERT((*sb.jsonStrings.begin()).equals("ghi"))
+    TEST_ASSERT((sb.jsonStrings.begin()+1)->equals("abc"))
+
+    sb.clear();
+    TEST_ASSERT(sb.empty());
+    TEST_ASSERT_EQUAL(0, sb.jsonStrings.size());
+}
+
+void test_sent_buffer_read() {
+    SentBuffer sb(2);
+    String s1 = "ab";
+    sb.push(s1);
+    s1 = "defghi";
+    sb.push(s1);
+    s1 = "jklxyz";
+    sb.push(s1);
+    s1 = "mnopqr";
+    sb.push(s1);
+    s1 = "wvu";
+    sb.push(s1);
+
+    TEST_ASSERT_EQUAL(3, sb.requestLength());
+    TEST_ASSERT_EQUAL(0, sb.buffer_length);
+    auto c1 = sb.read(sb.requestLength());
+    TEST_ASSERT_EQUAL('a', c1[0]);
+    TEST_ASSERT_EQUAL('\0', c1[3]);
+    TEST_ASSERT(3 <= sb.buffer_length);
+    TEST_ASSERT(sb.buffer_length <= sb.total_buffer_length);
+
+    sb.freeRead();
+
+    TEST_ASSERT_EQUAL(0, sb.buffer_length);
+    auto c2 = sb.read(2);
+    TEST_ASSERT_EQUAL('d', c2[0]);
+    TEST_ASSERT_EQUAL('e', c2[1]);
+    TEST_ASSERT_EQUAL(5, sb.buffer_length);
+    TEST_ASSERT_EQUAL(1, sb.jsonStrings.begin()->length());
+    sb.freeRead();
+    TEST_ASSERT_EQUAL(3, sb.buffer_length);
+    TEST_ASSERT_EQUAL(3, sb.requestLength());
+    auto c3 = sb.read(3);
+    TEST_ASSERT_EQUAL('f', c3[0]);
+    TEST_ASSERT_EQUAL('g', c3[1]);
+    TEST_ASSERT_EQUAL('h', c3[2]);
+    sb.freeRead();
+    TEST_ASSERT_EQUAL(0, sb.buffer_length);
+    TEST_ASSERT_EQUAL(2, sb.requestLength());
+    auto c4 = sb.read(sb.requestLength());
+    TEST_ASSERT_EQUAL('i', c4[0]);
+    TEST_ASSERT_EQUAL('\0', c4[1]);
+    sb.freeRead();
+ 
+    // Make sure buffer grows as needed.
+    auto c5 = sb.read(sb.requestLength());
+    TEST_ASSERT(sb.buffer_length <= sb.total_buffer_length);
+    TEST_ASSERT_EQUAL(7, sb.buffer_length);
+    TEST_ASSERT_EQUAL('j', c5[0]);
+    TEST_ASSERT_EQUAL('k', c5[1]);
+    TEST_ASSERT_EQUAL('\0', c5[6]);
+}
+
+// Make sure that empty only returns true if the void * buffer is empty too
+
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
 }
@@ -131,6 +211,9 @@ void loop() {
     RUN_TEST(test_string_split);
     RUN_TEST(test_string_parse);
     RUN_TEST(test_pbuf_parse);
+
+    RUN_TEST(test_pushing_sent_buffer);
+    RUN_TEST(test_sent_buffer_read);
     UNITY_END(); // stop unit testing
 }
 #endif

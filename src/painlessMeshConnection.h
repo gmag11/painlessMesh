@@ -34,18 +34,21 @@ class ReceiveBuffer {
 
 class SentBuffer {
     public:
-        void* buffer;
+        char* buffer;
+        char* current_ptr;
         size_t buffer_length = 0;
         size_t total_buffer_length = 0;
+        size_t last_read_size = 0;
+
         SimpleList<String> jsonStrings;
 
-        SentBuffer();
+        SentBuffer(size_t defaultSize = 200);
         
-        void push(String &message);
+        void push(String &message, bool priority = false);
 
         size_t requestLength();
 
-        void *read(size_t length);
+        char* read(size_t length);
 
         void freeRead();
 

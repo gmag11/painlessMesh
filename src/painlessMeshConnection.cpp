@@ -74,31 +74,57 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
     buffer = String();
 }
 
-ICACHE_FLASH_ATTR SentBuffer::SentBuffer() {};
+ICACHE_FLASH_ATTR SentBuffer::SentBuffer(size_t defaultSize) {
+    buffer = (char*) malloc(defaultSize*sizeof(char));
+    current_ptr = buffer;
+    total_buffer_length = defaultSize;
+};
 
-void ICACHE_FLASH_ATTR SentBuffer::push(String &message) {
-    jsonStrings.push_back(message);
+size_t ICACHE_FLASH_ATTR SentBuffer::requestLength() {
+    if (buffer_length != 0)
+        return buffer_length;
+    else if (jsonStrings.empty())
+        return 0;
+    else
+        return min(TCP_MSS, static_cast<int>(jsonStrings.begin()->length() + 1));
+}
+
+void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
+    if (priority) 
+        jsonStrings.push_front(message);
+    else
+        jsonStrings.push_back(message);
+}
+
+char *ICACHE_FLASH_ATTR SentBuffer::read(size_t length) {
+    if (total_buffer_length < min(static_cast<size_t>(TCP_MSS), length)) {
+        free(buffer);
+        // Max buffer size is TCP_MSS
+        total_buffer_length = min(static_cast<size_t>(TCP_MSS), 2*length);
+        buffer = (char*)malloc(total_buffer_length*sizeof(char));
+    }
+    if (buffer_length == 0) {
+        current_ptr = buffer;
+        // If whole message fits into buffer do that, else fit in what fits
+        if (jsonStrings.begin()->length() + 1 <= total_buffer_length) {
+            buffer_length = jsonStrings.begin()->length() + 1;
+            jsonStrings.begin()->toCharArray(buffer, buffer_length);
+            jsonStrings.pop_front();
+        } else {
+            // Need to leave one extra char, because toCharArray always put a \0 as last
+            buffer_length = total_buffer_length - 1;
+            jsonStrings.begin()->toCharArray(buffer, buffer_length + 1);
+            jsonStrings.begin()->remove(0, buffer_length);
+        }
+    }
+    last_read_size = length;
+    return current_ptr;
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
-    // This is for reading, not for freeing. Freeing of whole String would be not need whole copy first.
-    /*while (n > 0) {
-        if (buffer_length == 0) {
-            String package = (*jsonStrings.begin());
-            jsonStrings.pop_front();
-            buffer_length = package.length() + 1;
-            buffer = malloc((buffer_length)*sizeof(void));
-            package.toCharArray(buffer, buffer_length);
-        }
-    }
-    // Note that if we free a String exactly n size, we need to copy \0 to the buffer, to ensure
-    // we get the proper termination. Also note that if free is called after read, this is much
-    // simpler and maybe we should only support that.... I.e. we could at least throw error 
-    // if n != total_length.. 
-    // Easier to introduce free_read().. Still need to keep number of bytes last read,
-    // if that number is lower than buffer length!... Instead of actually free partial buffers, we should 
-    // move pointer and free when whole buffer has been read
-    */
+    current_ptr += last_read_size*sizeof(char);
+    buffer_length -= last_read_size;
+    last_read_size = 0;
 }
 
 bool ICACHE_FLASH_ATTR SentBuffer::empty() {
