@@ -201,6 +201,56 @@ void test_sent_buffer_read() {
     TEST_ASSERT_EQUAL('\0', c5[6]);
 }
 
+String randomString(uint32_t length) {
+    String str;
+    for(auto i = 0; i < length; ++i) {
+        char rnd = random(65, 90);
+        str += String(rnd);
+    }
+    return str;
+}
+
+void test_random_sent_receive() {
+    ReceiveBuffer rb;
+    SentBuffer sb;
+
+    SimpleList<String> sent;
+    size_t i = 0;
+
+    #ifdef ESP32
+    auto end_i = 30;
+    #else
+    auto end_i = 5;
+    #endif
+
+    while(i < end_i || !sb.empty())  {
+        if (i < end_i) {
+            auto str = randomString(random(100, 3000));
+            sb.push(str);
+            sent.push_back(str);
+        }
+        ++i;
+
+        size_t rq_len = sb.requestLength();
+        if (random(0,3) < 1) {
+            rq_len = random(0, rq_len);
+        }
+
+        void* rd = (void*) sb.read(rq_len);
+        rb.push((const char*) rd, rq_len);
+        sb.freeRead();
+
+        if (random(0,3) < 2) {
+            while(!rb.empty()) {
+
+                TEST_ASSERT(rb.front().equals((*sent.begin())));
+                sent.pop_front();
+                rb.pop_front();
+            }
+        }
+    }
+}
+
 // Make sure that empty only returns true if the void * buffer is empty too
 
 void setup() {
@@ -214,6 +264,8 @@ void loop() {
 
     RUN_TEST(test_pushing_sent_buffer);
     RUN_TEST(test_sent_buffer_read);
+
+    RUN_TEST(test_random_sent_receive);
     UNITY_END(); // stop unit testing
 }
 #endif

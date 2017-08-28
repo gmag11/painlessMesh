@@ -72,8 +72,8 @@ class MeshConnection {
         bool                addMessage(String &message, bool priority = false);
         bool                writeNext();
         bool                sendReady = true;
-        SimpleList<String>  sendQueue;
         ReceiveBuffer       receiveBuffer;
+        SentBuffer          sentBuffer;
 
         Task nodeTimeoutTask;
         Task nodeSyncTask;

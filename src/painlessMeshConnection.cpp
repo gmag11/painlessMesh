@@ -27,12 +27,12 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
         memcpy(cbuf, data_ptr, len);
         cbuf[len] = '\0';
         auto newBuffer = String(cbuf);
-        buffer += newBuffer;
+        buffer.concat(newBuffer);
         length -= newBuffer.length();
-        data_ptr += newBuffer.length();
+        data_ptr += newBuffer.length()*sizeof(char);
         if (length > 0) {
             length -= 1;
-            data_ptr += 1;
+            data_ptr += 1*sizeof(char);
             if (buffer.length() > 0) { // skip empty buffers
                 jsonStrings.push_back(buffer);
                 buffer = String();
@@ -86,7 +86,7 @@ size_t ICACHE_FLASH_ATTR SentBuffer::requestLength() {
     else if (jsonStrings.empty())
         return 0;
     else
-        return min(TCP_MSS, static_cast<int>(jsonStrings.begin()->length() + 1));
+        return min(TCP_MSS - 1, static_cast<int>(jsonStrings.begin()->length() + 1));
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
@@ -128,7 +128,7 @@ void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
 }
 
 bool ICACHE_FLASH_ATTR SentBuffer::empty() {
-    return jsonStrings.empty();
+    return (buffer_length == 0 && jsonStrings.empty());
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::clear() {
@@ -290,21 +290,16 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
 
 
 bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority) {
-    if (message.length() > 1400) {
-        staticThis->debugMsg(ERROR, "addMessage(): err package too long length=%d\n", message.length());
-        return false;
-    }
-
     if (ESP.getFreeHeap() - message.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
         if (priority) {
-            sendQueue.push_front(message);
-            mesh->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue beginning -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+            sentBuffer.push(message, priority);
+            mesh->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue beginning -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
         } else {
-            if (sendQueue.size() < MAX_MESSAGE_QUEUE) {
-                sendQueue.push_back(message);
-                staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+            if (sentBuffer.jsonStrings.size() < MAX_MESSAGE_QUEUE) {
+                sentBuffer.push(message, priority);
+                staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
             } else {
-                staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+                staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
                 if (sendReady)
                     writeNext();
                 return false;
@@ -323,21 +318,20 @@ bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority
 }
 
 bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
-    if (sendQueue.empty()) {
+    if (sentBuffer.empty()) {
         staticThis->debugMsg(COMMUNICATION, "writeNext(): sendQueue is empty\n");
         return false;
     }
-    String package = (*sendQueue.begin());
-    // TODO: split package up if it doesn't fit.
-    if (package.length() + 1 < tcp_sndbuf(pcb)) {
-        char* data = new char[package.length() + 1];
-        package.toCharArray(data, package.length() + 1);
-        data[package.length()] = '\0';
-        auto errCode = tcp_write(pcb, static_cast<const void*>(data), package.length() + 1, TCP_WRITE_FLAG_COPY);
-        delete[] data;
+    auto len = sentBuffer.requestLength();
+    auto snd_len = tcp_sndbuf(pcb);
+    if (len > snd_len)
+        len = snd_len;
+    if (len > 0) {
+        // TODO: split package up if it doesn't fit.
+        auto errCode = tcp_write(pcb, static_cast<const void*>(sentBuffer.read(len)), len, TCP_WRITE_FLAG_COPY);
         if (errCode != ERR_MEM) {
-            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
-            sendQueue.pop_front();
+            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", sentBuffer.read(len));
+            sentBuffer.freeRead();
             writeNext();
             return true;
         } else {
