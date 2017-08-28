@@ -32,6 +32,26 @@ class ReceiveBuffer {
         void clear();
 };
 
+class SentBuffer {
+    public:
+        void* buffer;
+        size_t buffer_length = 0;
+        SimpleList<String> jsonStrings;
+
+        SentBuffer();
+        
+        void push(String &message);
+
+        size_t requestLength();
+
+        void *read(size_t length);
+        void free(size_t length);
+
+
+        bool empty();
+        void clear();
+};
+
 class MeshConnection {
     public:
         tcp_pcb             *pcb;

@@ -74,6 +74,42 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
     buffer = std::string();
 }
 
+ICACHE_FLASH_ATTR SentBuffer::SentBuffer() {};
+
+void ICACHE_FLASH_ATTR SentBuffer::push(String &message) {
+    jsonStrings.push_back(message);
+}
+
+void ICACHE_FLASH_ATTR SentBuffer::free(size_t n) {
+    // This is for reading, not for freeing. Freeing of whole String would be not need whole copy first.
+    while (n > 0) {
+        if (buffer_length == 0) {
+            String package = (*jsonStrings.begin());
+            jsonStrings.pop_front();
+            buffer_length = package.length() + 1;
+            buffer = malloc((buffer_length)*sizeof(void));
+            package.toCharArray(buffer, buffer_length);
+        }
+    }
+    // Note that if we free a String exactly n size, we need to copy \0 to the buffer, to ensure
+    // we get the proper termination. Also note that if free is called after read, this is much
+    // simpler and maybe we should only support that.... I.e. we could at least throw error 
+    // if n != total_length.. 
+    // Easier to introduce free_read().. Still need to keep number of bytes last read,
+    // if that number is lower than buffer length!... Instead of actually free partial buffers, we should 
+    // move pointer and free when whole buffer has been read
+}
+
+bool ICACHE_FLASH_ATTR SentBuffer::empty() {
+    return jsonStrings.empty();
+}
+
+void ICACHE_FLASH_ATTR SentBuffer::clear() {
+    buffer = String();
+    jsonStrings.clear();
+}
+
+
 err_t meshRecvCb(void * arg, tcp_pcb * tpcb, pbuf * p, err_t err);
 err_t tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len);
 
