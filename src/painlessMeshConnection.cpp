@@ -15,7 +15,7 @@
 extern painlessMesh* staticThis;
 
 ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
-    buffer = std::string();
+    buffer = String();
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
@@ -26,7 +26,7 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
         char *cbuf = (char *) malloc((len+1)*sizeof(char));
         memcpy(cbuf, data_ptr, len);
         cbuf[len] = '\0';
-        auto newBuffer = std::string(cbuf);
+        auto newBuffer = String(cbuf);
         buffer += newBuffer;
         length -= newBuffer.length();
         data_ptr += newBuffer.length();
@@ -35,7 +35,7 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
             data_ptr += 1;
             if (buffer.length() > 0) { // skip empty buffers
                 jsonStrings.push_back(buffer);
-                buffer = std::string();
+                buffer = String();
             }
         }
         free(cbuf); // free works, creating with new char[] and delete[] doesn't
@@ -55,10 +55,10 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p) {
     } while(true);
 }
 
-std::string ICACHE_FLASH_ATTR ReceiveBuffer::front() {
+String ICACHE_FLASH_ATTR ReceiveBuffer::front() {
     if (!empty())
         return (*jsonStrings.begin());
-    return std::string();
+    return String();
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::pop_front() {
@@ -71,7 +71,7 @@ bool ICACHE_FLASH_ATTR ReceiveBuffer::empty() {
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
     jsonStrings.clear();
-    buffer = std::string();
+    buffer = String();
 }
 
 ICACHE_FLASH_ATTR SentBuffer::SentBuffer() {};
@@ -80,9 +80,9 @@ void ICACHE_FLASH_ATTR SentBuffer::push(String &message) {
     jsonStrings.push_back(message);
 }
 
-void ICACHE_FLASH_ATTR SentBuffer::free(size_t n) {
+void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
     // This is for reading, not for freeing. Freeing of whole String would be not need whole copy first.
-    while (n > 0) {
+    /*while (n > 0) {
         if (buffer_length == 0) {
             String package = (*jsonStrings.begin());
             jsonStrings.pop_front();
@@ -98,6 +98,7 @@ void ICACHE_FLASH_ATTR SentBuffer::free(size_t n) {
     // Easier to introduce free_read().. Still need to keep number of bytes last read,
     // if that number is lower than buffer length!... Instead of actually free partial buffers, we should 
     // move pointer and free when whole buffer has been read
+    */
 }
 
 bool ICACHE_FLASH_ATTR SentBuffer::empty() {
@@ -105,7 +106,7 @@ bool ICACHE_FLASH_ATTR SentBuffer::empty() {
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::clear() {
-    buffer = String();
+    buffer_length = 0;
     jsonStrings.clear();
 }
 
@@ -192,7 +193,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
 
     readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
         if (!this->receiveBuffer.empty()) {
-            std::string frnt = this->receiveBuffer.front();
+            String frnt = this->receiveBuffer.front();
             this->handleMessage(frnt, staticThis->getNodeTime());
             this->receiveBuffer.pop_front();
             if (!this->receiveBuffer.empty())
@@ -569,7 +570,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, tcp_pcb * tpcb,
     return ERR_OK;
 }
 
-void ICACHE_FLASH_ATTR MeshConnection::handleMessage(std::string &buffer, uint32_t receivedAt) {
+void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
     DynamicJsonBuffer jsonBuffer;

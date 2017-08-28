@@ -27,7 +27,7 @@ void test_string_split() {
     TEST_ASSERT_EQUAL(s3.length(), 9);
     TEST_ASSERT(s3.equals(String("ghiabcdef")));
 
-    char v1[6] = {'a', 'b', 'c', 'd', 'e', 'f'};
+    char v1[7] = {'a', 'b', 'c', 'd', 'e', 'f', '\0'};
     s1 = String(v1);
     TEST_ASSERT_EQUAL(s1.length(), 6);
 

@@ -17,15 +17,15 @@
  */
 class ReceiveBuffer {
     public:
-        std::string buffer;
-        SimpleList<std::string> jsonStrings;
+        String buffer;
+        SimpleList<String> jsonStrings;
 
         ReceiveBuffer();
         
         void push(const char * cstr, size_t length);
         void push(pbuf *p);
 
-        std::string front();
+        String front();
         void pop_front();
 
         bool empty();
@@ -36,6 +36,7 @@ class SentBuffer {
     public:
         void* buffer;
         size_t buffer_length = 0;
+        size_t total_buffer_length = 0;
         SimpleList<String> jsonStrings;
 
         SentBuffer();
@@ -45,8 +46,8 @@ class SentBuffer {
         size_t requestLength();
 
         void *read(size_t length);
-        void free(size_t length);
 
+        void freeRead();
 
         bool empty();
         void clear();
@@ -79,7 +80,7 @@ class MeshConnection {
         MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool station);
         ~MeshConnection();
 
-        void handleMessage(std::string &msg, uint32_t receivedAt);
+        void handleMessage(String &msg, uint32_t receivedAt);
 
         void close(bool close_pcb = true);
         friend class painlessMesh;
