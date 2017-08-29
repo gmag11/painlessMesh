@@ -14,22 +14,27 @@
 
 extern painlessMesh* staticThis;
 
+static temp_buffer_t shared_buffer;
+
 ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
     buffer = String();
 }
 
-void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
+void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, 
+        size_t length, temp_buffer_t &buf) {
     auto data_ptr = cstr;
     do {
         auto len = strnlen(data_ptr, length);
-        //char *cbuf = new char[len+1];
-        char *cbuf = (char *) malloc((len+1)*sizeof(char));
-        memcpy(cbuf, data_ptr, len);
-        cbuf[len] = '\0';
-        auto newBuffer = String(cbuf);
-        buffer.concat(newBuffer);
-        length -= newBuffer.length();
-        data_ptr += newBuffer.length()*sizeof(char);
+        do {
+            auto read_len = min(len, buf.length);
+            memcpy(buf.buffer, data_ptr, read_len);
+            buf.buffer[read_len] = '\0';
+            auto newBuffer = String(buf.buffer);
+            buffer.concat(newBuffer);
+            len -= newBuffer.length();
+            length -= newBuffer.length();
+            data_ptr += newBuffer.length()*sizeof(char);
+        } while (len > 0);
         if (length > 0) {
             length -= 1;
             data_ptr += 1*sizeof(char);
@@ -38,16 +43,14 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
                 buffer = String();
             }
         }
-        free(cbuf); // free works, creating with new char[] and delete[] doesn't
-                    // Not sure why
     } while (length > 0);
     staticThis->debugMsg(COMMUNICATION, "ReceiveBuffer::push(): buffer size=%u, %u\n", jsonStrings.size(), buffer.length());
 }
 
-void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p) {
+void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p, temp_buffer_t &buf) {
     auto curr_p = p;
     do {
-        push(static_cast<const char*>(curr_p->payload), curr_p->len);
+        push(static_cast<const char*>(curr_p->payload), curr_p->len, buf);
         if (curr_p->len != curr_p->tot_len && curr_p->next != NULL)
             curr_p = curr_p->next;
         else
@@ -74,19 +77,13 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
     buffer = String();
 }
 
-ICACHE_FLASH_ATTR SentBuffer::SentBuffer(size_t defaultSize) {
-    buffer = (char*) malloc(defaultSize*sizeof(char));
-    current_ptr = buffer;
-    total_buffer_length = defaultSize;
-};
+ICACHE_FLASH_ATTR SentBuffer::SentBuffer() {};
 
-size_t ICACHE_FLASH_ATTR SentBuffer::requestLength() {
-    if (buffer_length != 0)
-        return buffer_length;
-    else if (jsonStrings.empty())
+size_t ICACHE_FLASH_ATTR SentBuffer::requestLength(size_t buffer_length) {
+    if (jsonStrings.empty())
         return 0;
     else
-        return min(TCP_MSS - 1, static_cast<int>(jsonStrings.begin()->length() + 1));
+        return min(buffer_length - 1, jsonStrings.begin()->length() + 1);
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
@@ -96,43 +93,24 @@ void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
         jsonStrings.push_back(message);
 }
 
-char *ICACHE_FLASH_ATTR SentBuffer::read(size_t length) {
-    if (total_buffer_length < min(static_cast<size_t>(TCP_MSS), length)) {
-        free(buffer);
-        // Max buffer size is TCP_MSS
-        total_buffer_length = min(static_cast<size_t>(TCP_MSS), 2*length);
-        buffer = (char*)malloc(total_buffer_length*sizeof(char));
-    }
-    if (buffer_length == 0) {
-        current_ptr = buffer;
-        // If whole message fits into buffer do that, else fit in what fits
-        if (jsonStrings.begin()->length() + 1 <= total_buffer_length) {
-            buffer_length = jsonStrings.begin()->length() + 1;
-            jsonStrings.begin()->toCharArray(buffer, buffer_length);
-            jsonStrings.pop_front();
-        } else {
-            // Need to leave one extra char, because toCharArray always put a \0 as last
-            buffer_length = total_buffer_length - 1;
-            jsonStrings.begin()->toCharArray(buffer, buffer_length + 1);
-            jsonStrings.begin()->remove(0, buffer_length);
-        }
-    }
+void ICACHE_FLASH_ATTR SentBuffer::read(size_t length, temp_buffer_t &buf) {
+    (jsonStrings.begin())->toCharArray(buf.buffer, length + 1);
     last_read_size = length;
-    return current_ptr;
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
-    current_ptr += last_read_size*sizeof(char);
-    buffer_length -= last_read_size;
+    if (last_read_size == jsonStrings.begin()->length() + 1)
+        jsonStrings.pop_front();
+    else
+        jsonStrings.begin()->remove(0, last_read_size);
     last_read_size = 0;
 }
 
 bool ICACHE_FLASH_ATTR SentBuffer::empty() {
-    return (buffer_length == 0 && jsonStrings.empty());
+    return jsonStrings.empty();
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::clear() {
-    buffer_length = 0;
     jsonStrings.clear();
 }
 
@@ -310,15 +288,15 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         staticThis->debugMsg(COMMUNICATION, "writeNext(): sendQueue is empty\n");
         return false;
     }
-    auto len = sentBuffer.requestLength();
+    auto len = sentBuffer.requestLength(shared_buffer.length);
     auto snd_len = tcp_sndbuf(pcb);
     if (len > snd_len)
         len = snd_len;
     if (len > 0) {
-        // TODO: split package up if it doesn't fit.
-        auto errCode = tcp_write(pcb, static_cast<const void*>(sentBuffer.read(len)), len, TCP_WRITE_FLAG_COPY);
+        sentBuffer.read(len, shared_buffer);
+        auto errCode = tcp_write(pcb, static_cast<const void*>(shared_buffer.buffer), len, TCP_WRITE_FLAG_COPY);
         if (errCode == ERR_OK) {
-            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", sentBuffer.read(len));
+            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", shared_buffer.buffer);
             sentBuffer.freeRead();
             tcp_output(pcb); // TODO only do this for priority messages
             writeNext();
@@ -569,7 +547,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, tcp_pcb * tpcb,
         return ERR_OK;
     }
 
-    receiveConn->receiveBuffer.push(p);
+    receiveConn->receiveBuffer.push(p, shared_buffer);
     pbuf_free(p);
 
     // Signal that we are done

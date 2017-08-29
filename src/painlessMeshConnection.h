@@ -8,6 +8,12 @@
 
 #include<string>
 
+// Temporary buffer used by ReceiveBuffer and SentBuffer
+struct temp_buffer_t {
+    size_t length = TCP_MSS;
+    char buffer[TCP_MSS];
+};
+
 /** 
  * \brief ReceivedBuffer handles pbuf pointers.
  *
@@ -22,8 +28,8 @@ class ReceiveBuffer {
 
         ReceiveBuffer();
         
-        void push(const char * cstr, size_t length);
-        void push(pbuf *p);
+        void push(const char * cstr, size_t length, temp_buffer_t &buf);
+        void push(pbuf *p, temp_buffer_t &buf);
 
         String front();
         void pop_front();
@@ -34,21 +40,17 @@ class ReceiveBuffer {
 
 class SentBuffer {
     public:
-        char* buffer;
-        char* current_ptr;
-        size_t buffer_length = 0;
-        size_t total_buffer_length = 0;
         size_t last_read_size = 0;
 
         SimpleList<String> jsonStrings;
 
-        SentBuffer(size_t defaultSize = 200);
+        SentBuffer();
         
         void push(String &message, bool priority = false);
 
-        size_t requestLength();
+        size_t requestLength(size_t buffer_size);
 
-        char* read(size_t length);
+        void read(size_t length, temp_buffer_t &buf);
 
         void freeRead();
 

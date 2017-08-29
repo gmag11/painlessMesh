@@ -34,30 +34,40 @@ void test_string_split() {
     // Next step is make sure we can actually send '\0' over tcp
 }
 
+void use_buffer(temp_buffer_t &buf) {
+    for(auto i = 0; i < buf.length; ++i) {
+        buf.buffer[i] = (char)random(65, 90);
+    }
+}
+
 void test_string_parse() {
+    temp_buffer_t buf;
+
     const char* c1 = "abcdef\0";
     auto rb = ReceiveBuffer();
-    rb.push(c1, 7);
+    rb.push(c1, 7, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
     TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdef"));
-    rb.push(c1, 7);
+    rb.push(c1, 7, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 2);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
 
     const char* c2 = "\0abcdef";
-    rb.push(c2, 7);
+    rb.push(c2, 7, buf);
+    use_buffer(buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 2);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
 
     const char* c3 = "ghi\0abcdef";
-    rb.push(c3, 10);
+    rb.push(c3, 10, buf);
+    use_buffer(buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 3);
     TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdefghi"));
     TEST_ASSERT_EQUAL((rb.jsonStrings.end() - 1)->length(), 9);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
 
-    rb.push(c2, 7);
+    rb.push(c2, 7, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 4);
     TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdef"));
     TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
@@ -66,16 +76,17 @@ void test_string_parse() {
     rb.clear();
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 0);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
+    use_buffer(buf);
 
     // Skip empty
     const char* c4 = "abc\0\0def";
-    rb.push(c4, 8);
+    rb.push(c4, 8, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 3);
 
     rb.clear();
     const char v1[4] = {'a', 'b', '\0', 'c'};
-    rb.push(v1, 4);
+    rb.push(v1, 4, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
     TEST_ASSERT(rb.front().equals("ab"));
     TEST_ASSERT_EQUAL(rb.buffer.length(), 1);
@@ -102,14 +113,16 @@ void test_pbuf_parse() {
     pbuf_cat(p2, p3);
     TEST_ASSERT(p2->next != NULL);
 
+    temp_buffer_t buf;
     auto rb = ReceiveBuffer();
-    rb.push(p1);
+    rb.push(p1, buf);
     TEST_ASSERT_EQUAL(1, rb.jsonStrings.size());
     TEST_ASSERT_EQUAL(0, rb.buffer.length());
 
-    rb.push(p2);
+    rb.push(p2, buf);
     TEST_ASSERT_EQUAL(3, rb.jsonStrings.size());
     TEST_ASSERT_EQUAL(3, rb.buffer.length());
+    use_buffer(buf);
 
     //pbuf_free(p1); //This seems to crash always.
     //pbuf_free(p2);
@@ -124,14 +137,15 @@ void test_pbuf_parse() {
 }
 
 void test_pushing_sent_buffer() {
+    temp_buffer_t buf;
     SentBuffer sb;
-    TEST_ASSERT_EQUAL(0, sb.requestLength());
+    TEST_ASSERT_EQUAL(0, sb.requestLength(buf.length));
     TEST_ASSERT(sb.empty());
 
     // Make sure that we correctly add + 1 length for strings
     String s1 = "abc";
     sb.push(s1);
-    TEST_ASSERT_EQUAL(4, sb.requestLength());
+    TEST_ASSERT_EQUAL(4, sb.requestLength(buf.length));
     TEST_ASSERT_EQUAL(1, sb.jsonStrings.size());
     TEST_ASSERT(!sb.empty());
 
@@ -149,7 +163,8 @@ void test_pushing_sent_buffer() {
 }
 
 void test_sent_buffer_read() {
-    SentBuffer sb(2);
+    temp_buffer_t buf;
+    SentBuffer sb;
     String s1 = "ab";
     sb.push(s1);
     s1 = "defghi";
@@ -161,44 +176,42 @@ void test_sent_buffer_read() {
     s1 = "wvu";
     sb.push(s1);
 
-    TEST_ASSERT_EQUAL(3, sb.requestLength());
-    TEST_ASSERT_EQUAL(0, sb.buffer_length);
-    auto c1 = sb.read(sb.requestLength());
-    TEST_ASSERT_EQUAL('a', c1[0]);
-    TEST_ASSERT_EQUAL('\0', c1[3]);
-    TEST_ASSERT(3 <= sb.buffer_length);
-    TEST_ASSERT(sb.buffer_length <= sb.total_buffer_length);
+    TEST_ASSERT_EQUAL(3, sb.requestLength(buf.length));
+    sb.read(sb.requestLength(buf.length), buf);
+    TEST_ASSERT_EQUAL('a', buf.buffer[0]);
+    TEST_ASSERT_EQUAL('\0', buf.buffer[2]);
 
     sb.freeRead();
+    TEST_ASSERT_EQUAL(6, sb.jsonStrings.begin()->length());
+    TEST_ASSERT(sb.jsonStrings.begin()->equals("defghi"));
 
-    TEST_ASSERT_EQUAL(0, sb.buffer_length);
-    auto c2 = sb.read(2);
-    TEST_ASSERT_EQUAL('d', c2[0]);
-    TEST_ASSERT_EQUAL('e', c2[1]);
-    TEST_ASSERT_EQUAL(5, sb.buffer_length);
-    TEST_ASSERT_EQUAL(1, sb.jsonStrings.begin()->length());
+    sb.read(2, buf);
+    TEST_ASSERT_EQUAL('d', buf.buffer[0]);
+    TEST_ASSERT_EQUAL('e', buf.buffer[1]);
+
     sb.freeRead();
-    TEST_ASSERT_EQUAL(3, sb.buffer_length);
-    TEST_ASSERT_EQUAL(3, sb.requestLength());
-    auto c3 = sb.read(3);
-    TEST_ASSERT_EQUAL('f', c3[0]);
-    TEST_ASSERT_EQUAL('g', c3[1]);
-    TEST_ASSERT_EQUAL('h', c3[2]);
+    TEST_ASSERT_EQUAL(4, sb.jsonStrings.begin()->length());
+    TEST_ASSERT_EQUAL(5, sb.requestLength(buf.length));
+    sb.read(3, buf);
+    TEST_ASSERT_EQUAL('f', buf.buffer[0]);
+    TEST_ASSERT_EQUAL('g', buf.buffer[1]);
+    TEST_ASSERT_EQUAL('h', buf.buffer[2]);
+    use_buffer(buf);
     sb.freeRead();
-    TEST_ASSERT_EQUAL(0, sb.buffer_length);
-    TEST_ASSERT_EQUAL(2, sb.requestLength());
-    auto c4 = sb.read(sb.requestLength());
-    TEST_ASSERT_EQUAL('i', c4[0]);
-    TEST_ASSERT_EQUAL('\0', c4[1]);
+
+    TEST_ASSERT_EQUAL(2, sb.requestLength(buf.length));
+    sb.read(sb.requestLength(buf.length), buf);
+    TEST_ASSERT_EQUAL('i', buf.buffer[0]);
+    TEST_ASSERT_EQUAL('\0', buf.buffer[1]);
     sb.freeRead();
+    use_buffer(buf);
  
-    // Make sure buffer grows as needed.
-    auto c5 = sb.read(sb.requestLength());
-    TEST_ASSERT(sb.buffer_length <= sb.total_buffer_length);
-    TEST_ASSERT_EQUAL(7, sb.buffer_length);
-    TEST_ASSERT_EQUAL('j', c5[0]);
-    TEST_ASSERT_EQUAL('k', c5[1]);
-    TEST_ASSERT_EQUAL('\0', c5[6]);
+    sb.read(sb.requestLength(buf.length), buf);
+    TEST_ASSERT_EQUAL('j', buf.buffer[0]);
+    TEST_ASSERT_EQUAL('k', buf.buffer[1]);
+    TEST_ASSERT_EQUAL('l', buf.buffer[2]);
+    TEST_ASSERT_EQUAL('\0', buf.buffer[6]);
+    use_buffer(buf);
 }
 
 String randomString(uint32_t length) {
@@ -211,6 +224,7 @@ String randomString(uint32_t length) {
 }
 
 void test_random_sent_receive() {
+    temp_buffer_t buf;
     ReceiveBuffer rb;
     SentBuffer sb;
 
@@ -231,18 +245,22 @@ void test_random_sent_receive() {
         }
         ++i;
 
-        size_t rq_len = sb.requestLength();
+        temp_buffer_t rb_buf;
+        size_t rq_len = sb.requestLength(rb_buf.length);
         if (random(0,3) < 1) {
             rq_len = random(0, rq_len);
         }
 
-        void* rd = (void*) sb.read(rq_len);
-        rb.push((const char*) rd, rq_len);
+        use_buffer(buf);
+        sb.read(rq_len, buf);
+        use_buffer(rb_buf);
+        rb.push(buf.buffer, rq_len, rb_buf);
+        use_buffer(buf);
+        use_buffer(rb_buf);
         sb.freeRead();
 
         if (random(0,3) < 2) {
             while(!rb.empty()) {
-
                 TEST_ASSERT(rb.front().equals((*sent.begin())));
                 sent.pop_front();
                 rb.pop_front();
