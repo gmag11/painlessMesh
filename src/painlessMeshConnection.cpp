@@ -14,7 +14,130 @@
 
 extern painlessMesh* staticThis;
 
-err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf * p, err_t err);
+ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
+    buffer = String();
+}
+
+void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
+    auto data_ptr = cstr;
+    do {
+        auto len = strnlen(data_ptr, length);
+        //char *cbuf = new char[len+1];
+        char *cbuf = (char *) malloc((len+1)*sizeof(char));
+        memcpy(cbuf, data_ptr, len);
+        cbuf[len] = '\0';
+        auto newBuffer = String(cbuf);
+        buffer.concat(newBuffer);
+        length -= newBuffer.length();
+        data_ptr += newBuffer.length()*sizeof(char);
+        if (length > 0) {
+            length -= 1;
+            data_ptr += 1*sizeof(char);
+            if (buffer.length() > 0) { // skip empty buffers
+                jsonStrings.push_back(buffer);
+                buffer = String();
+            }
+        }
+        free(cbuf); // free works, creating with new char[] and delete[] doesn't
+                    // Not sure why
+    } while (length > 0);
+    staticThis->debugMsg(COMMUNICATION, "ReceiveBuffer::push(): buffer size=%u, %u\n", jsonStrings.size(), buffer.length());
+}
+
+void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p) {
+    auto curr_p = p;
+    do {
+        push(static_cast<const char*>(curr_p->payload), curr_p->len);
+        if (curr_p->len != curr_p->tot_len && curr_p->next != NULL)
+            curr_p = curr_p->next;
+        else
+            break;
+    } while(true);
+}
+
+String ICACHE_FLASH_ATTR ReceiveBuffer::front() {
+    if (!empty())
+        return (*jsonStrings.begin());
+    return String();
+}
+
+void ICACHE_FLASH_ATTR ReceiveBuffer::pop_front() {
+    jsonStrings.pop_front();
+}
+
+bool ICACHE_FLASH_ATTR ReceiveBuffer::empty() {
+    return jsonStrings.empty();
+}
+
+void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
+    jsonStrings.clear();
+    buffer = String();
+}
+
+ICACHE_FLASH_ATTR SentBuffer::SentBuffer(size_t defaultSize) {
+    buffer = (char*) malloc(defaultSize*sizeof(char));
+    current_ptr = buffer;
+    total_buffer_length = defaultSize;
+};
+
+size_t ICACHE_FLASH_ATTR SentBuffer::requestLength() {
+    if (buffer_length != 0)
+        return buffer_length;
+    else if (jsonStrings.empty())
+        return 0;
+    else
+        return min(TCP_MSS - 1, static_cast<int>(jsonStrings.begin()->length() + 1));
+}
+
+void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
+    if (priority) 
+        jsonStrings.push_front(message);
+    else
+        jsonStrings.push_back(message);
+}
+
+char *ICACHE_FLASH_ATTR SentBuffer::read(size_t length) {
+    if (total_buffer_length < min(static_cast<size_t>(TCP_MSS), length)) {
+        free(buffer);
+        // Max buffer size is TCP_MSS
+        total_buffer_length = min(static_cast<size_t>(TCP_MSS), 2*length);
+        buffer = (char*)malloc(total_buffer_length*sizeof(char));
+    }
+    if (buffer_length == 0) {
+        current_ptr = buffer;
+        // If whole message fits into buffer do that, else fit in what fits
+        if (jsonStrings.begin()->length() + 1 <= total_buffer_length) {
+            buffer_length = jsonStrings.begin()->length() + 1;
+            jsonStrings.begin()->toCharArray(buffer, buffer_length);
+            jsonStrings.pop_front();
+        } else {
+            // Need to leave one extra char, because toCharArray always put a \0 as last
+            buffer_length = total_buffer_length - 1;
+            jsonStrings.begin()->toCharArray(buffer, buffer_length + 1);
+            jsonStrings.begin()->remove(0, buffer_length);
+        }
+    }
+    last_read_size = length;
+    return current_ptr;
+}
+
+void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
+    current_ptr += last_read_size*sizeof(char);
+    buffer_length -= last_read_size;
+    last_read_size = 0;
+}
+
+bool ICACHE_FLASH_ATTR SentBuffer::empty() {
+    return (buffer_length == 0 && jsonStrings.empty());
+}
+
+void ICACHE_FLASH_ATTR SentBuffer::clear() {
+    buffer_length = 0;
+    jsonStrings.clear();
+}
+
+
+err_t meshRecvCb(void * arg, tcp_pcb * tpcb, pbuf * p, err_t err);
 err_t tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len);
 
 ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool is_station) {
@@ -30,32 +153,20 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
 
     tcp_sent(pcb, tcpSentCb);
 
-    tcp_nagle_disable(pcb);
-
-    tcp_poll(pcb, [](void * arg, tcp_pcb * tpcb) -> err_t {
-        if (arg == NULL) {
-            staticThis->debugMsg(COMMUNICATION, "tcp_poll(): no valid connection found\n");
-            return ERR_OK;
-        }
-        auto conn = static_cast<MeshConnection*>(arg);
-        conn->sendReady = true;
-        conn->writeNext();
-        return ERR_OK;
-    }, 4); // If idle this is called once per two seconds
-
+    //tcp_nagle_disable(pcb);
     tcp_err(pcb, [](void * arg, err_t err) {
-            if (arg == NULL)
-                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection NULL %d\n", err);
-            else {
-                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %d\n", err);
-                if (err == ERR_ABRT || 
-                        err == ERR_RST) {
-                    staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection closing\n");
-                    auto conn = static_cast<MeshConnection*>(arg);
-                    conn->close(false);
-                }
+        if (arg == NULL)
+            staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection NULL %d\n", err);
+        else {
+            staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %d\n", err);
+            if (err == ERR_ABRT || 
+                    err == ERR_RST) {
+                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection closing\n");
+                auto conn = static_cast<MeshConnection*>(arg);
+                conn->close(false);
             }
-        });
+        }
+    });
 
     if (station) { // we are the station, start nodeSync
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
@@ -71,8 +182,8 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
         this->close();
     });
 
-    //staticThis->scheduler.addTask(this->nodeTimeoutTask);
-    //this->nodeTimeoutTask.enableDelayed();
+    staticThis->scheduler.addTask(this->nodeTimeoutTask);
+    this->nodeTimeoutTask.enableDelayed();
 
     auto syncInterval = NODE_TIMEOUT/2;
     if (!station)
@@ -93,7 +204,21 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
         this->nodeSyncTask.enable();
     else
         this->nodeSyncTask.enableDelayed();
+
+    readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
+        if (!this->receiveBuffer.empty()) {
+            String frnt = this->receiveBuffer.front();
+            this->handleMessage(frnt, staticThis->getNodeTime());
+            this->receiveBuffer.pop_front();
+            if (!this->receiveBuffer.empty())
+                this->readBufferTask.forceNextIteration();
+        }
+    });
+    staticThis->scheduler.addTask(readBufferTask);
+    readBufferTask.enable();
+    
     staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
+    receiveBuffer = ReceiveBuffer();
 }
 
 ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
@@ -107,6 +232,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
     this->timeSyncTask.setCallback(NULL);
     this->nodeSyncTask.setCallback(NULL);
     this->nodeTimeoutTask.setCallback(NULL);
+    this->readBufferTask.setCallback(NULL);
     this->nodeId = 0;
 
     auto nodeId = this->nodeId;
@@ -129,7 +255,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
     mesh->droppedConnectionTask.enable();
 
     if (close_pcb) {
-        mesh->debugMsg(ERROR, "close(): Closing pcb\n");
+        mesh->debugMsg(CONNECTION, "close(): Closing pcb\n");
         tcp_arg(this->pcb, NULL);
         auto err = tcp_close(this->pcb);
         if (err != ERR_OK) {
@@ -152,21 +278,16 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
 
 
 bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority) {
-    if (message.length() > 1400) {
-        staticThis->debugMsg(ERROR, "addMessage(): err package too long length=%d\n", message.length());
-        return false;
-    }
-
     if (ESP.getFreeHeap() - message.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
         if (priority) {
-            sendQueue.push_front(message);
-            mesh->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue beginning -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+            sentBuffer.push(message, priority);
+            mesh->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue beginning -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
         } else {
-            if (sendQueue.size() < MAX_MESSAGE_QUEUE) {
-                sendQueue.push_back(message);
-                staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+            if (sentBuffer.jsonStrings.size() < MAX_MESSAGE_QUEUE) {
+                sentBuffer.push(message, priority);
+                staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
             } else {
-                staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sendQueue.size(), ESP.getFreeHeap());
+                staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
                 if (sendReady)
                     writeNext();
                 return false;
@@ -185,30 +306,26 @@ bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority
 }
 
 bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
-    if (sendQueue.empty()) {
+    if (sentBuffer.empty()) {
         staticThis->debugMsg(COMMUNICATION, "writeNext(): sendQueue is empty\n");
         return false;
     }
-    String package = (*sendQueue.begin());
-    auto len = tcp_sndbuf(pcb);
-    if (package.length() < len) {
-
-        /*
-        if (len > (2*pcb->mss)) {
-            len = 2*pcb->mss;
-            staticThis->debugMsg(ERROR, "writeNext(): Reducing length\n");
-        }*/
-        auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, TCP_WRITE_FLAG_COPY);
-        //auto errCode = tcp_write(pcb, static_cast<const void*>(package.c_str()), len, 0);
-        tcp_output(pcb);
-        if (errCode != ERR_MEM) {
-            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", package.c_str());
-            sendQueue.pop_front();
-            sendReady = false;
+    auto len = sentBuffer.requestLength();
+    auto snd_len = tcp_sndbuf(pcb);
+    if (len > snd_len)
+        len = snd_len;
+    if (len > 0) {
+        // TODO: split package up if it doesn't fit.
+        auto errCode = tcp_write(pcb, static_cast<const void*>(sentBuffer.read(len)), len, TCP_WRITE_FLAG_COPY);
+        if (errCode == ERR_OK) {
+            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", sentBuffer.read(len));
+            sentBuffer.freeRead();
+            tcp_output(pcb); // TODO only do this for priority messages
+            writeNext();
             return true;
         } else {
             sendReady = false;
-            staticThis->debugMsg(ERROR, "writeNext(): tcp_write Failed node=%u, err=%d. Resending later\n", nodeId, errCode);
+            staticThis->debugMsg(COMMUNICATION, "writeNext(): tcp_write Failed node=%u, err=%d. Resending later\n", nodeId, errCode);
             return false;
         }
     } else {
@@ -427,8 +544,8 @@ err_t ICACHE_FLASH_ATTR tcpSentCb(void * arg, tcp_pcb * tpcb, u16_t len) {
     return ESP_OK;
 }
 
-err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
-                              struct pbuf *p, err_t err) {
+err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, tcp_pcb * tpcb,
+                              pbuf *p, err_t err) {
     if (arg == NULL) {
         staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
         return !ERR_OK;
@@ -451,36 +568,33 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
         pbuf_free(p);
         return ERR_OK;
     }
-    auto p_start = p;
-    char* data = new char[p->tot_len+1];
-    data[p->tot_len] = '\0';
-    memcpy(data, p->payload, p->len);
-    while (p->next) {
-        char* curr_i = &data[p->len];
-        p = p->next;
-        memcpy(curr_i, p->payload, p->len);
-    }
 
-    pbuf_free(p_start);
+    receiveConn->receiveBuffer.push(p);
+    pbuf_free(p);
 
     // Signal that we are done
     tcp_recved(receiveConn->pcb, total_length);
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", receiveConn->nodeId, data);
+
+    receiveConn->readBufferTask.forceNextIteration(); 
+    return ERR_OK;
+}
+
+void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
     DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(data);
+    JsonObject& root = jsonBuffer.parseObject(buffer.c_str());
     if (!root.success()) {   // Test if parsing succeeded.
-        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", total_length, data);
-        delete data;
-        return ERR_OK;
+        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.c_str());
+        return;
     }
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
 
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%u type=%d\n", staticThis->getNodeTime(), receiveConn->nodeId, t_message);
+    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%u type=%d\n", staticThis->getNodeTime(), this->nodeId, t_message);
 
-    auto rConn = staticThis->findConnection(receiveConn->pcb);
+    auto rConn = staticThis->findConnection(this->pcb);
     switch (t_message) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
@@ -521,9 +635,7 @@ err_t ICACHE_FLASH_ATTR meshRecvCb(void * arg, struct tcp_pcb * tpcb,
     default:
         staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
     }
-
-    delete data;
-    return ERR_OK;
+    return;
 }
 
 //***********************************************************************

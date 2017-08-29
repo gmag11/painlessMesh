@@ -82,7 +82,7 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(uint8_t *hwaddr) {
     return value;
 }
 
-void StationScan::init(painlessMesh *pMesh, String &pssid, 
+void ICACHE_FLASH_ATTR StationScan::init(painlessMesh *pMesh, String &pssid, 
         String &ppassword, uint16_t pPort) {
     ssid = pssid; 
     password = ppassword; 
@@ -116,18 +116,23 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
 
 void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n", staticThis->getNodeTime());
-    aps.clear();
 
-    wifi_ap_record_t *records;
-    uint16_t num;
-    esp_wifi_scan_get_ap_num(&num);
-    records = (wifi_ap_record_t *)malloc(num*sizeof(wifi_ap_record_t));
-    esp_wifi_scan_get_ap_records(&num, records);
+    aps.clear();
+    staticThis->debugMsg(CONNECTION, "scanComplete():-- > Cleared old aps.\n");
+
+    uint16_t num = 0;
+    auto err = esp_wifi_scan_get_ap_num(&num);
+    //wifi_ap_record_t *records = new wifi_ap_record_t[num];
+    wifi_ap_record_t *records = (wifi_ap_record_t*)malloc(num*sizeof(wifi_ap_record_t));
+    //records = (wifi_ap_record_t *)malloc(num*sizeof(wifi_ap_record_t));
+    staticThis->debugMsg(CONNECTION, "scanComplete(): num=%u, err=%u\n", num, err);
+    err = esp_wifi_scan_get_ap_records(&num, records);
+    staticThis->debugMsg(CONNECTION, "scanComplete(): After getting records, num=%u, err=%u\n", num, err);
     for (uint16_t i = 0; i < num; ++i) {
-        staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm", (char*) records[i].ssid, (int16_t) records[i].rssi);
-        staticThis->debugMsg(CONNECTION, " MESH< ---");
         aps.push_back(records[i]);
+        staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm\n", (char*) records[i].ssid, (int16_t) records[i].rssi);
     }
+    //delete[] records;
     free(records);
     staticThis->debugMsg(CONNECTION, "\tFound % d nodes\n", aps.size());
 
