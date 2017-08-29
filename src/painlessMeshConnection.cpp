@@ -41,7 +41,7 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, size_t length) {
         free(cbuf); // free works, creating with new char[] and delete[] doesn't
                     // Not sure why
     } while (length > 0);
-    staticThis->debugMsg(ERROR, "ReceiveBuffer::push(): buffer size=%u, %u\n", jsonStrings.size(), buffer.length());
+    staticThis->debugMsg(COMMUNICATION, "ReceiveBuffer::push(): buffer size=%u, %u\n", jsonStrings.size(), buffer.length());
 }
 
 void ICACHE_FLASH_ATTR ReceiveBuffer::push(pbuf * p) {
@@ -154,31 +154,19 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
     tcp_sent(pcb, tcpSentCb);
 
     //tcp_nagle_disable(pcb);
-
-    tcp_poll(pcb, [](void * arg, tcp_pcb * tpcb) -> err_t {
-        if (arg == NULL) {
-            staticThis->debugMsg(COMMUNICATION, "tcp_poll(): no valid connection found\n");
-            return ERR_OK;
-        }
-        auto conn = static_cast<MeshConnection*>(arg);
-        conn->sendReady = true;
-        conn->writeNext();
-        return ERR_OK;
-    }, 4); // If idle this is called once per two seconds
-
     tcp_err(pcb, [](void * arg, err_t err) {
-            if (arg == NULL)
-                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection NULL %d\n", err);
-            else {
-                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %d\n", err);
-                if (err == ERR_ABRT || 
-                        err == ERR_RST) {
-                    staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection closing\n");
-                    auto conn = static_cast<MeshConnection*>(arg);
-                    conn->close(false);
-                }
+        if (arg == NULL)
+            staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection NULL %d\n", err);
+        else {
+            staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %d\n", err);
+            if (err == ERR_ABRT || 
+                    err == ERR_RST) {
+                staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection closing\n");
+                auto conn = static_cast<MeshConnection*>(arg);
+                conn->close(false);
             }
-        });
+        }
+    });
 
     if (station) { // we are the station, start nodeSync
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
@@ -267,7 +255,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
     mesh->droppedConnectionTask.enable();
 
     if (close_pcb) {
-        mesh->debugMsg(ERROR, "close(): Closing pcb\n");
+        mesh->debugMsg(CONNECTION, "close(): Closing pcb\n");
         tcp_arg(this->pcb, NULL);
         auto err = tcp_close(this->pcb);
         if (err != ERR_OK) {
@@ -329,14 +317,15 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     if (len > 0) {
         // TODO: split package up if it doesn't fit.
         auto errCode = tcp_write(pcb, static_cast<const void*>(sentBuffer.read(len)), len, TCP_WRITE_FLAG_COPY);
-        if (errCode != ERR_MEM) {
+        if (errCode == ERR_OK) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", sentBuffer.read(len));
             sentBuffer.freeRead();
+            tcp_output(pcb); // TODO only do this for priority messages
             writeNext();
             return true;
         } else {
             sendReady = false;
-            staticThis->debugMsg(ERROR, "writeNext(): tcp_write Failed node=%u, err=%d. Resending later\n", nodeId, errCode);
+            staticThis->debugMsg(COMMUNICATION, "writeNext(): tcp_write Failed node=%u, err=%d. Resending later\n", nodeId, errCode);
             return false;
         }
     } else {
