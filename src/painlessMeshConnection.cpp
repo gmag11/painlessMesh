@@ -183,6 +183,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
     else
         this->nodeSyncTask.enableDelayed();
 
+    receiveBuffer = ReceiveBuffer();
     readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
         if (!this->receiveBuffer.empty()) {
             String frnt = this->receiveBuffer.front();
@@ -193,10 +194,9 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
         }
     });
     staticThis->scheduler.addTask(readBufferTask);
-    readBufferTask.enable();
+    readBufferTask.enableDelayed();
     
-    staticThis->debugMsg(GENERAL, "meshConnectedCb(): leaving\n");
-    receiveBuffer = ReceiveBuffer();
+    staticThis->debugMsg(GENERAL, "MeshConnection(): leaving\n");
 }
 
 ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
