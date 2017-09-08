@@ -19,11 +19,11 @@ painlessMesh  mesh;
 
 void setup() {
   Serial.begin(115200);
-    
-  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | MSG_TYPES | REMOTE ); // all types on
   mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION );  // set before init() so that you can see startup messages
 
+
+  // Channel set to 6. Make sure to use the same channel for your mesh and for you other
+  // network (STATION_SSID)
   mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 6 );
   mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT,
     station_ip);
