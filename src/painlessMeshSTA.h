@@ -17,9 +17,8 @@ class StationScan {
     Task task; // Station scanning for connections
 
     StationScan() {}
-    void init(painlessMesh *pMesh, String &ssid, String &password, 
+    void init(painlessMesh *pMesh, String &ssid, String &password,
             uint16_t port);
-
     void stationScan();
     void scanComplete();
     void filterAPs();
@@ -34,8 +33,8 @@ class StationScan {
 
     void requestIP(wifi_ap_record_t &ap);
 
-    // Manually configure network and ip 
-    bool manual = false; 
+    // Manually configure network and ip
+    bool manual = false;
     uint8_t manualIP[4] = {0, 0, 0, 0};
     friend class painlessMesh;
 };

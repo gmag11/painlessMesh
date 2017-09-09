@@ -47,6 +47,8 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     case AP_ONLY:
         debugMsg(GENERAL, "esp_wifi_set_mode(AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_AP) == ESP_OK);
         break;
+    case EXTERNAL_STA_AP:
+        debugMsg(GENERAL, "wifi_set_opmode(STATIONAP_MODE) succeeded? %d\n", wifi_set_opmode(STATIONAP_MODE));
     default:
         debugMsg(GENERAL, "esp_wifi_set_mode(STATION_AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_APSTA) == ESP_OK);
     }
@@ -68,7 +70,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     esp_wifi_start();
     _nodeId = encodeNodeId(MAC);
 
-    if (connectMode == AP_ONLY || connectMode == STA_AP)
+    if (connectMode == AP_ONLY || connectMode == STA_AP || connectMode == EXTERNAL_STA_AP)
         apInit();       // setup AP
     if (connectMode == STA_ONLY || connectMode == STA_AP) {
         stationScan.init(this, ssid, password, port);
@@ -88,7 +90,7 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
         (*connection)->close();
     }
 
-    // Stop scanning task 
+    // Stop scanning task
     stationScan.task.setCallback(NULL);
     scheduler.deleteTask(stationScan.task);
 
