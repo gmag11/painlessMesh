@@ -1,7 +1,7 @@
 #include "espInterface.h"
 
 #ifdef ESP8266
-#include "SimpleList.h"
+#include<list>
 
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_mode(wifi_mode_t mode) {
     if (wifi_set_opmode(mode))
@@ -9,7 +9,7 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_mode(wifi_mode_t mode) {
     return ESP_FAIL;
 }
 
-static SimpleList<wifi_ap_record_t> _ap_records;
+static std::list<wifi_ap_record_t> _ap_records;
 
 static system_event_cb_t system_event_cb;
 

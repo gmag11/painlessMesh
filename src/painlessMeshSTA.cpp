@@ -7,7 +7,6 @@
 //
 
 #include <Arduino.h>
-#include <SimpleList.h>
 #include <algorithm>
 #include <memory>
 
@@ -142,8 +141,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 
         // Next task is to sort by strength
         task.yield([this] {
-            std::sort(aps.begin(), aps.end(),
-                    [](wifi_ap_record_t a, wifi_ap_record_t b) {
+            aps.sort([](wifi_ap_record_t a, wifi_ap_record_t b) {
                     return a.rssi > b.rssi;
             });
             // Next task is to connect to the top ap
@@ -168,13 +166,13 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
     }
 }
 
-void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t* ap) {
+void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t &ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
-            mesh->encodeNodeId(ap->bssid));
+            mesh->encodeNodeId(ap.bssid));
     wifi_sta_config_t stationConf;
     stationConf.bssid_set = 1;
-    memcpy(&stationConf.bssid, ap->bssid, 6); // Connect to this specific HW Address
-    memcpy(&stationConf.ssid, ap->ssid, 32);
+    memcpy(&stationConf.bssid, ap.bssid, 6); // Connect to this specific HW Address
+    memcpy(&stationConf.ssid, ap.ssid, 32);
     memcpy(&stationConf.password, password.c_str(), 64);
     wifi_config_t cfg;
     cfg.sta = stationConf;
@@ -207,7 +205,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
                 mesh->closeConnectionSTA();
                 task.enableDelayed(1000*SCAN_INTERVAL);
                 return;
-            } else if (aps.size() == 0 || 
+            } else if (aps.empty() || 
                     !ssid.equals((char *)aps.begin()->ssid)) {
                 task.enableDelayed(SCAN_INTERVAL);
                 return;
@@ -215,7 +213,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         }
     }
 
-    if (aps.size() == 0) {
+    if (aps.empty()) {
         // No unknown nodes found
         if (mesh->_station_got_ip) {
             // if already connected -> scan slow
@@ -245,7 +243,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
             }
         } else {
             // Else try to connect to first 
-            auto ap = aps.begin();
+            auto ap = aps.front();
             aps.pop_front();  // drop bestAP from mesh list, so if doesn't work out, we can try the next one
             requestIP(ap);
             // Trying to connect, if that fails we will reconnect later

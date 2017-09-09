@@ -8,7 +8,6 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <SimpleList.h>
 
 #include "painlessMesh.h"
 
@@ -94,7 +93,7 @@ void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::read(size_t length, temp_buffer_t &buf) {
-    (jsonStrings.begin())->toCharArray(buf.buffer, length + 1);
+    jsonStrings.front().toCharArray(buf.buffer, length + 1);
     last_read_size = length;
 }
 
@@ -485,9 +484,9 @@ size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
 }
 
 //***********************************************************************
-SimpleList<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
+std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
 
-    SimpleList<uint32_t> nodeList;
+    std::list<uint32_t> nodeList;
 
     String nodeJson = subConnectionJson();
 
