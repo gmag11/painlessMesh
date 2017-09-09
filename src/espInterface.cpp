@@ -170,7 +170,7 @@ esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_hostname(tcpip_adapter_if_t tcpip_
         const char *hostname) {
     // Currently only STA is supported
     if (tcpip_if == TCPIP_ADAPTER_IF_STA) {
-        wifi_station_set_hostname(hostname);
+        wifi_station_set_hostname((char*)hostname);
         return ESP_OK;
     }
     return ESP_FAIL;

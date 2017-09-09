@@ -10,17 +10,23 @@
 // https://github.com/me-no-dev/ESPAsyncWebServer
 //************************************************************
 
-#include "painlessMesh.h"
 #include "IPAddress.h"
+#include "painlessMesh.h"
+
+#ifdef ESP8266
+#include "Hash.h"
 #include <ESPAsyncTCP.h>
+#else
+#include <AsyncTCP.h>
+#endif
 #include <ESPAsyncWebServer.h>
 
 #define   MESH_PREFIX     "whateverYouLike"
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
-#define   STATION_SSID     "ConsiderConnectingtoThisAmazingWiFi"
-#define   STATION_PASSWORD "UsingSomeOfYourAmazingDevSkills"
+#define   STATION_SSID     "mySSID"
+#define   STATION_PASSWORD "myPASSWORD"
 
 #define HOSTNAME "HTTP_BRIDGE"
 
@@ -31,11 +37,11 @@ IPAddress myIP(0,0,0,0);
 void setup() {
   Serial.begin(115200);
 
-  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | MSG_TYPES | REMOTE ); // all types on
   mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION );  // set before init() so that you can see startup messages
 
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, AP_ONLY, AUTH_WPA2_PSK, 11 );
+  // Channel set to 6. Make sure to use the same channel for your mesh and for you other
+  // network (STATION_SSID)
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, STA_AP, WIFI_AUTH_WPA2_PSK, 6 );
   mesh.onReceive(&receivedCallback);
 
   mesh.stationManual(STATION_SSID, STATION_PASSWORD);
@@ -58,7 +64,6 @@ void loop() {
   if(myIP != getlocalIP()){
     myIP = getlocalIP();
     Serial.println("My IP is " + myIP.toString());
-    Serial.println("My channel is " + String(wifi_get_channel()));
   }
 }
 
@@ -67,5 +72,5 @@ void receivedCallback( const uint32_t &from, const String &msg ) {
 }
 
 IPAddress getlocalIP() {
-  return IPAddress(mesh.getStaIp().ip.addr);
+  return IPAddress(mesh.getStationIP().addr);
 }
