@@ -8,8 +8,6 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <SimpleList.h>
-
 #include "painlessMesh.h"
 
 extern painlessMesh* staticThis;

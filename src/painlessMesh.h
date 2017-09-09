@@ -3,10 +3,9 @@
 
 #define _TASK_STD_FUNCTION
 
-
 #include <painlessScheduler.h>
 #include <Arduino.h>
-#include <SimpleList.h>
+#include <list>
 #include <ArduinoJson.h>
 #include <functional>
 #include <memory>
@@ -42,6 +41,9 @@ enum meshPackageType {
     SINGLE = 9   //application data for a single node
 };
 
+template<typename T>
+using SimpleList = std::list<T>; // backward compatibility
+
 typedef int debugType;
 
 #define ERROR 1
@@ -57,7 +59,7 @@ typedef int debugType;
 #define APPLICATION 1<<10
 #define DEBUG 1<<11
 
-using ConnectionList = SimpleList<std::shared_ptr<MeshConnection>>;
+using ConnectionList = std::list<std::shared_ptr<MeshConnection>>;
 
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
 typedef std::function<void(uint32_t nodeId)> droppedConnectionCallback_t;
@@ -101,7 +103,7 @@ public:
     void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
-    SimpleList<uint32_t> getNodeList();
+    std::list<uint32_t> getNodeList();
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);

@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <SimpleList.h>
 #include <ArduinoJson.h>
 
 #include "painlessMesh.h"

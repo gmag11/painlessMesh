@@ -24,7 +24,7 @@ struct temp_buffer_t {
 class ReceiveBuffer {
     public:
         String buffer;
-        SimpleList<String> jsonStrings;
+        std::list<String> jsonStrings;
 
         ReceiveBuffer();
         
@@ -42,7 +42,7 @@ class SentBuffer {
     public:
         size_t last_read_size = 0;
 
-        SimpleList<String> jsonStrings;
+        std::list<String> jsonStrings;
 
         SentBuffer();
         

@@ -1,6 +1,8 @@
 #ifndef   _PAINLESS_MESH_STA_H_
 #define   _PAINLESS_MESH_STA_H_
 
+#include <list>
+
 #define _TASK_STD_FUNCTION
 #include <painlessScheduler.h>
 
@@ -28,9 +30,9 @@ class StationScan {
     String password;
     painlessMesh *mesh;
     uint16_t port;
-    SimpleList<wifi_ap_record_t> aps;
+    std::list<wifi_ap_record_t> aps;
 
-    void requestIP(wifi_ap_record_t* ap);
+    void requestIP(wifi_ap_record_t &ap);
 
     // Manually configure network and ip 
     bool manual = false; 
