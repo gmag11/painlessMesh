@@ -1,7 +1,7 @@
 {
     "name": "painlessMesh",
     "keywords": "ethernet, m2m, iot",
-    "description": "A painless way to setup a mesh",
+    "description": "A painless way to setup a mesh with ESP8266 and ESP32 devices",
     "repository": {
         "type": "git",
         "url": "https://gitlab.com/BlackEdder/painlessMesh"
