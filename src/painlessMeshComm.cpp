@@ -16,12 +16,12 @@ extern painlessMesh* staticThis;
 
 // communications functions
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(std::shared_ptr<meshConnectionType> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(std::shared_ptr<MeshConnection> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority) {
     debugMsg(COMMUNICATION, "sendMessage(conn): conn-nodeId=%u destId=%u type=%d msg=%s\n", conn->nodeId, destId, (uint8_t)type, msg.c_str());
 
     String package = buildMeshPackage(destId, fromId, type, msg);
 
-    return sendPackage(conn, package, priority);
+    return conn->addMessage(package, priority);
 }
 
 //***********************************************************************
@@ -29,7 +29,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromI
     debugMsg(COMMUNICATION, "In sendMessage(destId): destId=%u type=%d, msg=%s\n",
              destId, type, msg.c_str());
 
-    std::shared_ptr<meshConnectionType> conn = findConnection(destId);
+    std::shared_ptr<MeshConnection> conn = findConnection(destId);
     if (conn) {
         return sendMessage(conn, destId, fromId, type, msg, priority);
     } else {
@@ -44,7 +44,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
         uint32_t from,
         meshPackageType type,
         String &msg,
-        std::shared_ptr<meshConnectionType> exclude) {
+        std::shared_ptr<MeshConnection> exclude) {
 
     // send a message to every node on the mesh
     bool errCode = false;
@@ -64,56 +64,6 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
         }
     }
     return errCode;
-}
-
-//***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendPackage(std::shared_ptr<meshConnectionType> connection, String &package, bool priority) {
-    debugMsg(COMMUNICATION, "Sending to %u-->%s<--\n", connection->nodeId, package.c_str());
-
-    if (package.length() > 1400) {
-        debugMsg(ERROR, "sendPackage(): err package too long length=%d\n", package.length());
-        return false;
-    }
-
-    connection = findConnection(connection->nodeId);
-
-    if (connection) { // Protect against null pointer
-        if (connection->sendReady == true) {
-            sint8 errCode = espconn_send(connection->esp_conn, (uint8*)package.c_str(), package.length());
-            connection->sendReady = false;
-
-            if (errCode == 0) {
-                debugMsg(COMMUNICATION, "sendPackage(): Package sent -> %s\n", package.c_str());
-                return true;
-            } else {
-                debugMsg(ERROR, "sendPackage(): espconn_send Failed node=%u, err=%d\n", connection->nodeId, errCode);
-                return false;
-            }
-        } else {
-            if (ESP.getFreeHeap() - package.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
-                if (priority) {
-                    connection->sendQueue.push_front(package);
-                    debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue beginning -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
-                } else {
-                    if (connection->sendQueue.size() < MAX_MESSAGE_QUEUE) {
-                        connection->sendQueue.push_back(package);
-                        debugMsg(COMMUNICATION, "sendPackage(): Package sent to queue end -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
-                    } else {
-                        debugMsg(ERROR, "sendPackage(): Message queue full -> %d , FreeMem: %d\n", connection->sendQueue.size(), ESP.getFreeHeap());
-                        return false;
-                    }
-
-                }
-                return true;
-            } else {
-                //connection->sendQueue.clear(); // Discard all messages if free memory is low
-                debugMsg(DEBUG, "sendPackage(): Memory low, message was discarded\n");
-                return false;
-            }
-        }
-    } else {
-        return false;
-    }
 }
 
 //***********************************************************************

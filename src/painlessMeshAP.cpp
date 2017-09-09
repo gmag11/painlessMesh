@@ -8,77 +8,79 @@
 
 #include <Arduino.h>
 
-extern "C" {
-#include "user_interface.h"
-#include "espconn.h"
-}
-
 #include "painlessMesh.h"
 
+extern painlessMesh* staticThis;
 
 // AP functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     //    String password( MESH_PASSWORD );
 
-    ip_addr ip, netmask;
+    ip4_addr_t ip, netmask;
     IP4_ADDR(&ip, 10, (_nodeId & 0xFF00) >> 8, (_nodeId & 0xFF), 1);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
 
-    ip_info ipInfo;
+    tcpip_adapter_ip_info_t ipInfo;
     ipInfo.ip = ip;
     ipInfo.gw = ip;
     ipInfo.netmask = netmask;
-    if (!wifi_set_ip_info(SOFTAP_IF, &ipInfo)) {
-        debugMsg(ERROR, "wifi_set_ip_info() failed\n");
+    if (tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo) != ESP_OK) {
+        debugMsg(ERROR, "tcpip_adapter_set_ip_info() failed\n");
     }
 
+    /*
     debugMsg(STARTUP, "apInit(): Starting AP with SSID=%s IP=%d.%d.%d.%d GW=%d.%d.%d.%d NM=%d.%d.%d.%d\n",
              _meshSSID.c_str(),
              IP2STR(&ipInfo.ip),
              IP2STR(&ipInfo.gw),
              IP2STR(&ipInfo.netmask));
+             */
 
-    softap_config apConfig;
-    wifi_softap_get_config(&apConfig);
+    wifi_config_t apConfig;
+    esp_wifi_get_config(ESP_IF_WIFI_AP, &apConfig);
 
-    memset(apConfig.ssid, 0, 32);
-    memset(apConfig.password, 0, 64);
-    memcpy(apConfig.ssid, _meshSSID.c_str(), _meshSSID.length());
-    memcpy(apConfig.password, _meshPassword.c_str(), _meshPassword.length());
+    memset(apConfig.ap.ssid, 0, 32);
+    memset(apConfig.ap.password, 0, 64);
+    memcpy(apConfig.ap.ssid, _meshSSID.c_str(), _meshSSID.length());
+    memcpy(apConfig.ap.password, _meshPassword.c_str(), _meshPassword.length());
 
-    apConfig.authmode = _meshAuthMode; // AUTH_WPA2_PSK
-    apConfig.ssid_len = _meshSSID.length();
-    apConfig.ssid_hidden = _meshHidden;
-    apConfig.channel = _meshChannel;
-    apConfig.beacon_interval = 100;
-    apConfig.max_connection = _meshMaxConn; // how many stations can connect to ESP8266 softAP at most, max is 4
+    apConfig.ap.authmode = _meshAuthMode; // AUTH_WPA2_PSK
+    apConfig.ap.ssid_len = _meshSSID.length();
+    apConfig.ap.ssid_hidden = _meshHidden;
+    apConfig.ap.channel = _meshChannel;
+    apConfig.ap.beacon_interval = 100;
+    apConfig.ap.max_connection = _meshMaxConn; // how many stations can connect to ESP8266 softAP at most, max is 4
 
-    wifi_softap_set_config(&apConfig);// Set ESP8266 softap config .
-    if (!wifi_softap_dhcps_start())
+    esp_wifi_set_config(ESP_IF_WIFI_AP, &apConfig);// Set ESP8266 softap config .
+    if (tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP) != ESP_OK)
         debugMsg(ERROR, "DHCP server failed\n");
     else
         debugMsg(STARTUP, "DHCP server started\n");
 
     // establish AP tcpServers
-    tcpServerInit(_meshServerConn, _meshServerTcp, meshConnectedCb, _meshPort);
+    tcpServerInit();
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port) {
-
+void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
     debugMsg(GENERAL, "tcpServerInit():\n");
 
-    serverConn.type = ESPCONN_TCP;
-    serverConn.state = ESPCONN_NONE;
-    serverConn.proto.tcp = &serverTcp;
-    serverConn.proto.tcp->local_port = port;
-    espconn_regist_connectcb(&serverConn, connectCb);
-    sint8 ret = espconn_accept(&serverConn);
-    if (ret == 0)
-        debugMsg(STARTUP, "AP tcp server established on port %d\n", port);
-    else
-        debugMsg(ERROR, "AP tcp server on port %d FAILED ret=%d\n", port, ret);
+    _tcpListener = tcp_new();
+    //tcpip_adapter_ip_info_t ip_info;
+    //tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info);
+    tcp_bind(_tcpListener, NULL, _meshPort);
+    _tcpListener = tcp_listen(_tcpListener);
 
+    //typedef err_t (* tcpAcceptCallback_t)(void * arg, tcp_pcb * newpcb, err_t err);
+    tcp_accept(_tcpListener, [](void * arg, tcp_pcb *newpcb, err_t err) {
+        staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
+        tcp_accepted(staticThis->_tcpListener);
+        auto conn = std::make_shared<MeshConnection>(newpcb, staticThis, false);
+        staticThis->_connections.push_back(conn);
+        return err;
+    });
+
+    debugMsg(STARTUP, "AP tcp server established on port %d\n", _meshPort);
     return;
 }

@@ -5,4 +5,4 @@ echo "pio run -d test/echoNode -t upload"
 echo ""
 echo ""
 
-pio run -d test/network/ -t upload; pio device monitor -b 115200
+pio run -d test/network/ -t upload -e nodemcuv2; pio device monitor -b 115200

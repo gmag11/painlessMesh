@@ -26,7 +26,7 @@ size_t noCBs = 0;
 String randomString(uint32_t length) {
     String str;
     for(auto i = 0; i < length; ++i) {
-        char rnd = random(33, 90);
+        char rnd = random(65, 90);
         str += String(rnd);
     }
     return str;
@@ -60,6 +60,7 @@ void newConnectionCallback(uint32_t nodeId) {
 void receivedCallback(uint32_t from, String &msg) {
     ++noCBs;
     received.push_back(msg);
+    Serial.printf("CB: %d, %d\n", expected.size(), received.size());
     if (sendingDone && expected.size() == received.size())
         endEchoTest = true;
 }
@@ -145,7 +146,7 @@ void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
     //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG ); // all types on
     mesh.setDebugMsgTypes(S_TIME | ERROR | CONNECTION | DEBUG);
-    mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
+    mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT);
     mesh.onNewConnection(&newConnectionCallback);
     mesh.onReceive(&receivedCallback);
 }

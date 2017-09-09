@@ -1,11 +1,8 @@
 #ifndef   _EASY_MESH_H_
 #define   _EASY_MESH_H_
 
-#ifndef ESP8266
-#error Only ESP8266 platform is allowed
-#endif // !ESP8266
-
 #define _TASK_STD_FUNCTION
+
 
 #include <painlessScheduler.h>
 #include <Arduino.h>
@@ -14,14 +11,15 @@
 #include <functional>
 #include <memory>
 using namespace std;
-
 extern "C" {
-#include "user_interface.h"
-#include "espconn.h"
+#include "lwip/tcp.h"
 }
+
+#include "espInterface.h"
 
 #include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
+#include "painlessMeshConnection.h"
 
 #define NODE_TIMEOUT        10*TASK_SECOND
 #define MIN_FREE_MEMORY     16000 // Minimum free memory, besides here all packets in queue are discarded.
@@ -29,9 +27,9 @@ extern "C" {
 #define MAX_CONSECUTIVE_SEND 5 // Max message busrt
 
 enum nodeMode {
-    AP_ONLY,
-    STA_ONLY,
-    STA_AP
+    AP_ONLY = WIFI_MODE_AP,
+    STA_ONLY = WIFI_MODE_STA,
+    STA_AP = WIFI_MODE_APSTA
 };
 
 enum meshPackageType {
@@ -59,26 +57,7 @@ typedef int debugType;
 #define APPLICATION 1<<10
 #define DEBUG 1<<11
 
-struct meshConnectionType {
-    espconn             *esp_conn;
-    uint32_t            nodeId = 0;
-    String              subConnections;
-    timeSync            time;
-    bool                newConnection = true;
-
-    uint32_t            timeDelayLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
-
-    bool                sendReady = true;
-    SimpleList<String>  sendQueue;
-
-    Task nodeTimeoutTask;
-    Task nodeSyncTask;
-    Task timeSyncTask;
-
-    ~meshConnectionType();
-};
-
-using ConnectionList = SimpleList<std::shared_ptr<meshConnectionType>>;
+using ConnectionList = SimpleList<std::shared_ptr<MeshConnection>>;
 
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
 typedef std::function<void(uint32_t nodeId)> droppedConnectionCallback_t;
@@ -86,6 +65,8 @@ typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
+
+typedef err_t (* tcpAcceptCallback_t)(void * arg, tcp_pcb * newpcb, err_t err);
 
 class painlessMesh {
 public:
@@ -97,8 +78,11 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
-    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
-
+#ifdef ESP32
+    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 10);
+#else
+    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
+#endif
     /**
      * Disconnect and stop this node
      */
@@ -140,51 +124,45 @@ protected:
 #endif
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(std::shared_ptr<meshConnectionType> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+    bool                sendMessage(std::shared_ptr<MeshConnection> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
-    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<meshConnectionType> exclude = NULL);
+    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<MeshConnection> exclude = NULL);
 
-    bool                sendPackage(std::shared_ptr<meshConnectionType> connection, String &package, bool priority = false);
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
 
     // in painlessMeshSync.cpp
     //must be accessable from callback
-    void                handleNodeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root);
-    void                startTimeSync(std::shared_ptr<meshConnectionType> conn);
-    void                handleTimeSync(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt);
-    void                handleTimeDelay(std::shared_ptr<meshConnectionType> conn, JsonObject& root, uint32_t receivedAt);
-    bool                adoptionCalc(std::shared_ptr<meshConnectionType> conn);
+    void                handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root);
+    void                startTimeSync(std::shared_ptr<MeshConnection> conn);
+    void                handleTimeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt);
+    void                handleTimeDelay(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt);
+    bool                adoptionCalc(std::shared_ptr<MeshConnection> conn);
 
     // in painlessMeshConnection.cpp
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
-    bool closeConnection(shared_ptr<meshConnectionType> conn);
     bool closeConnectionSTA(); 
 
-    ConnectionList::iterator closeConnectionIt(ConnectionList &connections, ConnectionList::iterator conn);
+    void                eraseClosedConnections();
 
-    String              subConnectionJson(std::shared_ptr<meshConnectionType> exclude);
+    String              subConnectionJson(std::shared_ptr<MeshConnection> exclude);
     String              subConnectionJsonHelper(
                             ConnectionList &connections,
                             uint32_t exclude = 0);
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
-    shared_ptr<meshConnectionType> findConnection(uint32_t nodeId);
-    shared_ptr<meshConnectionType> findConnection(espconn *conn);
+    shared_ptr<MeshConnection> findConnection(uint32_t nodeId);
+    shared_ptr<MeshConnection> findConnection(tcp_pcb *conn);
 
     // in painlessMeshAP.cpp
     void                apInit(void);
-    void                tcpServerInit(espconn &serverConn, esp_tcp &serverTcp, espconn_connect_callback connectCb, uint32 port);
+
+    void                tcpServerInit();
 
     // callbacks
     // in painlessMeshConnection.cpp
-    static void         wifiEventCb(System_Event_t *event);
-    static void         meshConnectedCb(void *arg);
-    static void         meshSentCb(void *arg);
-    static void         meshRecvCb(void *arg, char *data, unsigned short length);
-    static void         meshDisconCb(void *arg);
-    static void         meshReconCb(void *arg, sint8 err);
+    static int         espWifiEventCb(void * ctx, system_event_t *event);
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
@@ -200,25 +178,23 @@ protected:
     String      _meshPassword;
     uint16_t    _meshPort;
     uint8_t     _meshChannel;
-    _auth_mode  _meshAuthMode;
+    wifi_auth_mode_t  _meshAuthMode;
     uint8_t     _meshHidden;
     uint8_t     _meshMaxConn;
 
-    SimpleList<bss_info>            _meshAPs;
     ConnectionList  _connections;
 
-    os_timer_t  _scanTimer;
+    tcp_pcb     *_tcpListener;
 
-    espconn     _meshServerConn;
-    esp_tcp     _meshServerTcp;
-
-    espconn     _stationConn;
-    esp_tcp     _stationTcp;
+    tcp_pcb     *_tcpStationConnection;
+    bool        _station_got_ip = false;
 
     Task droppedConnectionTask;
     Task newConnectionTask;
 
     friend class StationScan;
+    friend class MeshConnection;
+    friend err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf *p, err_t err);
 };
 
 #endif //   _EASY_MESH_H_
