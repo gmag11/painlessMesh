@@ -19,53 +19,33 @@ extern painlessMesh* staticThis;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
         String ssid, String password, uint16_t port,
-        uint8_t * remote_ip) {
+        uint8_t *remote_ip) {
     // Set station config
     if (remote_ip != NULL) memcpy(stationScan.manualIP, remote_ip, 4 * sizeof(uint8_t));
 
     // Start scan
     stationScan.init(this, ssid, password, port);
     stationScan.manual = true;
-
-    //Connect to the WiFi network
-    struct station_config stationConf;
-    os_memcpy(&stationConf.ssid, ssid.c_str(), 32);
-    os_memcpy(&stationConf.password, password.c_str(), 64);
-
-    if (wifi_station_get_connect_status() != STATION_IDLE) { // Check if WiFi is idle
-      wifi_station_disconnect();
-    }
-
-    ETS_UART_INTR_DISABLE();
-    wifi_station_set_config(&stationConf);
-    wifi_station_connect();
-    ETS_UART_INTR_ENABLE();
-
-    wifi_set_channel(_meshChannel); //mesh channel have priority over the station channel
-    debugMsg(STARTUP, "stationManual(): Channel is: %d\n", _meshChannel);
-
-    wifi_station_dhcpc_start();
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::setHostname(const char * hostname){
   if(strlen(hostname) > 32) {
     return false;
   }
-  return wifi_station_set_hostname( (char *) hostname);
+  return (tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname) == ESP_OK);
 }
 
-ip_info ICACHE_FLASH_ATTR painlessMesh::getStaIp(){
-  struct ip_info ip;
-  wifi_get_ip_info(0x00, &ip);
-  return ip;
+ip4_addr_t ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
+    tcpip_adapter_ip_info_t ipconfig;
+    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
+    return ipconfig.ip;
 }
-
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     // TODO: move to Connection or StationConnection?
     debugMsg(GENERAL, "tcpConnect():\n");
-    if (stationScan.port == 0) return;
+    if (stationScan.manual && stationScan.port == 0) return; // We have been configured not to connect to the mesh 
 
     // TODO: We could pass this to tcpConnect instead of loading it here
     tcpip_adapter_ip_info_t ipconfig;
@@ -122,12 +102,10 @@ void ICACHE_FLASH_ATTR StationScan::init(painlessMesh *pMesh, String &pssid,
     mesh = pMesh;
     port = pPort;
 
-    if (port != 0){
-        task.set(SCAN_INTERVAL, TASK_FOREVER, [this](){
-                stationScan();
-                });
-      }
-    }
+    task.set(SCAN_INTERVAL, TASK_FOREVER, [this](){
+        stationScan();
+    });
+}
 
 // Starts scan for APs whose name is Mesh SSID
 void ICACHE_FLASH_ATTR StationScan::stationScan() {
@@ -218,7 +196,6 @@ void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t &ap) {
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {
     mesh->debugMsg(CONNECTION, "connectToAP():");
-    if (port == 0) return; //if port == 0 then the AP isn't configured to integrate in a mesh network
     // Next task will be to rescan
     task.setCallback([this]() {
         stationScan();

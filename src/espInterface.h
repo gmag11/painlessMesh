@@ -177,6 +177,8 @@ esp_err_t tcpip_adapter_dhcps_start(tcpip_adapter_if_t tcpip_if);
 
 esp_err_t tcpip_adapter_dhcps_stop(tcpip_adapter_if_t tcpip_if);
 
+esp_err_t tcpip_adapter_set_hostname(tcpip_adapter_if_t tcpip_if, const char *hostname);
+
 typedef softap_config wifi_ap_config_t;
 typedef station_config wifi_sta_config_t;
 

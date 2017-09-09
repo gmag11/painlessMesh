@@ -166,6 +166,16 @@ esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_dhcps_stop(tcpip_adapter_if_t tcpip_if
 
 }
 
+esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_hostname(tcpip_adapter_if_t tcpip_if, 
+        const char *hostname) {
+    // Currently only STA is supported
+    if (tcpip_if == TCPIP_ADAPTER_IF_STA) {
+        wifi_station_set_hostname(hostname);
+        return ESP_OK;
+    }
+    return ESP_FAIL;
+}
+
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf) {
     if (ifx == ESP_IF_WIFI_STA)
         if (wifi_station_set_config(&conf->sta))
