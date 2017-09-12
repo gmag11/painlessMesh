@@ -123,7 +123,7 @@ This fires when a time delay masurement response is received, after a request wa
 
 `nodeId` The node that originated response.
 
-`delay` One way network trip delay in nanoseconds.
+`delay` One way network trip delay in microseconds.
 
 ### bool painlessMesh::sendBroadcast( String &amp;msg)
 
