@@ -1,6 +1,6 @@
 //
 //  painlessMeshSTA.cpp
-//  
+//
 //
 //  Created by Bill Gray on 7/26/16.
 //
@@ -21,17 +21,31 @@ void ICACHE_FLASH_ATTR painlessMesh::stationManual(
         String ssid, String password, uint16_t port,
         uint8_t *remote_ip) {
     // Set station config
-    memcpy(stationScan.manualIP, remote_ip, 4 * sizeof(uint8_t));
+    if (remote_ip != NULL) memcpy(stationScan.manualIP, remote_ip, 4 * sizeof(uint8_t));
 
     // Start scan
     stationScan.init(this, ssid, password, port);
     stationScan.manual = true;
 }
 
+bool ICACHE_FLASH_ATTR painlessMesh::setHostname(const char * hostname){
+  if(strlen(hostname) > 32) {
+    return false;
+  }
+  return (tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname) == ESP_OK);
+}
+
+ip4_addr_t ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
+    tcpip_adapter_ip_info_t ipconfig;
+    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
+    return ipconfig.ip;
+}
+
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
-    // TODO: move to Connection or StationConnection? 
+    // TODO: move to Connection or StationConnection?
     debugMsg(GENERAL, "tcpConnect():\n");
+    if (stationScan.manual && stationScan.port == 0) return; // We have been configured not to connect to the mesh 
 
     // TODO: We could pass this to tcpConnect instead of loading it here
     tcpip_adapter_ip_info_t ipconfig;
@@ -83,17 +97,17 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(uint8_t *hwaddr) {
 
 void ICACHE_FLASH_ATTR StationScan::init(painlessMesh *pMesh, String &pssid, 
         String &ppassword, uint16_t pPort) {
-    ssid = pssid; 
-    password = ppassword; 
+    ssid = pssid;
+    password = ppassword;
     mesh = pMesh;
     port = pPort;
 
-        task.set(SCAN_INTERVAL, TASK_FOREVER, [this](){
-                stationScan();
-                });
-    }
+    task.set(SCAN_INTERVAL, TASK_FOREVER, [this](){
+        stationScan();
+    });
+}
 
-// Starts scan for APs whose name is Mesh SSID 
+// Starts scan for APs whose name is Mesh SSID
 void ICACHE_FLASH_ATTR StationScan::stationScan() {
     staticThis->debugMsg(CONNECTION, "stationScan(): %s\n", ssid.c_str());
 
@@ -135,7 +149,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     free(records);
     staticThis->debugMsg(CONNECTION, "\tFound % d nodes\n", aps.size());
 
-    task.yield([this]() { 
+    task.yield([this]() {
         // Task filter all unknown
         filterAPs();
 
@@ -145,7 +159,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
                     return a.rssi > b.rssi;
             });
             // Next task is to connect to the top ap
-            task.yield([this]() { 
+            task.yield([this]() {
                 connectToAP();
             });
         });
@@ -194,7 +208,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
             task.delay(SCAN_INTERVAL);
             return;
         }
-        
+       
         if (ssid.equals((char *) stationConf.sta.ssid) && 
                 mesh->_station_got_ip) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Already connected using manual connection. Disabling scanning.\n");
@@ -231,15 +245,15 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
             auto prob = mesh->stability/mesh->approxNoNodes();
             if (random(0, 1000) < prob) {
                 mesh->debugMsg(CONNECTION, "connectToAP(): Reconfigure network: %s\n", String(prob).c_str());
-                // close STA connection, this will trigger station disconnect which will trigger 
+                // close STA connection, this will trigger station disconnect which will trigger
                 // connectToAP()
                 mesh->closeConnectionSTA();
                 mesh->stability = 0; // Discourage switching again
                 // wifiEventCB should be triggered before this delay runs out
                 // and reset the connecting
-                task.delay(1000*SCAN_INTERVAL); 
+                task.delay(1000*SCAN_INTERVAL);
             } else {
-                task.delay(random(4,7)*SCAN_INTERVAL); 
+                task.delay(random(4,7)*SCAN_INTERVAL);
             }
         } else {
             // Else try to connect to first 

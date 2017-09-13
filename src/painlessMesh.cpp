@@ -88,7 +88,7 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
         (*connection)->close();
     }
 
-    // Stop scanning task 
+    // Stop scanning task
     stationScan.task.setCallback(NULL);
     scheduler.deleteTask(stationScan.task);
 

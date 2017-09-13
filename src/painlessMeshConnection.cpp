@@ -218,9 +218,9 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
         staticThis->debugMsg(CONNECTION, "closingTask():\n");
         staticThis->debugMsg(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId, staticThis->getNodeTime());
        if (staticThis->changedConnectionsCallback)
-            staticThis->changedConnectionsCallback(); // Connection dropped. Signal user            
+            staticThis->changedConnectionsCallback(); // Connection dropped. Signal user
        if (staticThis->droppedConnectionCallback)
-            staticThis->droppedConnectionCallback(nodeId); // Connection dropped. Signal user            
+            staticThis->droppedConnectionCallback(nodeId); // Connection dropped. Signal user
        for (auto &&connection : staticThis->_connections) {
            if (connection->nodeId != nodeId) { // Exclude current
                connection->nodeSyncTask.forceNextIteration();
@@ -374,7 +374,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
     }
     return false;
 }
- 
+
 // Check whether a string contains a numeric substring as a complete number
 //
 // "a:800" does contain "800", but does not contain "80"

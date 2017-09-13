@@ -112,8 +112,10 @@ public:
     uint32_t            encodeNodeId(uint8_t *hwaddr);
     /// Connect (as a station) to a specified network and ip
     /// You can pass {0,0,0,0} as IP to have it connect to the gateway
-    void stationManual(String ssid, String password, uint16_t port,
-        uint8_t *remote_ip);
+    void stationManual(String ssid, String password, uint16_t port = 0,
+        uint8_t * remote_ip = NULL);
+    bool setHostname(const char * hostname);
+    ip4_addr_t getStationIP();
 
     Scheduler scheduler;
     StationScan stationScan;
