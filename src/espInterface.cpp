@@ -128,6 +128,14 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_deinit() {
 }
 
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_start() {
+    if (system_event_cb) {
+        system_event_t event;
+        event.event_id = SYSTEM_EVENT_STA_START;
+        system_event_cb(NULL, &event);
+        system_event_t event_ap;
+        event_ap.event_id = SYSTEM_EVENT_AP_START;
+        system_event_cb(NULL, &event_ap);
+    }
     return ESP_OK;
 }
 

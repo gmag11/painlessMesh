@@ -624,6 +624,10 @@ int ICACHE_FLASH_ATTR painlessMesh::espWifiEventCb(void * ctx, system_event_t *e
         // Call the same thing original callback called
         staticThis->stationScan.scanComplete();
         break;
+    case SYSTEM_EVENT_STA_START:
+        staticThis->stationScan.task.forceNextIteration();
+        staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_START\n");
+        break;
     case SYSTEM_EVENT_STA_CONNECTED:
         staticThis->debugMsg(CONNECTION, "espWifiEventCb(): SYSTEM_EVENT_STA_CONNECTED\n");
         break;
