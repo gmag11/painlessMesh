@@ -28,14 +28,13 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     if (connectMode == AP_ONLY || connectMode == STA_AP)
         tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
 
-    esp_event_loop_init(espWifiEventCb, NULL);
-
     // Should check whether AP_ONLY etc.
     esp_wifi_set_protocol(ESP_IF_WIFI_STA, phymode);
     esp_wifi_set_protocol(ESP_IF_WIFI_AP, phymode);
 #ifdef ESP8266
     system_phy_set_max_tpw(maxtpw); //maximum value of RF Tx Power, unit : 0.25dBm, range [0,82]
 #endif
+    esp_event_loop_init(espWifiEventCb, NULL);
 
     staticThis = this;  // provides a way for static callback methods to access "this" object;
 
