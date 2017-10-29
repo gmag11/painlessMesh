@@ -131,7 +131,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(tcp_pcb *tcp, painlessMesh *pMe
 
     tcp_sent(pcb, tcpSentCb);
 
-    //tcp_nagle_disable(pcb);
+    tcp_nagle_disable(pcb);
     tcp_err(pcb, [](void * arg, err_t err) {
         if (arg == NULL)
             staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection NULL %d\n", err);
