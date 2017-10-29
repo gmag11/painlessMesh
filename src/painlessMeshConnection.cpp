@@ -98,6 +98,7 @@ void ICACHE_FLASH_ATTR SentBuffer::read(size_t length, temp_buffer_t &buf) {
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
+    staticThis->debugMsg(COMMUNICATION, "SentBuffer::freeRead(): %u\n", last_read_size);
     if (last_read_size == jsonStrings.begin()->length() + 1)
         jsonStrings.pop_front();
     else
@@ -296,8 +297,8 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         auto errCode = tcp_write(pcb, static_cast<const void*>(shared_buffer.buffer), len, TCP_WRITE_FLAG_COPY);
         if (errCode == ERR_OK) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", shared_buffer.buffer);
-            sentBuffer.freeRead();
             tcp_output(pcb); // TODO only do this for priority messages
+            sentBuffer.freeRead();
             writeNext();
             return true;
         } else {
