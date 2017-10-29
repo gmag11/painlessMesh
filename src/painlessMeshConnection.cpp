@@ -252,6 +252,9 @@ void ICACHE_FLASH_ATTR MeshConnection::close(bool close_pcb) {
         esp_wifi_disconnect();
     }
     mesh->eraseClosedConnections();
+
+    if (station && mesh->_station_got_ip)
+        mesh->_station_got_ip = false;
 }
 
 
@@ -297,7 +300,9 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         auto errCode = tcp_write(pcb, static_cast<const void*>(shared_buffer.buffer), len, TCP_WRITE_FLAG_COPY);
         if (errCode == ERR_OK) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", shared_buffer.buffer);
+#ifndef ESP32 // This seems to sometimes causes crashes on ESP32
             tcp_output(pcb); // TODO only do this for priority messages
+#endif
             sentBuffer.freeRead();
             writeNext();
             return true;
