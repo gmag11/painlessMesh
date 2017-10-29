@@ -135,12 +135,14 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 
     uint16_t num = 0;
     auto err = esp_wifi_scan_get_ap_num(&num);
+    if (err != ESP_OK)
+        staticThis->debugMsg(CONNECTION, "scanComplete():-- > Error in scanning.\n");
     //wifi_ap_record_t *records = new wifi_ap_record_t[num];
     wifi_ap_record_t *records = (wifi_ap_record_t*)malloc(num*sizeof(wifi_ap_record_t));
     //records = (wifi_ap_record_t *)malloc(num*sizeof(wifi_ap_record_t));
-    staticThis->debugMsg(CONNECTION, "scanComplete(): num=%u, err=%u\n", num, err);
+    staticThis->debugMsg(CONNECTION, "scanComplete(): num=%d, err=%d\n", num, err);
     err = esp_wifi_scan_get_ap_records(&num, records);
-    staticThis->debugMsg(CONNECTION, "scanComplete(): After getting records, num=%u, err=%u\n", num, err);
+    staticThis->debugMsg(CONNECTION, "scanComplete(): After getting records, num=%d, err=%d\n", num, err);
     for (uint16_t i = 0; i < num; ++i) {
         aps.push_back(records[i]);
         staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm\n", (char*) records[i].ssid, (int16_t) records[i].rssi);
