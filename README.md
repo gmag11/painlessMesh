@@ -161,6 +161,13 @@ Sends a node a packet to measure network trip delay to that node. Returns true i
 
 nodeDelayCallback_t is a funtion in the form of `void (uint32_t nodeId, int32_t delay)`.
 
+# Included dependencies
+
+`painlessMesh` includes two other projects within its source directory. These projects were included directly in a slightly modified form. The original version of the two projects are:
+
+- [AsyncTCP](https://github.com/me-no-dev/AsyncTCP)
+- [TaskScheduler](http://playground.arduino.cc/Code/TaskScheduler)
+
 # Funding
 
 Most development of painlessMesh has been done as a hobby, but some specific features have been funded by the companies listed below:

@@ -66,20 +66,16 @@ void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
 void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
     debugMsg(GENERAL, "tcpServerInit():\n");
 
-    _tcpListener = tcp_new();
-    //tcpip_adapter_ip_info_t ip_info;
-    //tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_info);
-    tcp_bind(_tcpListener, NULL, _meshPort);
-    _tcpListener = tcp_listen(_tcpListener);
+    _tcpListener = new AsyncServer(_meshPort);
+    _tcpListener->setNoDelay(true);
 
-    //typedef err_t (* tcpAcceptCallback_t)(void * arg, tcp_pcb * newpcb, err_t err);
-    tcp_accept(_tcpListener, [](void * arg, tcp_pcb *newpcb, err_t err) {
+    _tcpListener->onClient([](void * arg, AsyncClient *client) {
         staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
-        tcp_accepted(staticThis->_tcpListener);
-        auto conn = std::make_shared<MeshConnection>(newpcb, staticThis, false);
+        auto conn = std::make_shared<MeshConnection>(client, staticThis, false);
         staticThis->_connections.push_back(conn);
-        return err;
-    });
+    }, NULL);
+
+    _tcpListener->begin();
 
     debugMsg(STARTUP, "AP tcp server established on port %d\n", _meshPort);
     return;

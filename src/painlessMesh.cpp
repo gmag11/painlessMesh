@@ -16,7 +16,6 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
-    lwip_init();
     tcpip_adapter_init();
 
     wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
