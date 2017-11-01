@@ -227,7 +227,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
 void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
     String timeStamp;
 
-    debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->pcb->local_port);
+    debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->client->getLocalPort());
     auto adopt = adoptionCalc(conn);
     if (adopt) {
         timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
@@ -248,7 +248,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection
     // We use length as an indicator for how many subconnections both nodes have
     uint16_t mySubCount = subConnectionJson(conn).length();  //exclude this connection.
     uint16_t remoteSubCount = conn->subConnections.length();
-    bool ap = conn->pcb->local_port == _meshPort;
+    bool ap = conn->client->getLocalPort() == _meshPort;
 
     // ToDo. Simplify this logic
     bool ret = (mySubCount > remoteSubCount) ? false : true;

@@ -29,7 +29,6 @@ class ReceiveBuffer {
         ReceiveBuffer();
         
         void push(const char * cstr, size_t length, temp_buffer_t &buf);
-        void push(pbuf *p, temp_buffer_t &buf);
 
         String front();
         void pop_front();
@@ -60,7 +59,7 @@ class SentBuffer {
 
 class MeshConnection {
     public:
-        tcp_pcb             *pcb;
+        AsyncClient         *client;
         painlessMesh        *mesh;
         uint32_t            nodeId = 0;
         String              subConnections;
@@ -73,21 +72,19 @@ class MeshConnection {
 
         bool                addMessage(String &message, bool priority = false);
         bool                writeNext();
-        bool                sendReady = true;
         ReceiveBuffer       receiveBuffer;
         SentBuffer          sentBuffer;
 
-        Task nodeTimeoutTask;
         Task nodeSyncTask;
         Task timeSyncTask;
         Task readBufferTask;
 
-        MeshConnection(tcp_pcb *tcp, painlessMesh *pMesh, bool station);
+        MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
         ~MeshConnection();
 
         void handleMessage(String &msg, uint32_t receivedAt);
 
-        void close(bool close_pcb = true);
+        void close();
         friend class painlessMesh;
 };
 #endif

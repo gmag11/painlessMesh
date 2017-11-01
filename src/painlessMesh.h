@@ -10,11 +10,8 @@
 #include <functional>
 #include <memory>
 using namespace std;
-extern "C" {
-#include "lwip/tcp.h"
-}
-
 #include "espInterface.h"
+#include "AsyncTCP.h"
 
 #include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
@@ -67,8 +64,6 @@ typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
-
-typedef err_t (* tcpAcceptCallback_t)(void * arg, tcp_pcb * newpcb, err_t err);
 
 class painlessMesh {
 public:
@@ -156,8 +151,8 @@ protected:
                             uint32_t exclude = 0);
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
-    shared_ptr<MeshConnection> findConnection(uint32_t nodeId);
-    shared_ptr<MeshConnection> findConnection(tcp_pcb *conn);
+    shared_ptr<MeshConnection> findConnection(uint32_t nodeId, uint32_t exclude = 0);
+    shared_ptr<MeshConnection> findConnection(AsyncClient *conn);
 
     // in painlessMeshAP.cpp
     void                apInit(void);
@@ -188,17 +183,16 @@ protected:
 
     ConnectionList  _connections;
 
-    tcp_pcb     *_tcpListener;
+    AsyncServer  *_tcpListener;
 
-    tcp_pcb     *_tcpStationConnection;
-    bool        _station_got_ip = false;
+    bool         _station_got_ip = false;
 
     Task droppedConnectionTask;
     Task newConnectionTask;
 
     friend class StationScan;
     friend class MeshConnection;
-    friend err_t meshRecvCb(void * arg, struct tcp_pcb * tpcb, struct pbuf *p, err_t err);
+    friend void onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
 };
 
 #endif //   _EASY_MESH_H_
