@@ -205,7 +205,6 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     this->timeSyncTask.setCallback(NULL);
     this->nodeSyncTask.setCallback(NULL);
     this->readBufferTask.setCallback(NULL);
-    this->nodeId = 0;
 
     auto nodeId = this->nodeId;
 
@@ -243,6 +242,8 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
 
     if (station && mesh->_station_got_ip)
         mesh->_station_got_ip = false;
+
+    this->nodeId = 0;
 }
 
 
