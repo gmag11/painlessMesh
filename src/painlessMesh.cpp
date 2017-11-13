@@ -22,6 +22,9 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     if ((esp_wifi_init(&init_config)) != ESP_OK) {
         //debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", err);
     }
+    if (esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK)
+        debugMsg(ERROR, "Unable to set storage to RAM only.\n");
+        
     debugMsg(STARTUP, "init(): %d\n", esp_wifi_set_auto_connect(false)); // Disable autoconnect
     
     if (connectMode == AP_ONLY || connectMode == STA_AP)
