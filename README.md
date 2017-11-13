@@ -125,9 +125,9 @@ This fires when a time delay masurement response is received, after a request wa
 
 `delay` One way network trip delay in microseconds.
 
-### bool painlessMesh::sendBroadcast( String &amp;msg)
+### bool painlessMesh::sendBroadcast( String &amp;msg, bool includeSelf = false)
 
-Sends msg to every node on the entire mesh network.
+Sends msg to every node on the entire mesh network. By default the current node is excluded from receiving the message (`includeSelf = false`). `includeSelf = true` overrides this behaviour, causing the `receivedCallback` to be called when sending a broadcast message. 
 
 returns true if everything works, false if not.  Prints an error message to Serial.print, if there is a failure.
 
