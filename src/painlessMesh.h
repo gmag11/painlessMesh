@@ -11,7 +11,7 @@
 #include <memory>
 using namespace std;
 #include "espInterface.h"
-#include "AsyncTCP.h"
+#include "painlessTCP.h"
 
 #include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
@@ -152,7 +152,7 @@ protected:
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
     shared_ptr<MeshConnection> findConnection(uint32_t nodeId, uint32_t exclude = 0);
-    shared_ptr<MeshConnection> findConnection(AsyncClient *conn);
+    shared_ptr<MeshConnection> findConnection(TCPClient *conn);
 
     // in painlessMeshAP.cpp
     void                apInit(void);
@@ -183,7 +183,7 @@ protected:
 
     ConnectionList  _connections;
 
-    AsyncServer  *_tcpListener;
+    TCPServer  *_tcpListener;
 
     bool         _station_got_ip = false;
 
@@ -192,7 +192,7 @@ protected:
 
     friend class StationScan;
     friend class MeshConnection;
-    friend void onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
+    friend void onDataCb(void * arg, TCPClient *client, void *data, size_t len);
 };
 
 #endif //   _EASY_MESH_H_

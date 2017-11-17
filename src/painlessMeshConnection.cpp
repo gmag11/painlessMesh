@@ -106,10 +106,10 @@ void ICACHE_FLASH_ATTR SentBuffer::clear() {
 }
 
 
-void meshRecvCb(void * arg, AsyncClient *, void * data, size_t len);
-void tcpSentCb(void * arg, AsyncClient * tpcb, size_t len, uint32_t time);
+void meshRecvCb(void * arg, TCPClient *, void * data, size_t len);
+void tcpSentCb(void * arg, TCPClient * tpcb, size_t len, uint32_t time);
 
-ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painlessMesh *pMesh, bool is_station) {
+ICACHE_FLASH_ATTR MeshConnection::MeshConnection(TCPClient *client_ptr, painlessMesh *pMesh, bool is_station) {
     station = is_station;
     mesh = pMesh;
     client = client_ptr;
@@ -129,11 +129,11 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");
     }
 
-    client->onError([](void * arg, AsyncClient *client, int8_t err) {
+    client->onError([](void * arg, TCPClient *client, int8_t err) {
         staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %s\n", client->errorToString(err));
     }, arg);
 
-    client->onDisconnect([](void *arg, AsyncClient *client) {
+    client->onDisconnect([](void *arg, TCPClient *client) {
         if (arg == NULL) {
             staticThis->debugMsg(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
             if (client->connected())
@@ -428,7 +428,7 @@ std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(u
 }
 
 //***********************************************************************
-std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(AsyncClient *client) {
+std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(TCPClient *client) {
     debugMsg(GENERAL, "In findConnection(esp_conn) conn=0x%x\n", client);
 
     for (auto &&connection : _connections) {
@@ -512,7 +512,7 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, uint32_t time) {
+void ICACHE_FLASH_ATTR tcpSentCb(void * arg, TCPClient * client, size_t len, uint32_t time) {
     if (arg == NULL) {
         staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
     }
@@ -520,7 +520,7 @@ void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, u
     conn->writeNext();
 }
 
-void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, size_t len) {
+void ICACHE_FLASH_ATTR meshRecvCb(void * arg, TCPClient *client, void * data, size_t len) {
     if (arg == NULL) {
         staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
     }

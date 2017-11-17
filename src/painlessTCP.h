@@ -19,8 +19,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ASYNCTCP_H_
-#define ASYNCTCP_H_
+#ifndef PAINLESS_TCP_H_
+#define PAINLESS_TCP_H_
 
 #include "espInterface.h"
 #include "IPAddress.h"
@@ -32,39 +32,39 @@ extern "C" {
 }
 #endif
 
-class AsyncClient;
+class TCPClient;
 
-#define ASYNC_MAX_ACK_TIME 5000
-#define ASYNC_WRITE_FLAG_COPY 0x01 //will allocate new buffer to hold the data while sending (else will hold reference to the data given)
-#define ASYNC_WRITE_FLAG_MORE 0x02 //will not send PSH flag, meaning that there should be more data to be sent before the application should react.
+#define TCP_MAX_ACK_TIME 5000
+#define TCP_WRITE_FLAG_COPY 0x01 //will allocate new buffer to hold the data while sending (else will hold reference to the data given)
+#define TCP_WRITE_FLAG_MORE 0x02 //will not send PSH flag, meaning that there should be more data to be sent before the application should react.
 
-typedef std::function<void(void*, AsyncClient*)> AcConnectHandler;
-typedef std::function<void(void*, AsyncClient*, size_t len, uint32_t time)> AcAckHandler;
-typedef std::function<void(void*, AsyncClient*, int8_t error)> AcErrorHandler;
-typedef std::function<void(void*, AsyncClient*, void *data, size_t len)> AcDataHandler;
-typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler;
+typedef std::function<void(void*, TCPClient*)> TCPConnectHandler;
+typedef std::function<void(void*, TCPClient*, size_t len, uint32_t time)> TCPAckHandler;
+typedef std::function<void(void*, TCPClient*, int8_t error)> TCPErrorHandler;
+typedef std::function<void(void*, TCPClient*, void *data, size_t len)> TCPDataHandler;
+typedef std::function<void(void*, TCPClient*, uint32_t time)> TCPTimeoutHandler;
 
 struct tcp_pcb;
 struct pbuf;
 struct _ip_addr;
 
-class AsyncClient {
+class TCPClient {
   protected:
     tcp_pcb* _pcb;
 
-    AcConnectHandler _connect_cb;
+    TCPConnectHandler _connect_cb;
     void* _connect_cb_arg;
-    AcConnectHandler _discard_cb;
+    TCPConnectHandler _discard_cb;
     void* _discard_cb_arg;
-    AcAckHandler _sent_cb;
+    TCPAckHandler _sent_cb;
     void* _sent_cb_arg;
-    AcErrorHandler _error_cb;
+    TCPErrorHandler _error_cb;
     void* _error_cb_arg;
-    AcDataHandler _recv_cb;
+    TCPDataHandler _recv_cb;
     void* _recv_cb_arg;
-    AcTimeoutHandler _timeout_cb;
+    TCPTimeoutHandler _timeout_cb;
     void* _timeout_cb_arg;
-    AcConnectHandler _poll_cb;
+    TCPConnectHandler _poll_cb;
     void* _poll_cb_arg;
 
     bool _pcb_busy;
@@ -86,18 +86,18 @@ class AsyncClient {
 
 
   public:
-    AsyncClient* prev;
-    AsyncClient* next;
+    TCPClient* prev;
+    TCPClient* next;
 
-    AsyncClient(tcp_pcb* pcb = 0);
-    ~AsyncClient();
+    TCPClient(tcp_pcb* pcb = 0);
+    ~TCPClient();
 
-    AsyncClient & operator=(const AsyncClient &other);
-    AsyncClient & operator+=(const AsyncClient &other);
+    TCPClient & operator=(const TCPClient &other);
+    TCPClient & operator+=(const TCPClient &other);
 
-    bool operator==(const AsyncClient &other);
+    bool operator==(const TCPClient &other);
 
-    bool operator!=(const AsyncClient &other) {
+    bool operator!=(const TCPClient &other) {
       return !(*this == other);
     }
     bool connect(IPAddress ip, uint16_t port);
@@ -141,13 +141,13 @@ class AsyncClient {
     IPAddress localIP();
     uint16_t  localPort();
 
-    void onConnect(AcConnectHandler cb, void* arg = 0);     //on successful connect
-    void onDisconnect(AcConnectHandler cb, void* arg = 0);  //disconnected
-    void onAck(AcAckHandler cb, void* arg = 0);             //ack received
-    void onError(AcErrorHandler cb, void* arg = 0);         //unsuccessful connect or error
-    void onData(AcDataHandler cb, void* arg = 0);           //data received
-    void onTimeout(AcTimeoutHandler cb, void* arg = 0);     //ack timeout
-    void onPoll(AcConnectHandler cb, void* arg = 0);        //every 125ms when connected
+    void onConnect(TCPConnectHandler cb, void* arg = 0);     //on successful connect
+    void onDisconnect(TCPConnectHandler cb, void* arg = 0);  //disconnected
+    void onAck(TCPAckHandler cb, void* arg = 0);             //ack received
+    void onError(TCPErrorHandler cb, void* arg = 0);         //unsuccessful connect or error
+    void onData(TCPDataHandler cb, void* arg = 0);           //data received
+    void onTimeout(TCPTimeoutHandler cb, void* arg = 0);     //ack timeout
+    void onPoll(TCPConnectHandler cb, void* arg = 0);        //every 125ms when connected
 
     const char * errorToString(int8_t error);
     const char * stateToString();
@@ -164,22 +164,22 @@ class AsyncClient {
     bool _in_lwip_thread;
 };
 
-class AsyncServer {
+class TCPServer {
   protected:
     uint16_t _port;
     IPAddress _addr;
     bool _noDelay;
     bool _in_lwip_thread;
     tcp_pcb* _pcb;
-    AcConnectHandler _connect_cb;
+    TCPConnectHandler _connect_cb;
     void* _connect_cb_arg;
 
   public:
 
-    AsyncServer(IPAddress addr, uint16_t port);
-    AsyncServer(uint16_t port);
-    ~AsyncServer();
-    void onClient(AcConnectHandler cb, void* arg);
+    TCPServer(IPAddress addr, uint16_t port);
+    TCPServer(uint16_t port);
+    ~TCPServer();
+    void onClient(TCPConnectHandler cb, void* arg);
     void begin();
     void end();
     void setNoDelay(bool nodelay);
@@ -192,4 +192,4 @@ class AsyncServer {
 };
 
 
-#endif /* ASYNCTCP_H_ */
+#endif /* PAINLESS_TCP_H_ */
