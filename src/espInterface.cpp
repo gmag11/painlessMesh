@@ -127,6 +127,12 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_deinit() {
     return ESP_OK;
 }
 
+static wifi_storage_t wifi_storage;
+
+esp_err_t esp_wifi_set_storage(wifi_storage_t storage) {
+    wifi_storage = storage;
+}
+
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_start() {
     if (system_event_cb) {
         system_event_t event;
@@ -186,12 +192,23 @@ esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_hostname(tcpip_adapter_if_t tcpip_
 
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf) {
     if (ifx == ESP_IF_WIFI_STA)
-        if (wifi_station_set_config(&conf->sta))
-            return ESP_OK;
+        if (wifi_storage == WIFI_STORAGE_FLASH) {
+            if (wifi_station_set_config(&conf->sta))
+                return ESP_OK;
+        } else {
+            if (wifi_station_set_config_current(&conf->sta))
+                return ESP_OK;
+        }
 
     if (ifx == ESP_IF_WIFI_AP)
-        if (wifi_softap_set_config(&conf->ap))
-            return ESP_OK;
+        if (wifi_storage == WIFI_STORAGE_FLASH) {
+            if (wifi_softap_set_config(&conf->ap))
+                return ESP_OK;
+        } else {
+            if (wifi_softap_set_config_current(&conf->ap))
+                return ESP_OK;
+        }
+
      return ESP_FAIL;
 }
 

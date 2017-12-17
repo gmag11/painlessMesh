@@ -73,6 +73,7 @@ typedef struct {
   */
 typedef esp_err_t (*system_event_cb_t)(void *ctx, system_event_t *event);
 
+
 /**
   * @brief  Initialize event loop
   *         Create the event handler and task
@@ -152,6 +153,13 @@ typedef struct {} wifi_init_config_t;
 esp_err_t esp_wifi_init(wifi_init_config_t *config);
 
 esp_err_t esp_wifi_deinit();
+
+typedef enum {
+    WIFI_STORAGE_FLASH,  /**< all configuration will strore in both memory and flash */
+    WIFI_STORAGE_RAM,    /**< all configuration will only store in the memory */
+} wifi_storage_t;
+
+esp_err_t esp_wifi_set_storage(wifi_storage_t storage);
 
 esp_err_t esp_wifi_start();
 
