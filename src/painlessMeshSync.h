@@ -3,7 +3,10 @@
 
 #include <Arduino.h>
 
+#ifndef TIME_SYNC_INTERVAL
 #define TIME_SYNC_INTERVAL  5*TASK_MINUTE  // Time resync period
+#endif
+
 #define NUMBER_OF_TIMESTAMPS 4   // 4 timestamps are needed for time offset calculation
 #define MIN_ACCURACY        10000 // Minimum time sync accuracy
 
