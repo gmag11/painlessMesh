@@ -10,6 +10,9 @@
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
+// Prototype
+void receivedCallback( uint32_t from, String &msg );
+
 painlessMesh  mesh;
 
 // Send my ID every 10 seconds to inform others
