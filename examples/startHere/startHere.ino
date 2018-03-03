@@ -21,6 +21,14 @@
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
+// Prototypes
+void sendMessage(); 
+void receivedCallback(uint32_t from, String & msg);
+void newConnectionCallback(uint32_t nodeId);
+void changedConnectionCallback(); 
+void nodeTimeAdjustedCallback(int32_t offset); 
+void delayReceivedCallback(uint32_t from, int32_t delay);
+
 painlessMesh  mesh;
 bool calc_delay = false;
 SimpleList<uint32_t> nodes;

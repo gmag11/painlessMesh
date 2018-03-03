@@ -9,6 +9,9 @@
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
+// Prototype
+void receivedCallback( uint32_t from, String &msg );
+
 painlessMesh  mesh;
 
 size_t logServerId = 0;

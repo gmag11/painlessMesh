@@ -30,6 +30,10 @@
 
 #define HOSTNAME "HTTP_BRIDGE"
 
+// Prototype
+void receivedCallback( const uint32_t &from, const String &msg );
+IPAddress getlocalIP();
+
 painlessMesh  mesh;
 AsyncWebServer server(80);
 IPAddress myIP(0,0,0,0);
