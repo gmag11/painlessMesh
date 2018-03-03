@@ -83,7 +83,12 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment(uint32_t times[NUMBER_OF_TIME
     // We use the SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm.
     uint32_t offset = ((int32_t)(times[1] - times[0]) / 2) + ((int32_t)(times[2] - times[3]) / 2);
 
-    timeAdjuster += offset; // Accumulate offset
+
+    if (offset < TASK_SECOND && offset > 4)
+        timeAdjuster += offset/4; // Take small steps to avoid over correction 
+    else 
+        timeAdjuster += offset; // Accumulate offset
+
     staticThis->debugMsg(S_TIME, 
             "calcAdjustment(): Calculated offset %d us.\n", offset);
     staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
@@ -305,7 +310,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<MeshConnecti
             nodeTimeAdjustedCallback(offset);
         }
 
-        if (offset < MIN_ACCURACY && offset > -MIN_ACCURACY) {
+        if (offset < TIME_SYNC_ACCURACY && offset > -TIME_SYNC_ACCURACY) {
             // mark complete only if offset was less than 10 ms
             conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
             debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
