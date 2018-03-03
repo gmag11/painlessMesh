@@ -94,7 +94,7 @@ void sendMessage() {
   msg += mesh.getNodeId();
   msg += " myFreeMemory: " + String(ESP.getFreeHeap());
   msg += " noTasks: " + String(mesh.scheduler.size());
-  bool error = mesh.sendBroadcast(msg);
+  mesh.sendBroadcast(msg);
 
   if (calc_delay) {
     SimpleList<uint32_t>::iterator node = nodes.begin();
