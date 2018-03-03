@@ -394,10 +394,10 @@ TCPClient::TCPClient(tcp_pcb* pcb)
     if(_pcb){
         _rx_last_packet = millis();
         tcp_arg(_pcb, this);
-        tcp_recv(_pcb, &_tcp_recv);
-        tcp_sent(_pcb, &_tcp_sent);
-        tcp_err(_pcb, &_tcp_error);
-        tcp_poll(_pcb, &_tcp_poll, 1);
+        tcp_recv(_pcb, (tcp_recv_fn)&_tcp_recv);
+        tcp_sent(_pcb,(tcp_sent_fn) &_tcp_sent);
+        tcp_err(_pcb, (tcp_err_fn)&_tcp_error);
+        tcp_poll(_pcb, (tcp_poll_fn)&_tcp_poll, 1);
     }
 }
 
@@ -434,7 +434,7 @@ bool TCPClient::connect(IPAddress ip, uint16_t port){
     }
 
     tcp_arg(pcb, this);
-    tcp_err(pcb, &_tcp_error);
+    tcp_err(pcb, (tcp_err_fn)&_tcp_error);
     if(_in_lwip_thread){
         tcp_connect(pcb, &addr, port,(tcp_connected_fn)&_s_connected);
     } else {
@@ -451,10 +451,10 @@ TCPClient& TCPClient::operator=(const TCPClient& other){
     if (_pcb) {
         _rx_last_packet = millis();
         tcp_arg(_pcb, this);
-        tcp_recv(_pcb, &_tcp_recv);
-        tcp_sent(_pcb, &_tcp_sent);
-        tcp_err(_pcb, &_tcp_error);
-        tcp_poll(_pcb, &_tcp_poll, 1);
+        tcp_recv(_pcb, (tcp_recv_fn)&_tcp_recv);
+        tcp_sent(_pcb, (tcp_sent_fn)&_tcp_sent);
+        tcp_err(_pcb, (tcp_err_fn)&_tcp_error);
+        tcp_poll(_pcb, (tcp_poll_fn)&_tcp_poll, 1);
     }
     return *this;
 }
@@ -464,9 +464,9 @@ int8_t TCPClient::_connected(void* pcb, int8_t err){
     if(_pcb){
         _rx_last_packet = millis();
         _pcb_busy = false;
-        tcp_recv(_pcb, &_tcp_recv);
-        tcp_sent(_pcb, &_tcp_sent);
-        tcp_poll(_pcb, &_tcp_poll, 1);
+        tcp_recv(_pcb, (tcp_recv_fn)&_tcp_recv);
+        tcp_sent(_pcb, (tcp_sent_fn)&_tcp_sent);
+        tcp_poll(_pcb, (tcp_poll_fn)&_tcp_poll, 1);
     }
     _in_lwip_thread = true;
     if(_connect_cb)
@@ -1088,7 +1088,7 @@ void TCPServer::begin(){
         return;
     }
     tcp_arg(_pcb, (void*) this);
-    tcp_accept(_pcb, &_s_accept);
+    tcp_accept(_pcb, (tcp_accept_fn)&_s_accept);
 }
 
 void TCPServer::end(){
