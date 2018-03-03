@@ -828,11 +828,6 @@ bool Scheduler::execute() {
 	bool	 idleRun = true;
 	register unsigned long m, i;  // millis, interval;
 
-#ifdef ARDUINO_ARCH_ESP8266
-	  unsigned long t1 = micros();
-	  unsigned long t2 = 0;
-#endif  // ARDUINO_ARCH_ESP8266
-
 	iCurrent = iFirst;
 	
 	while (iCurrent) {

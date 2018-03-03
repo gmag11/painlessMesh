@@ -34,7 +34,7 @@ void ICACHE_FLASH_ATTR painlessMesh::debugMsg(debugType type, const char* format
         //perror(str);
 
         if (types && MSG_TYPES)
-            Serial.printf("0x%x\t", type, types);
+            Serial.printf("0x%x\t", type);
 
         Serial.print(str);
 

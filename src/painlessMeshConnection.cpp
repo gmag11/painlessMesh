@@ -492,9 +492,9 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
 
     String nodeJson = subConnectionJson();
 
-    uint index = 0;
+    int index = 0;
 
-    while (index < nodeJson.length()) {
+    while ((uint) index < nodeJson.length()) {
         uint comma = 0;
         index = nodeJson.indexOf("\"nodeId\":");
         if (index == -1)
@@ -525,8 +525,6 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, TCPClient *client, void * data, si
         staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
     }
     auto receiveConn = static_cast<MeshConnection*>(arg);
-
-    uint32_t receivedAt = staticThis->getNodeTime();
 
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
 

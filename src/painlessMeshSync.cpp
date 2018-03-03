@@ -149,13 +149,13 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
             debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
 
             // TODO: Move this to its own function
-            newConnectionTask.set(TASK_SECOND, TASK_ONCE, [nodeId = remoteNodeId]() {
+            newConnectionTask.set(TASK_SECOND, TASK_ONCE, [remoteNodeId]() {
                 staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
-                staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", nodeId, staticThis->getNodeTime());
+                staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", remoteNodeId, staticThis->getNodeTime());
                if (staticThis->newConnectionCallback)
-                    staticThis->newConnectionCallback(nodeId); // Connection dropped. Signal user            
+                    staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user            
                for (auto &&connection : staticThis->_connections) {
-                   if (connection->nodeId != nodeId) { // Exclude current
+                   if (connection->nodeId != remoteNodeId) { // Exclude current
                        connection->nodeSyncTask.delay(100*TASK_MILLISECOND);
                    }
                }
@@ -272,6 +272,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<MeshConnecti
     String msg;
 
     switch (timeSyncMessageType) {
+    case (TIME_SYNC_ERROR):
+        debugMsg(S_TIME, "handleTimeSync(): Received time sync error. Restarting time sync.\n");
+        conn->timeSyncTask.forceNextIteration();
+        break;
     case (TIME_SYNC_REQUEST):  // Other party request me to ask it for time
         debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync with node: %u\n", conn->nodeId);
         root["msg"]["type"] = static_cast<int>(TIME_REQUEST);
@@ -345,6 +349,9 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(std::shared_ptr<MeshConnect
     String t_stamp;
 
     switch (timeSyncMessageType) {
+    case (TIME_SYNC_ERROR):
+        debugMsg(ERROR, "handleTimeDelay(): Error in requesting time delay. Please try again.\n");
+        break;
 
     case (TIME_REQUEST):
         //conn->timeSyncStatus == IN_PROGRESS;
@@ -362,19 +369,22 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(std::shared_ptr<MeshConnect
         break;
 
     case (TIME_RESPONSE):
-        debugMsg(S_TIME, "handleTimeDelay(): TIME RESPONSE received.\n");
-        conn->time.timeDelay[3] = receivedAt; // Calculate fourth timestamp (response received time)
+        {
+            debugMsg(S_TIME, "handleTimeDelay(): TIME RESPONSE received.\n");
+            conn->time.timeDelay[3] = receivedAt; // Calculate fourth timestamp (response received time)
 
-        int32_t delay = conn->time.delayCalc(); // Adjust time and get calculated offset
-        debugMsg(S_TIME, "handleTimeDelay(): Delay is %d\n", delay);
+            int32_t delay = conn->time.delayCalc(); // Adjust time and get calculated offset
+            debugMsg(S_TIME, "handleTimeDelay(): Delay is %d\n", delay);
 
-        //conn->timeSyncStatus == COMPLETE;
+            //conn->timeSyncStatus == COMPLETE;
 
-        if (nodeDelayReceivedCallback)
-            nodeDelayReceivedCallback(from, delay);
-
-
+            if (nodeDelayReceivedCallback)
+                nodeDelayReceivedCallback(from, delay);
+        }
         break;
+
+    default:
+        debugMsg(S_TIME, "handleTimeDelay(): Unknown timeSyncMessageType received. Ignoring for now.\n");
     }
 
     debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");

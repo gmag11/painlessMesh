@@ -52,7 +52,6 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
     else
         debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n", from, type, msg.c_str());
 
-    auto connection = _connections.begin();
     if (_connections.size() > 0)
         errCode = true; // Assume true if at least one connections
     for (auto &&connection : _connections) {
