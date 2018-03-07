@@ -16,15 +16,13 @@ extern painlessMesh* staticThis;
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
     //    String password( MESH_PASSWORD );
-
-    ip4_addr_t ip, netmask;
-    IP4_ADDR(&ip, 10, (_nodeId & 0xFF00) >> 8, (_nodeId & 0xFF), 1);
-    IP4_ADDR(&netmask, 255, 255, 255, 0);
+    IPAddress ip(10, (_nodeId & 0xFF00) >> 8, (_nodeId & 0xFF), 1);
+    IPAddress netmask(255,255,255,0);
 
     tcpip_adapter_ip_info_t ipInfo;
-    ipInfo.ip = ip;
-    ipInfo.gw = ip;
-    ipInfo.netmask = netmask;
+    ipInfo.ip.addr = static_cast<uint32_t>(ip);
+    ipInfo.gw.addr = static_cast<uint32_t>(ip);
+    ipInfo.netmask.addr = static_cast<uint32_t>(netmask);
     if (tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP, &ipInfo) != ESP_OK) {
         debugMsg(ERROR, "tcpip_adapter_set_ip_info() failed\n");
     }
