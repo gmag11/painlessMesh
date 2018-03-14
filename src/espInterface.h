@@ -217,6 +217,7 @@ extern "C" {
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_event_loop.h"
+typedef ip4_addr ip_addr;
 }
 #else
 #error Only ESP8266 or ESP32 platform is allowed

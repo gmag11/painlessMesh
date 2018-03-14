@@ -35,7 +35,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::setHostname(const char * hostname){
   return (tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname) == ESP_OK);
 }
 
-ip4_addr_t ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
+ip_addr ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
     tcpip_adapter_ip_info_t ipconfig;
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
     return ipconfig.ip;
