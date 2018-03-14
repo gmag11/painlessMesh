@@ -4,7 +4,7 @@
 #include <list>
 
 #define _TASK_STD_FUNCTION
-#include <painlessScheduler.h>
+#include <TaskSchedulerDeclarations.h>
 
 #include "espInterface.h"
 

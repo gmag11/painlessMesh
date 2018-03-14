@@ -10,7 +10,8 @@
     "frameworks": "arduino",
     "platforms": "espressif8266, espressif32",
     "dependencies": [
-        { "name": "ArduinoJson" }
+        { "name": "ArduinoJson" },
+        { "name": "TaskScheduler" }
     ],
     "authors": [
         { "name": "Scotty Franzyshen" }, 
