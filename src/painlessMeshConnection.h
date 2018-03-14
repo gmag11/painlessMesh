@@ -2,7 +2,7 @@
 #define   _PAINLESS_MESH_CONNECTION_H_
 
 #define _TASK_STD_FUNCTION
-#include <painlessScheduler.h>
+#include <TaskSchedulerDeclarations.h>
 
 #include "espInterface.h"
 

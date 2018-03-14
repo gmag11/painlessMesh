@@ -3,7 +3,7 @@
 
 #define _TASK_STD_FUNCTION
 
-#include <painlessScheduler.h>
+#include <TaskSchedulerDeclarations.h>
 #include <Arduino.h>
 #include <list>
 #include <ArduinoJson.h>
