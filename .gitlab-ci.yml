@@ -5,9 +5,9 @@ before_script:
   
 linux:
   script:
-    - platformio ci --lib="." --board=nodemcuv2 examples/basic/basic.ino
-    - platformio ci --lib="." --board=nodemcuv2 examples/startHere/startHere.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror"
-    - platformio ci --lib="." --board=esp32dev examples/startHere/startHere.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror -std=c++14"
-    - platformio ci --lib="." --board=nodemcuv2 examples/bridge/bridge.ino
-    - platformio ci --lib="." --board=nodemcuv2 examples/logServer/logServer.ino
-    - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino
+    - platformio ci --lib="." --board=nodemcuv2 examples/basic/basic.ino -O "build_flags = -Wno-unused-variable"
+    - platformio ci --lib="." --board=nodemcuv2 examples/startHere/startHere.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror -Wno-unused-variable"
+    - platformio ci --lib="." --board=esp32dev examples/startHere/startHere.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror -Wno-unused-variable -std=c++14"
+    - platformio ci --lib="." --board=nodemcuv2 examples/bridge/bridge.ino -O "build_flags = -Wno-unused-variable"
+    - platformio ci --lib="." --board=nodemcuv2 examples/logServer/logServer.ino -O "build_flags = -Wno-unused-variable"
+    - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino -O "build_flags = -Wno-unused-variable"
