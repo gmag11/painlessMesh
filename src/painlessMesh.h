@@ -1,6 +1,7 @@
 #ifndef   _EASY_MESH_H_
 #define   _EASY_MESH_H_
 
+#define _TASK_PRIORITY // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
 
 #include <TaskSchedulerDeclarations.h>
@@ -56,6 +57,12 @@ typedef int debugType;
 #define APPLICATION 1<<10
 #define DEBUG 1<<11
 
+#ifdef ESP32
+#define MAX_CONN 10
+#else
+#define MAX_CONN 4
+#endif // DEBUG
+
 using ConnectionList = std::list<std::shared_ptr<MeshConnection>>;
 
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
@@ -75,11 +82,8 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
-#ifdef ESP32
-    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 10);
-#else
-    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4);
-#endif
+    void                init(String ssid, String password, Scheduler *baseScheduler, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
+    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
     /**
      * Disconnect and stop this node
      */
@@ -112,7 +116,6 @@ public:
     bool setHostname(const char * hostname);
     ip_addr getStationIP();
 
-    Scheduler scheduler;
     StationScan stationScan;
 
     // Rough estimate of the mesh stability (goes from 0-1000)
@@ -129,7 +132,6 @@ protected:
 
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
 
-
     // in painlessMeshSync.cpp
     //must be accessable from callback
     void                handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root);
@@ -141,16 +143,16 @@ protected:
     // in painlessMeshConnection.cpp
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
-    bool closeConnectionSTA(); 
+    bool                closeConnectionSTA(); 
 
     void                eraseClosedConnections();
 
     String              subConnectionJson(std::shared_ptr<MeshConnection> exclude);
-    String              subConnectionJsonHelper(
-                            ConnectionList &connections,
-                            uint32_t exclude = 0);
+    String              subConnectionJsonHelper(ConnectionList &connections, uint32_t exclude = 0);
+    
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
+    
     shared_ptr<MeshConnection> findConnection(uint32_t nodeId, uint32_t exclude = 0);
     shared_ptr<MeshConnection> findConnection(TCPClient *conn);
 
@@ -172,27 +174,31 @@ protected:
     nodeDelayCallback_t             nodeDelayReceivedCallback;
 
     // variables
-    uint32_t    _nodeId;
-    String      _meshSSID;
-    String      _meshPassword;
-    uint16_t    _meshPort;
-    uint8_t     _meshChannel;
+    Scheduler         scheduler;
+
+    uint32_t          _nodeId;
+    String            _meshSSID;
+    String            _meshPassword;
+    uint16_t          _meshPort;
+    uint8_t           _meshChannel;
     wifi_auth_mode_t  _meshAuthMode;
-    uint8_t     _meshHidden;
-    uint8_t     _meshMaxConn;
+    uint8_t           _meshHidden;
+    uint8_t           _meshMaxConn;
 
-    ConnectionList  _connections;
+    ConnectionList    _connections;
 
-    TCPServer  *_tcpListener;
+    TCPServer        *_tcpListener;
 
-    bool         _station_got_ip = false;
+    bool              _station_got_ip = false;
+
+    bool              isExternalScheduler = false;
 
     Task droppedConnectionTask;
     Task newConnectionTask;
 
     friend class StationScan;
     friend class MeshConnection;
-    friend void onDataCb(void * arg, TCPClient *client, void *data, size_t len);
+    friend void  onDataCb(void * arg, TCPClient *client, void *data, size_t len);
 };
 
 #endif //   _EASY_MESH_H_
