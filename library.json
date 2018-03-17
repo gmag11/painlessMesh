@@ -4,7 +4,7 @@
     "description": "A painless way to setup a mesh with ESP8266 and ESP32 devices",
     "repository": {
         "type": "git",
-        "url": "https://gitlab.com/BlackEdder/painlessMesh"
+        "url": "https://gitlab.com/painlessMesh/painlessMesh"
     },
     "version": "0.6.3",
     "frameworks": "arduino",

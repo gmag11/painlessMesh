@@ -2,7 +2,7 @@
 // this is a simple example that uses the painlessMesh library to 
 // connect to a node on another network. Please see the WIKI on gitlab
 // for more details
-// https://gitlab.com/BlackEdder/painlessMesh/wikis/bridge-between-mesh-and-another-network
+// https://gitlab.com/painlessMesh/painlessMesh/wikis/bridge-between-mesh-and-another-network
 //************************************************************
 #include "painlessMesh.h"
 
