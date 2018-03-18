@@ -55,6 +55,8 @@ class SentBuffer {
 
         bool empty();
         void clear();
+
+        bool clean = true;
 };
 
 class MeshConnection {
