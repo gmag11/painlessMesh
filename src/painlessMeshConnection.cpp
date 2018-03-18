@@ -77,8 +77,12 @@ size_t ICACHE_FLASH_ATTR SentBuffer::requestLength(size_t buffer_length) {
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
-    if (priority) 
-        jsonStrings.push_front(message);
+    if (priority) {
+        if (clean)
+            jsonStrings.push_front(message);
+        else
+            jsonStrings.insert((++jsonStrings.begin()), message);
+    }
     else
         jsonStrings.push_back(message);
 }
@@ -90,10 +94,13 @@ void ICACHE_FLASH_ATTR SentBuffer::read(size_t length, temp_buffer_t &buf) {
 
 void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
     staticThis->debugMsg(COMMUNICATION, "SentBuffer::freeRead(): %u\n", last_read_size);
-    if (last_read_size == jsonStrings.begin()->length() + 1)
+    if (last_read_size == jsonStrings.begin()->length() + 1) {
         jsonStrings.pop_front();
-    else
+        clean = true;
+    } else {
         jsonStrings.begin()->remove(0, last_read_size);
+        clean = false;
+    }
     last_read_size = 0;
 }
 

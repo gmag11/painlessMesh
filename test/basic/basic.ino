@@ -4,6 +4,7 @@
 
 #ifdef UNITY
 
+/*
 void test_findConnection() {
     painlessMesh mesh;
     TEST_ASSERT(NULL == mesh.findConnection(1));
@@ -31,7 +32,7 @@ void test_findConnection() {
     TEST_ASSERT(NULL == mesh.findConnection(36));
     // 43 should match again
     TEST_ASSERT(mesh.findConnection(43));
-}
+}*/
 
 bool lesserThan(uint32_t lesser, uint32_t than) {
     return
@@ -50,6 +51,7 @@ void test_comparison() {
     TEST_ASSERT(lesserThan(uint32_max,100)); 
 }
 
+/*
 void test_subConnectionJsonHelper() {
     auto node1 = std::make_shared<meshConnectionType>();
     auto node2 = std::make_shared<meshConnectionType>();
@@ -86,7 +88,7 @@ void test_approxNoNodes() {
     
     node2->subConnections = String("[{\"nodeId\":2132113139,\"subs\":[]},{\"nodeId\":2132111373,\"subs\":[]}]");
     TEST_ASSERT_EQUAL(2, mesh.approxNoNodes(node2->subConnections));
-}
+}*/
 
 void test_jsonnodeid() {
     uint32_t mx = 0 - 1;
@@ -106,10 +108,10 @@ void setup() {
 }
 
 void loop() {
-    RUN_TEST(test_findConnection);
+    //RUN_TEST(test_findConnection);
     RUN_TEST(test_comparison);
-    RUN_TEST(test_subConnectionJsonHelper);
-    RUN_TEST(test_approxNoNodes);
+    //RUN_TEST(test_subConnectionJsonHelper);
+    //RUN_TEST(test_approxNoNodes);
     RUN_TEST(test_jsonnodeid);
     UNITY_END(); // stop unit testing
 }
