@@ -270,6 +270,30 @@ void test_random_sent_receive() {
     }
 }
 
+void test_priority_push_dirty() {
+    temp_buffer_t buf;
+    SentBuffer sb;
+    auto str = String("Hello world");
+    sb.push(str);
+    sb.push(str);
+    sb.read(6, buf);
+    sb.freeRead();
+    TEST_ASSERT(!sb.clean);
+
+    // Because the buffer != clean this prior message should become 2nd
+    auto str_pr = String("bla");
+    sb.push(str_pr, true);
+    auto len = sb.requestLength(buf.length);
+    TEST_ASSERT_EQUAL(6, len);
+    sb.read(len, buf);
+    sb.freeRead();
+    TEST_ASSERT_EQUAL('w', buf.buffer[0]);
+    TEST_ASSERT(sb.clean);
+    len = sb.requestLength(buf.length);
+    TEST_ASSERT_EQUAL(str_pr.length() + 1, len);
+    TEST_ASSERT_EQUAL(2, sb.jsonStrings.size());
+}
+
 // Make sure that empty only returns true if the void * buffer is empty too
 
 void setup() {
@@ -285,6 +309,7 @@ void loop() {
     RUN_TEST(test_sent_buffer_read);
 
     RUN_TEST(test_random_sent_receive);
+    RUN_TEST(test_priority_push_dirty);
     UNITY_END(); // stop unit testing
 }
 #endif
