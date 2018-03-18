@@ -48,7 +48,7 @@ void test_string_parse() {
     rb.push(c1, 7, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 1);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
-    TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdef"));
+    TEST_ASSERT((--rb.jsonStrings.end())->equals("abcdef"));
     rb.push(c1, 7, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 2);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 0);
@@ -63,13 +63,13 @@ void test_string_parse() {
     rb.push(c3, 10, buf);
     use_buffer(buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 3);
-    TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdefghi"));
-    TEST_ASSERT_EQUAL((rb.jsonStrings.end() - 1)->length(), 9);
+    TEST_ASSERT((--rb.jsonStrings.end())->equals("abcdefghi"));
+    TEST_ASSERT_EQUAL((--rb.jsonStrings.end())->length(), 9);
     TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
 
     rb.push(c2, 7, buf);
     TEST_ASSERT_EQUAL(rb.jsonStrings.size(), 4);
-    TEST_ASSERT((rb.jsonStrings.end() - 1)->equals("abcdef"));
+    TEST_ASSERT((--rb.jsonStrings.end())->equals("abcdef"));
     TEST_ASSERT_EQUAL(rb.buffer.length(), 6);
 
 
@@ -93,6 +93,7 @@ void test_string_parse() {
 }
 
 // Test freeing pbuf afterwards
+/*
 void test_pbuf_parse() {
     pbuf *p1 = pbuf_alloc(PBUF_RAW, 7, PBUF_POOL);
     pbuf *p2 = pbuf_alloc(PBUF_RAW, 17, PBUF_POOL);
@@ -134,7 +135,7 @@ void test_pbuf_parse() {
     TEST_ASSERT(rb.front().equals("jklmnopqr"));
     rb.pop_front();
     TEST_ASSERT(rb.empty());
-}
+}*/
 
 void test_pushing_sent_buffer() {
     temp_buffer_t buf;
@@ -155,7 +156,7 @@ void test_pushing_sent_buffer() {
     String s3 = "ghi";
     sb.push(s3, true);
     TEST_ASSERT((*sb.jsonStrings.begin()).equals("ghi"))
-    TEST_ASSERT((sb.jsonStrings.begin()+1)->equals("abc"))
+    TEST_ASSERT((++sb.jsonStrings.begin())->equals("abc"))
 
     sb.clear();
     TEST_ASSERT(sb.empty());
@@ -278,7 +279,7 @@ void setup() {
 void loop() {
     RUN_TEST(test_string_split);
     RUN_TEST(test_string_parse);
-    RUN_TEST(test_pbuf_parse);
+    //RUN_TEST(test_pbuf_parse);
 
     RUN_TEST(test_pushing_sent_buffer);
     RUN_TEST(test_sent_buffer_read);
