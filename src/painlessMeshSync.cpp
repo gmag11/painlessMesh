@@ -121,7 +121,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
 
     meshPackageType message_type = (meshPackageType)(int)root["type"];
     uint32_t        remoteNodeId = root["from"];
-    bool            reSyncAllSubConnections = false;
 
     /*for (auto && connection : _connections) {
         debugMsg(SYNC, "handleNodeSync(): Sanity check %d\n", connection->esp_conn);
