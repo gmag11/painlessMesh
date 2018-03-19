@@ -162,7 +162,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(TCPClient *client_ptr, painless
         staticThis->debugMsg(SYNC, "nodeSyncTask(): \n");
         staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
                 this->nodeId);
-        auto saveConn = staticThis->findConnection(client);
+        auto saveConn = staticThis->findConnection(this->client);
         String subs = staticThis->subConnectionJson(saveConn);
         staticThis->sendMessage(saveConn, this->nodeId, 
                 staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
