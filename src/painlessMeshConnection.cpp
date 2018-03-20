@@ -386,7 +386,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 //
 // "a:800" does contain "800", but does not contain "80"
 bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
-                                             const String & nodeIdStr, int from = 0) {
+                                             const String & nodeIdStr, int from) {
     auto index = subConnections.indexOf(nodeIdStr, from);
     if (index == -1)
         return false;

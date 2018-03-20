@@ -198,4 +198,18 @@ protected:
     friend void onDataCb(void * arg, TCPClient *client, void *data, size_t len);
 };
 
+/*****
+ *
+ * Util functions
+ *
+ */
+
+/**
+ * Check whether a string contains a numeric substring as a complete number
+ *
+ * "a:800" does contain "800", but does not contain "80"
+ */
+bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
+                                             const String & nodeIdStr, int from = 0);
+
 #endif //   _EASY_MESH_H_
