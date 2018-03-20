@@ -182,6 +182,20 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     // check to see if subs have changed.
     String inComingSubs = root["subs"];
     if (!conn->subConnections.equals(inComingSubs)) {  // change in the network
+        // Check whether we already know any of the nodes
+        // This is necessary to avoid loops, but computationally expensive. 
+        // Might be good to spend time optimising at some point
+        // One option would be to use arduinojson to parse this instead (keep around the
+        // parsed object), but that would need some performance testing
+        for (auto &&id : getNodeList(inComingSubs)) {
+            if (findConnection(id, conn->nodeId)) {
+                debugMsg(SYNC, "handleNodeSync(): Duplicate detected, disconnecting %u.\n",
+                        remoteNodeId);
+                conn->close();
+                return;
+            }
+        }
+
         debugMsg(SYNC, "handleNodeSync(): Changed connections %u.\n",
                 remoteNodeId);
         conn->subConnections = inComingSubs;

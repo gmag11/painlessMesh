@@ -98,6 +98,7 @@ public:
     void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
+
     std::list<uint32_t> getNodeList();
 
     // in painlessMeshSync.cpp
@@ -153,6 +154,8 @@ protected:
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
     shared_ptr<MeshConnection> findConnection(uint32_t nodeId, uint32_t exclude = 0);
     shared_ptr<MeshConnection> findConnection(TCPClient *conn);
+
+    std::list<uint32_t> getNodeList(String &subConnections);
 
     // in painlessMeshAP.cpp
     void                apInit(void);

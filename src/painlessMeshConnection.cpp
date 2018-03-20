@@ -496,11 +496,16 @@ size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
 //***********************************************************************
 std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
     std::list<uint32_t> nodeList;
-
     String nodeJson = subConnectionJson();
+    return getNodeList(nodeJson);
+}
 
+// TODO: test whether arduinojson would be faster than this
+std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConnections) {
+    std::list<uint32_t> nodeList;
     int index = 0;
 
+    auto nodeJson = subConnections.substring(index);
     while ((uint) index < nodeJson.length()) {
         uint comma = 0;
         index = nodeJson.indexOf("\"nodeId\":");
@@ -513,9 +518,7 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
         index = comma + 1;
         nodeJson = nodeJson.substring(index);
     }
-
     return nodeList;
-
 }
 
 //***********************************************************************
