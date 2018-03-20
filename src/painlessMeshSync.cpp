@@ -127,11 +127,18 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         debugMsg(SYNC, "handleNodeSync(): Sanity check Id %u\n", connection->nodeId);
     }*/
     if (conn->newConnection) {
+        // There is a small but significant probability that we get connected twice to the 
+        // same node, e.g. if scanning happened while sub connection data was incomplete.
+        auto oldConnection = findConnection(remoteNodeId);
+        if (oldConnection) {
+            debugMsg(SYNC, "handleNodeSync(): already connected to %u. Closing the new connection \n", remoteNodeId);
+            conn->close();
+            return;
+        }
+
+        // 
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
         conn->nodeId = remoteNodeId;
-
-        debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
-
         // TODO: Move this to its own function
         newConnectionTask.set(TASK_SECOND, TASK_ONCE, [remoteNodeId]() {
             staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
