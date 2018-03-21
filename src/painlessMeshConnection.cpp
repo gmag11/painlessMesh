@@ -177,10 +177,12 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(TCPClient *client_ptr, painless
     readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
         if (!this->receiveBuffer.empty()) {
             String frnt = this->receiveBuffer.front();
-            this->handleMessage(frnt, staticThis->getNodeTime());
             this->receiveBuffer.pop_front();
             if (!this->receiveBuffer.empty())
                 this->readBufferTask.forceNextIteration();
+            // handleMessage can invalidate this, (when closing connection)
+            // so this should be the final action in this function
+            this->handleMessage(frnt, staticThis->getNodeTime());
         }
     });
     staticThis->scheduler.addTask(readBufferTask);
