@@ -162,7 +162,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(TCPClient *client_ptr, painless
         staticThis->debugMsg(SYNC, "nodeSyncTask(): \n");
         staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
                 this->nodeId);
-        auto saveConn = staticThis->findConnection(client);
+        auto saveConn = staticThis->findConnection(this->client);
         String subs = staticThis->subConnectionJson(saveConn);
         staticThis->sendMessage(saveConn, this->nodeId, 
                 staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
@@ -177,10 +177,12 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(TCPClient *client_ptr, painless
     readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
         if (!this->receiveBuffer.empty()) {
             String frnt = this->receiveBuffer.front();
-            this->handleMessage(frnt, staticThis->getNodeTime());
             this->receiveBuffer.pop_front();
             if (!this->receiveBuffer.empty())
                 this->readBufferTask.forceNextIteration();
+            // handleMessage can invalidate this, (when closing connection)
+            // so this should be the final action in this function
+            this->handleMessage(frnt, staticThis->getNodeTime());
         }
     });
     staticThis->scheduler.addTask(readBufferTask);
@@ -212,6 +214,8 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     this->timeSyncTask.setCallback(NULL);
     this->nodeSyncTask.setCallback(NULL);
     this->readBufferTask.setCallback(NULL);
+    this->client->onDisconnect(NULL, NULL);
+    this->client->onError(NULL, NULL);
 
     auto nodeId = this->nodeId;
 
@@ -245,12 +249,12 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     receiveBuffer.clear();
     sentBuffer.clear();
 
-    mesh->eraseClosedConnections();
-
     if (station && mesh->_station_got_ip)
         mesh->_station_got_ip = false;
 
     this->nodeId = 0;
+    mesh->eraseClosedConnections();
+    staticThis->debugMsg(CONNECTION, "MeshConnection::close() Done.\n");
 }
 
 
@@ -386,7 +390,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 //
 // "a:800" does contain "800", but does not contain "80"
 bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
-                                             const String & nodeIdStr, int from = 0) {
+                                             const String & nodeIdStr, int from) {
     auto index = subConnections.indexOf(nodeIdStr, from);
     if (index == -1)
         return false;
@@ -496,11 +500,16 @@ size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
 //***********************************************************************
 std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
     std::list<uint32_t> nodeList;
-
     String nodeJson = subConnectionJson();
+    return getNodeList(nodeJson);
+}
 
+// TODO: test whether arduinojson would be faster than this
+std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConnections) {
+    std::list<uint32_t> nodeList;
     int index = 0;
 
+    auto nodeJson = subConnections.substring(index);
     while ((uint) index < nodeJson.length()) {
         uint comma = 0;
         index = nodeJson.indexOf("\"nodeId\":");
@@ -513,9 +522,7 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
         index = comma + 1;
         nodeJson = nodeJson.substring(index);
     }
-
     return nodeList;
-
 }
 
 //***********************************************************************

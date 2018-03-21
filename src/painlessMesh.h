@@ -98,6 +98,7 @@ public:
     void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
     String              subConnectionJson() { return subConnectionJson(NULL); }
     bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
+
     std::list<uint32_t> getNodeList();
 
     // in painlessMeshSync.cpp
@@ -154,6 +155,8 @@ protected:
     shared_ptr<MeshConnection> findConnection(uint32_t nodeId, uint32_t exclude = 0);
     shared_ptr<MeshConnection> findConnection(TCPClient *conn);
 
+    std::list<uint32_t> getNodeList(String &subConnections);
+
     // in painlessMeshAP.cpp
     void                apInit(void);
 
@@ -194,5 +197,19 @@ protected:
     friend class MeshConnection;
     friend void onDataCb(void * arg, TCPClient *client, void *data, size_t len);
 };
+
+/*****
+ *
+ * Util functions
+ *
+ */
+
+/**
+ * Check whether a string contains a numeric substring as a complete number
+ *
+ * "a:800" does contain "800", but does not contain "80"
+ */
+bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
+                                             const String & nodeIdStr, int from = 0);
 
 #endif //   _EASY_MESH_H_
