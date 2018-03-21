@@ -11,6 +11,14 @@ uint16_t  count = 0;
 
 // general functions
 //***********************************************************************
+void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Scheduler *baseScheduler, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
+
+    baseScheduler->setHighPriorityScheduler(&this->scheduler);
+    isExternalScheduler = true;
+
+    init(ssid, password, port, connectMode, authmode, channel, phymode, maxtpw, hidden, maxconn);
+}
+
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
 
@@ -108,8 +116,12 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 }
 
 //***********************************************************************
+// do nothing if user have other Scheduler, they have to run their scheduler in loop not this library
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
-    scheduler.execute();
+    if (isExternalScheduler == false)
+    {
+        scheduler.execute();
+    }
     return;
 }
 
