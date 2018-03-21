@@ -121,84 +121,89 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
 
     meshPackageType message_type = (meshPackageType)(int)root["type"];
     uint32_t        remoteNodeId = root["from"];
-    bool            reSyncAllSubConnections = false;
 
     /*for (auto && connection : _connections) {
         debugMsg(SYNC, "handleNodeSync(): Sanity check %d\n", connection->esp_conn);
         debugMsg(SYNC, "handleNodeSync(): Sanity check Id %u\n", connection->nodeId);
     }*/
-
-    if (conn->nodeId != remoteNodeId) {
-        if (auto oldConnection = findConnection(remoteNodeId)) {
-            if (oldConnection->nodeId == remoteNodeId) {
-                // Direct connection.
-                debugMsg(SYNC, "handleNodeSync(): Already connected, close connection %u.\n",
-                        remoteNodeId);
-                oldConnection->close();
-            } else {
-                debugMsg(SYNC, "handleNodeSync(): Out of date subConnection information %u.\n",
-                        remoteNodeId);
-                oldConnection->subConnections = "[]";
-                oldConnection->nodeSyncTask.delay(100*TASK_MILLISECOND);
-            }
+    if (conn->newConnection) {
+        // There is a small but significant probability that we get connected twice to the 
+        // same node, e.g. if scanning happened while sub connection data was incomplete.
+        auto oldConnection = findConnection(remoteNodeId);
+        if (oldConnection) {
+            debugMsg(SYNC, "handleNodeSync(): already connected to %u. Closing the new connection \n", remoteNodeId);
+            conn->close();
+            return;
         }
+
+        // 
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
         conn->nodeId = remoteNodeId;
+        // TODO: Move this to its own function
+        newConnectionTask.set(TASK_SECOND, TASK_ONCE, [remoteNodeId]() {
+            staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
+            staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", remoteNodeId, staticThis->getNodeTime());
+           if (staticThis->newConnectionCallback)
+                staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user            
+           staticThis->stability /= 2;
+        });
 
-        if (conn->newConnection) {
-            debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
+        scheduler.addTask(newConnectionTask);
+        newConnectionTask.enable();
 
-            // TODO: Move this to its own function
-            newConnectionTask.set(TASK_SECOND, TASK_ONCE, [remoteNodeId]() {
-                staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
-                staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", remoteNodeId, staticThis->getNodeTime());
-               if (staticThis->newConnectionCallback)
-                    staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user            
-               for (auto &&connection : staticThis->_connections) {
-                   if (connection->nodeId != remoteNodeId) { // Exclude current
-                       connection->nodeSyncTask.delay(100*TASK_MILLISECOND);
-                   }
-               }
-               staticThis->stability /= 2;
-            });
+        // Initially interval is every 10 seconds, 
+        // this will slow down to TIME_SYNC_INTERVAL
+        // after first succesfull sync
+        conn->timeSyncTask.set(10*TASK_SECOND, TASK_FOREVER,
+                [conn]() {
+            staticThis->debugMsg(S_TIME,
+                "timeSyncTask(): %u\n", conn->nodeId);
+            staticThis->startTimeSync(conn);
+        });
+        scheduler.addTask(conn->timeSyncTask);
+        if (conn->station)
+            // We are STA, request time immediately
+            conn->timeSyncTask.enable();
+        else
+            // We are the AP, give STA the change to initiate time sync 
+            conn->timeSyncTask.enableDelayed();
+        stability /= 2;
+        conn->newConnection = false;
+    }
 
-            scheduler.addTask(newConnectionTask);
-            newConnectionTask.enable();
-            conn->newConnection = false;
-
-            // Initially interval is every 10 seconds, 
-            // this will slow down to TIME_SYNC_INTERVAL
-            // after first succesfull sync
-            conn->timeSyncTask.set(10*TASK_SECOND, TASK_FOREVER,
-                    [conn]() {
-                staticThis->debugMsg(S_TIME,
-                    "timeSyncTask(): %u\n", conn->nodeId);
-                staticThis->startTimeSync(conn);
-            });
-            scheduler.addTask(conn->timeSyncTask);
-            if (conn->station)
-                // We are STA, request time immediately
-                conn->timeSyncTask.enable();
-            else
-                // We are the AP, give STA the change to initiate time sync 
-                conn->timeSyncTask.enableDelayed();
-        } else {
-            debugMsg(ERROR, "handleNodeSync(): invalid state for %u to %u\n", conn->nodeId, remoteNodeId);
-        }
+    if (conn->nodeId != remoteNodeId) {
+        debugMsg(SYNC, "handleNodeSync(): Changed nodeId %u, closing connection %u.\n",
+                conn->nodeId, remoteNodeId);
+        conn->close();
+        stability /= 2;
+        return;
     }
 
     // check to see if subs have changed.
     String inComingSubs = root["subs"];
     if (!conn->subConnections.equals(inComingSubs)) {  // change in the network
-        reSyncAllSubConnections = true;
+        // Check whether we already know any of the nodes
+        // This is necessary to avoid loops
+        if (stringContainsNumber(inComingSubs, String(conn->nodeId))) {
+            // This node is also in the incoming subs, so we have a loop
+            // Disconnecting to break the loop
+            debugMsg(SYNC, "handleNodeSync(): Loop detected, disconnecting %u.\n",
+                    remoteNodeId);
+            conn->close();
+            return;
+        }
+
+        debugMsg(SYNC, "handleNodeSync(): Changed connections %u.\n",
+                remoteNodeId);
         conn->subConnections = inComingSubs;
         if (changedConnectionsCallback)
             changedConnectionsCallback();
-    }    
+        stability /= 2;
+    } else {
+        stability += min(1000-stability,(size_t)25);
+    }
     
-    String tempstr;
-    root.printTo(tempstr);
-    debugMsg(SYNC, "handleNodeSync(): json = %s\n", tempstr.c_str());
+    debugMsg(SYNC, "handleNodeSync(): json = %s\n", inComingSubs.c_str());
 
     switch (message_type) {
     case NODE_SYNC_REQUEST:
@@ -214,18 +219,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     default:
         debugMsg(ERROR, "handleNodeSync(): weird type? %d\n", message_type);
     }
-
-    if (reSyncAllSubConnections == true) {
-        for (auto &&connection : _connections) {
-            if (connection->nodeId != conn->nodeId) { // Exclude current
-                connection->nodeSyncTask.delay(100*TASK_MILLISECOND);
-            }
-        }
-        stability /= 2;
-    } else {
-        stability += min(1000-stability,(size_t)25);
-    }
-
 }
 
 //***********************************************************************
