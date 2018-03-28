@@ -122,6 +122,10 @@ public:
     // Rough estimate of the mesh stability (goes from 0-1000)
     size_t stability = 0;
 
+    // in painlessMeshAP.cpp
+    ip_addr             getAPIP();
+
+
 #ifndef UNITY // Make everything public in unit test mode
 protected:
 #endif
@@ -187,6 +191,8 @@ protected:
     wifi_auth_mode_t  _meshAuthMode;
     uint8_t           _meshHidden;
     uint8_t           _meshMaxConn;
+
+    ip_addr           _apIp;
 
     ConnectionList    _connections;
 

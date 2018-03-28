@@ -77,6 +77,8 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     esp_wifi_start();
     _nodeId = encodeNodeId(MAC);
 
+    IP4_ADDR(&_apIp, 0, 0, 0, 0);
+
     if (connectMode == AP_ONLY || connectMode == STA_AP)
         apInit();       // setup AP
     if (connectMode == STA_ONLY || connectMode == STA_AP) {

@@ -37,6 +37,7 @@ IPAddress getlocalIP();
 painlessMesh  mesh;
 AsyncWebServer server(80);
 IPAddress myIP(0,0,0,0);
+IPAddress myAPIP(0,0,0,0);
 
 void setup() {
   Serial.begin(115200);
@@ -50,6 +51,8 @@ void setup() {
 
   mesh.stationManual(STATION_SSID, STATION_PASSWORD);
   mesh.setHostname(HOSTNAME);
+  myAPIP = IPAddress(mesh.getAPIP().addr);
+  Serial.println("My AP IP is " + myAPIP.toString());
 
   //Async webserver
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
