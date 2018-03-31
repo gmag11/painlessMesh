@@ -3,6 +3,7 @@
 
 #include <list>
 
+#define _TASK_PRIORITY // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
 #include <TaskSchedulerDeclarations.h>
 

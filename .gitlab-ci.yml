@@ -1,7 +1,7 @@
 before_script:
   - apt-get update -qq && apt-get install -y -qq python-pip
   - pip install platformio
-  - platformio lib --global install ArduinoJson TaskScheduler
+  - platformio lib --global install ArduinoJson TaskScheduler PubSubClient
   
 linux:
   script:
@@ -11,3 +11,4 @@ linux:
     - platformio ci --lib="." --board=nodemcuv2 examples/bridge/bridge.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/logServer/logServer.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino -O "build_flags = -Werror"
+    - platformio ci --lib="." --board=nodemcuv2 examples/mqttBridge/mqttBridge.ino -O "build_flags = -Werror"

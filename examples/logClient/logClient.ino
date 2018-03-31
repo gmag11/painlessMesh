@@ -9,10 +9,11 @@
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
+Scheduler     userScheduler; // to control your personal task
+painlessMesh  mesh;
+
 // Prototype
 void receivedCallback( uint32_t from, String &msg );
-
-painlessMesh  mesh;
 
 size_t logServerId = 0;
 
@@ -40,16 +41,17 @@ void setup() {
     
   mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION );  // set before init() so that you can see startup messages
 
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 6 );
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 6 );
   mesh.onReceive(&receivedCallback);
 
-  // Add the task to the mesh scheduler
-  mesh.scheduler.addTask(myLoggingTask);
+  // Add the task to the your scheduler
+  userScheduler.addTask(myLoggingTask);
   myLoggingTask.enable();
 }
 
 void loop() {
-  mesh.update();
+    userScheduler.execute(); // it will run mesh scheduler as well
+    mesh.update();
 }
 
 void receivedCallback( uint32_t from, String &msg ) {

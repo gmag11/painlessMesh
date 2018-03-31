@@ -3,8 +3,8 @@
 //
 // 1. blinks led once for every node on the mesh
 // 2. blink cycle repeats every BLINK_PERIOD
-// 3. sends a silly message to every node on the mesh at a random time betweew 1 and 5 seconds
-// 4. prints anything it recieves to Serial.print
+// 3. sends a silly message to every node on the mesh at a random time between 1 and 5 seconds
+// 4. prints anything it receives to Serial.print
 //
 //
 //************************************************************
@@ -29,7 +29,9 @@ void changedConnectionCallback();
 void nodeTimeAdjustedCallback(int32_t offset); 
 void delayReceivedCallback(uint32_t from, int32_t delay);
 
+Scheduler     userScheduler; // to control your personal task
 painlessMesh  mesh;
+
 bool calc_delay = false;
 SimpleList<uint32_t> nodes;
 
@@ -49,15 +51,15 @@ void setup() {
   //mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | COMMUNICATION);  // set before init() so that you can see startup messages
   mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION);  // set before init() so that you can see startup messages
 
-  mesh.init(MESH_SSID, MESH_PASSWORD, MESH_PORT);
+  mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
   mesh.onNodeDelayReceived(&delayReceivedCallback);
 
-  mesh.scheduler.addTask( taskSendMessage );
-  taskSendMessage.enable() ;
+  userScheduler.addTask( taskSendMessage );
+  taskSendMessage.enable();
 
   blinkNoNodes.set(BLINK_PERIOD, (mesh.getNodeList().size() + 1) * 2, []() {
       // If on, switch off, else switch on
@@ -77,23 +79,22 @@ void setup() {
             (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
       }
   });
-  mesh.scheduler.addTask(blinkNoNodes);
+  userScheduler.addTask(blinkNoNodes);
   blinkNoNodes.enable();
 
   randomSeed(analogRead(A0));
 }
 
 void loop() {
+  userScheduler.execute(); // it will run mesh scheduler as well
   mesh.update();
   digitalWrite(LED, !onFlag);
-
 }
 
 void sendMessage() {
   String msg = "Hello from node ";
   msg += mesh.getNodeId();
   msg += " myFreeMemory: " + String(ESP.getFreeHeap());
-//  msg += " noTasks: " + String(mesh.scheduler.size()); // not available in the TaskScheduler lib
   mesh.sendBroadcast(msg);
 
   if (calc_delay) {
