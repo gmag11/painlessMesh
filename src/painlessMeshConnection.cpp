@@ -167,7 +167,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(TCPClient *client_ptr, painless
         staticThis->sendMessage(saveConn, this->nodeId, 
                 staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
     });
-    staticThis->scheduler.addTask(this->nodeSyncTask);
+    staticThis->_scheduler.addTask(this->nodeSyncTask);
     if (station)
         this->nodeSyncTask.enable();
     else
@@ -185,7 +185,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(TCPClient *client_ptr, painless
             this->handleMessage(frnt, staticThis->getNodeTime());
         }
     });
-    staticThis->scheduler.addTask(readBufferTask);
+    staticThis->_scheduler.addTask(readBufferTask);
     readBufferTask.enableDelayed();
     
     staticThis->debugMsg(GENERAL, "MeshConnection(): leaving\n");
@@ -233,7 +233,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
        }
        staticThis->stability /= 2;
     });
-    mesh->scheduler.addTask(staticThis->droppedConnectionTask);
+    mesh->_scheduler.addTask(staticThis->droppedConnectionTask);
     mesh->droppedConnectionTask.enable();
 
     if (client->connected()) {

@@ -1,6 +1,7 @@
 #ifndef   _EASY_MESH_H_
 #define   _EASY_MESH_H_
 
+
 #define _TASK_PRIORITY // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
 
@@ -82,6 +83,7 @@ public:
     void                debugMsg(debugType type, const char* format ...);
 
     // in painlessMesh.cpp
+	 					painlessMesh();
     void                init(String ssid, String password, Scheduler *baseScheduler, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
     void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
     /**
@@ -125,6 +127,10 @@ public:
     // in painlessMeshAP.cpp
     ip_addr             getAPIP();
 
+#if __cplusplus > 201103L
+    [[deprecated("Use of the internal scheduler will be deprecated, please use an user provided scheduler instead (See the startHere example).")]]
+#endif
+    Scheduler &scheduler = _scheduler;
 
 #ifndef UNITY // Make everything public in unit test mode
 protected:
@@ -180,9 +186,6 @@ protected:
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
     nodeDelayCallback_t             nodeDelayReceivedCallback;
 
-    // variables
-    Scheduler         scheduler;
-
     uint32_t          _nodeId;
     String            _meshSSID;
     String            _meshPassword;
@@ -202,6 +205,7 @@ protected:
 
     bool              isExternalScheduler = false;
 
+    Scheduler         _scheduler;
     Task droppedConnectionTask;
     Task newConnectionTask;
 
