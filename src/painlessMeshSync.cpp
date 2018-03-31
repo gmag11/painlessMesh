@@ -148,7 +148,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
            staticThis->stability /= 2;
         });
 
-        scheduler.addTask(newConnectionTask);
+        _scheduler.addTask(newConnectionTask);
         newConnectionTask.enable();
 
         // Initially interval is every 10 seconds, 
@@ -160,7 +160,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
                 "timeSyncTask(): %u\n", conn->nodeId);
             staticThis->startTimeSync(conn);
         });
-        scheduler.addTask(conn->timeSyncTask);
+        _scheduler.addTask(conn->timeSyncTask);
         if (conn->station)
             // We are STA, request time immediately
             conn->timeSyncTask.enable();

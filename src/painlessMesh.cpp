@@ -4,16 +4,19 @@
 #include "painlessMesh.h"
 #include "painlessMeshSync.h"
 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "lwip/init.h"
 
 painlessMesh* staticThis;
 uint16_t  count = 0;
+ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
 
 // general functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Scheduler *baseScheduler, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
 
-    baseScheduler->setHighPriorityScheduler(&this->scheduler);
+    baseScheduler->setHighPriorityScheduler(&this->_scheduler);
     isExternalScheduler = true;
 
     init(ssid, password, port, connectMode, authmode, channel, phymode, maxtpw, hidden, maxconn);
@@ -83,13 +86,13 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         apInit();       // setup AP
     if (connectMode == STA_ONLY || connectMode == STA_AP) {
         stationScan.init(this, ssid, password, port);
-        scheduler.addTask(stationScan.task);
+        _scheduler.addTask(stationScan.task);
     }
 
     //debugMsg(STARTUP, "init(): tcp_max_con=%u, nodeId = %u\n", espconn_tcp_get_max_con(), _nodeId);
 
 
-    scheduler.enableAll();
+    _scheduler.enableAll();
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::stop() {
@@ -101,14 +104,14 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 
     // Stop scanning task
     stationScan.task.setCallback(NULL);
-    scheduler.deleteTask(stationScan.task);
+    _scheduler.deleteTask(stationScan.task);
 
     // Note that this results in the droppedConnections not to be signalled
     // We might want to change this later
     newConnectionTask.setCallback(NULL);
-    scheduler.deleteTask(newConnectionTask);
+    _scheduler.deleteTask(newConnectionTask);
     droppedConnectionTask.setCallback(NULL);
-    scheduler.deleteTask(droppedConnectionTask);
+    _scheduler.deleteTask(droppedConnectionTask);
 
     // Shutdown wifi hardware
     esp_wifi_disconnect();
@@ -122,7 +125,7 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
     if (isExternalScheduler == false)
     {
-        scheduler.execute();
+        _scheduler.execute();
     }
     return;
 }
