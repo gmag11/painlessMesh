@@ -4,13 +4,15 @@
 #include "painlessMesh.h"
 #include "painlessMeshSync.h"
 
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 #include "lwip/init.h"
 
 painlessMesh* staticThis;
 uint16_t  count = 0;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
+#pragma GCC diagnostic pop
 
 // general functions
 //***********************************************************************
