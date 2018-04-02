@@ -178,7 +178,13 @@ Note: The mesh must be on the same WiFi channel as the AP.
 
 - [AsyncTCP](https://github.com/me-no-dev/AsyncTCP)
 
-# Funding
+# Funding and donations
+
+You can donate using one of our cryptocoin addresses:
+
+- ethereum: 0x45B4638faAB5CF1bbcC1ee177681E74343EC9c86
+- bitcoin: 1HqEkiU3BxGwJ3EL9QJFThWF4zGN4tisim
+- bitcoin cash: qqu7vx77q8tfllep24zvvlfcqg7w0qwrtu8paaaxdu
 
 Most development of painlessMesh has been done as a hobby, but some specific features have been funded by the companies listed below:
 
