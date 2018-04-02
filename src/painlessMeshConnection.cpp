@@ -226,12 +226,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
             staticThis->changedConnectionsCallback(); // Connection dropped. Signal user
        if (staticThis->droppedConnectionCallback)
             staticThis->droppedConnectionCallback(nodeId); // Connection dropped. Signal user
-       for (auto &&connection : staticThis->_connections) {
-           if (connection->nodeId != nodeId) { // Exclude current
-               connection->nodeSyncTask.forceNextIteration();
-           }
-       }
-       staticThis->stability /= 2;
+       staticThis->syncSubConnections(nodeId);
     });
     mesh->_scheduler.addTask(staticThis->droppedConnectionTask);
     mesh->droppedConnectionTask.enable();

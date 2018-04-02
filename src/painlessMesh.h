@@ -151,6 +151,9 @@ protected:
     void                handleTimeDelay(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt);
     bool                adoptionCalc(std::shared_ptr<MeshConnection> conn);
 
+    // Update other connections of a change
+    void                syncSubConnections(uint32_t changedId);
+
     // in painlessMeshConnection.cpp
     //void                cleanDeadConnections(void); // Not implemented. Needed?
     void                tcpConnect(void);
