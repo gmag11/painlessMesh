@@ -122,10 +122,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     meshPackageType message_type = (meshPackageType)(int)root["type"];
     uint32_t        remoteNodeId = root["from"];
 
-    /*for (auto && connection : _connections) {
-        debugMsg(SYNC, "handleNodeSync(): Sanity check %d\n", connection->esp_conn);
-        debugMsg(SYNC, "handleNodeSync(): Sanity check Id %u\n", connection->nodeId);
-    }*/
+    if (remoteNodeId == 0) {
+        debugMsg(ERROR, "handleNodeSync(): received invalid remote nodeId\n");
+        return;
+    }
+
     if (conn->newConnection) {
         // There is a small but significant probability that we get connected twice to the 
         // same node, e.g. if scanning happened while sub connection data was incomplete.
