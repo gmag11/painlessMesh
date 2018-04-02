@@ -181,8 +181,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     String inComingSubs = root["subs"];
     if (!conn->subConnections.equals(inComingSubs)) {  // change in the network
         // Check whether we already know any of the nodes
-        // This is necessary to avoid loops
-        if (stringContainsNumber(inComingSubs, String(conn->nodeId))) {
+        // This is necessary to avoid loops.. Not sure if we need to check
+        // for both this node and master node, but better safe than sorry
+        if ( stringContainsNumber(inComingSubs, String(conn->nodeId)) || 
+                stringContainsNumber(inComingSubs, String(this->_nodeId))) {
             // This node is also in the incoming subs, so we have a loop
             // Disconnecting to break the loop
             debugMsg(SYNC, "handleNodeSync(): Loop detected, disconnecting %u.\n",
