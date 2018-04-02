@@ -143,9 +143,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         newConnectionTask.set(TASK_SECOND, TASK_ONCE, [remoteNodeId]() {
             staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
             staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", remoteNodeId, staticThis->getNodeTime());
-           if (staticThis->newConnectionCallback)
+            if (staticThis->newConnectionCallback)
                 staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user            
-           staticThis->stability /= 2;
         });
 
         _scheduler.addTask(newConnectionTask);
@@ -167,7 +166,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         else
             // We are the AP, give STA the change to initiate time sync 
             conn->timeSyncTask.enableDelayed();
-        stability /= 2;
         conn->newConnection = false;
     }
 
@@ -175,7 +173,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         debugMsg(SYNC, "handleNodeSync(): Changed nodeId %u, closing connection %u.\n",
                 conn->nodeId, remoteNodeId);
         conn->close();
-        stability /= 2;
         return;
     }
 
@@ -198,7 +195,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         conn->subConnections = inComingSubs;
         if (changedConnectionsCallback)
             changedConnectionsCallback();
-        stability /= 2;
+
+        staticThis->syncSubConnections(conn->nodeId);
     } else {
         stability += min(1000-stability,(size_t)25);
     }
@@ -382,4 +380,17 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(std::shared_ptr<MeshConnect
 
     debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
 
+}
+
+void ICACHE_FLASH_ATTR painlessMesh::syncSubConnections(uint32_t changedId) {
+    debugMsg(SYNC, "syncSubConnections(): changedId = %u\n", changedId);
+    for (auto &&connection : _connections) {
+        if (connection->connected &&
+                !connection->newConnection &&
+                connection->nodeId != 0 && 
+                connection->nodeId != changedId) { // Exclude current
+            connection->nodeSyncTask.forceNextIteration();
+        }
+    }
+    staticThis->stability /= 2;
 }
