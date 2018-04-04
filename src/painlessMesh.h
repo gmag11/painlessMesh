@@ -13,16 +13,20 @@
 #include <memory>
 using namespace std;
 #include "espInterface.h"
-#include "painlessTCP.h"
+#ifdef ESP32
+#include <AsyncTCP.h>
+#elif defined(ESP8266)
+#include <ESPAsyncTCP.h>
+#endif // ESP32
 
 #include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
 #include "painlessMeshConnection.h"
 
-#define NODE_TIMEOUT        10*TASK_SECOND
-#define MIN_FREE_MEMORY     16000 // Minimum free memory, besides here all packets in queue are discarded.
-#define MAX_MESSAGE_QUEUE   50 // MAX number of unsent messages in queue. Newer messages are discarded
-#define MAX_CONSECUTIVE_SEND 5 // Max message busrt
+#define NODE_TIMEOUT         10*TASK_SECOND
+#define MIN_FREE_MEMORY      16000 // Minimum free memory, besides here all packets in queue are discarded.
+#define MAX_MESSAGE_QUEUE    50 // MAX number of unsent messages in queue. Newer messages are discarded
+#define MAX_CONSECUTIVE_SEND 5 // Max message burst
 
 enum nodeMode {
     AP_ONLY = WIFI_MODE_AP,
@@ -169,7 +173,7 @@ protected:
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
     
     shared_ptr<MeshConnection> findConnection(uint32_t nodeId, uint32_t exclude = 0);
-    shared_ptr<MeshConnection> findConnection(TCPClient *conn);
+    shared_ptr<MeshConnection> findConnection(AsyncClient *conn);
 
     std::list<uint32_t> getNodeList(String &subConnections);
 
@@ -203,7 +207,7 @@ protected:
 
     ConnectionList    _connections;
 
-    TCPServer        *_tcpListener;
+    AsyncServer       *_tcpListener;
 
     bool              _station_got_ip = false;
 
@@ -215,7 +219,7 @@ protected:
 
     friend class StationScan;
     friend class MeshConnection;
-    friend void  onDataCb(void * arg, TCPClient *client, void *data, size_t len);
+    friend void  onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
 };
 
 /*****
