@@ -12,8 +12,8 @@
     "dependencies": [
         { "name": "ArduinoJson" },
         { "name": "TaskScheduler" },
-        { "name": "AsyncTCP" },
-        { "name": "ESPAsyncTCP" }
+        { "name": "AsyncTCP",  "platforms" : "espressif32" },
+        { "name": "ESPAsyncTCP",  "platforms" : "espressif8266" }
     ],
     "authors": [
         { "name": "Scotty Franzyshen" }, 
