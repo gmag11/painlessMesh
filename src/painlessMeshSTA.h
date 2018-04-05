@@ -36,7 +36,7 @@ class StationScan {
 
     // Manually configure network and ip
     bool manual = false;
-    uint8_t manualIP[4] = {0, 0, 0, 0};
+    IPAddress manualIP = IPAddress(0, 0, 0, 0);
     friend class painlessMesh;
 };
 

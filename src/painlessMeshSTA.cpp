@@ -19,9 +19,9 @@ extern painlessMesh* staticThis;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
         String ssid, String password, uint16_t port,
-        uint8_t *remote_ip) {
+        IPAddress remote_ip) {
     // Set station config
-    if (remote_ip != NULL) memcpy(stationScan.manualIP, remote_ip, 4 * sizeof(uint8_t));
+    stationScan.manualIP = remote_ip;
 
     // Start scan
     stationScan.init(this, ssid, password, port);
@@ -35,10 +35,8 @@ bool ICACHE_FLASH_ATTR painlessMesh::setHostname(const char * hostname){
   return (tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname) == ESP_OK);
 }
 
-ip_addr ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
-    tcpip_adapter_ip_info_t ipconfig;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
-    return ipconfig.ip;
+IPAddress ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
+    return WiFi.localIP();
 }
 
 //***********************************************************************
@@ -48,23 +46,21 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     if (stationScan.manual && stationScan.port == 0) return; // We have been configured not to connect to the mesh 
 
     // TODO: We could pass this to tcpConnect instead of loading it here
-    tcpip_adapter_ip_info_t ipconfig;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
 
-    if (_station_got_ip && ipconfig.ip.addr != 0) {
+    if (_station_got_ip && WiFi.localIP() != 0) {
         AsyncClient *pConn = new AsyncClient();
 
         pConn->onError([](void *, AsyncClient * client, int8_t err) {
             staticThis->debugMsg(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
             if (client->connected())
                 client->close();
-            esp_wifi_disconnect();
+            WiFi.disconnect();
         });
 
-        auto ip = ipconfig.gw;
-        if (stationScan.manualIP[0] != 0)
-            //ip = stationScan.manualIP;
-            memcpy(&ip, &stationScan.manualIP, 4);
+        IPAddress ip = WiFi.gatewayIP();
+        if (stationScan.manualIP != 0) {
+            ip = stationScan.manualIP;
+        }
 
         pConn->onConnect([](void *, AsyncClient *client) {
                     staticThis->debugMsg(CONNECTION, "New STA connection incoming\n");
@@ -72,7 +68,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
                     staticThis->_connections.push_back(conn);
         }, NULL); 
 
-        pConn->connect(IPAddress(ip.addr), stationScan.port);
+        pConn->connect(ip, stationScan.port);
      } else {
         debugMsg(ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");
     }
@@ -193,7 +189,7 @@ void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t &ap) {
     wifi_config_t cfg;
     cfg.sta = stationConf;
     esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg);
-    esp_wifi_connect();
+    WiFi.begin();
 }
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {

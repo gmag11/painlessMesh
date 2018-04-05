@@ -29,16 +29,18 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
+#ifdef ESP32
     tcpip_adapter_init();
-
     wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
     if ((esp_wifi_init(&init_config)) != ESP_OK) {
         //debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", err);
     }
+#endif // ESP32
+
     if (esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK)
         debugMsg(ERROR, "Unable to set storage to RAM only.\n");
         
-    debugMsg(STARTUP, "init(): %d\n", esp_wifi_set_auto_connect(false)); // Disable autoconnect
+    debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
     
     if (connectMode == AP_ONLY || connectMode == STA_AP)
         tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
@@ -56,13 +58,13 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     // start configuration
     switch (connectMode) {
     case STA_ONLY:
-        debugMsg(GENERAL, "esp_wifi_set_mode(STATION_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_STA) == ESP_OK);
+        debugMsg(GENERAL, "WiFi.mode(WIFI_STA) succeeded? %d\n", WiFi.mode(WIFI_STA));
         break;
     case AP_ONLY:
-        debugMsg(GENERAL, "esp_wifi_set_mode(AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_AP) == ESP_OK);
+        debugMsg(GENERAL, "WiFi.mode(WIFI_AP) succeeded? %d\n", WiFi.mode(WIFI_AP));
         break;
     default:
-        debugMsg(GENERAL, "esp_wifi_set_mode(STATION_AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_APSTA) == ESP_OK);
+        debugMsg(GENERAL, "WiFi.mode(WIFI_AP_STA) succeeded? %d\n", WiFi.mode(WIFI_AP_STA));
     }
 
     _meshSSID = ssid;
@@ -75,14 +77,14 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     _meshHidden = hidden;
     _meshMaxConn = maxconn;
 
-    uint8_t MAC[] = { 0,0,0,0,0,0 };
-    if (esp_wifi_get_mac(ESP_IF_WIFI_AP, MAC) != ESP_OK) {
-        debugMsg(ERROR, "init(): esp_wifi_get_mac failed.\n");
+    uint8_t MAC[] = {0, 0, 0, 0, 0, 0};
+    if (WiFi.softAPmacAddress(MAC) == 0) {
+        debugMsg(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
     }
     esp_wifi_start();
     _nodeId = encodeNodeId(MAC);
 
-    IP4_ADDR(&_apIp, 0, 0, 0, 0);
+    _apIp = IPAddress(0, 0, 0, 0);
 
     if (connectMode == AP_ONLY || connectMode == STA_AP)
         apInit();       // setup AP
@@ -116,10 +118,12 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
     _scheduler.deleteTask(droppedConnectionTask);
 
     // Shutdown wifi hardware
-    esp_wifi_disconnect();
+    WiFi.disconnect();
     tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
+#ifdef ESP32
     esp_wifi_stop();
     esp_wifi_deinit();
+#endif // ESP32
 }
 
 //***********************************************************************

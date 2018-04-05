@@ -51,7 +51,7 @@ void setup() {
 
   mesh.stationManual(STATION_SSID, STATION_PASSWORD);
   mesh.setHostname(HOSTNAME);
-  myAPIP = IPAddress(mesh.getAPIP().addr);
+  myAPIP = IPAddress(mesh.getAPIP());
   Serial.println("My AP IP is " + myAPIP.toString());
 
   //Async webserver
@@ -79,5 +79,5 @@ void receivedCallback( const uint32_t &from, const String &msg ) {
 }
 
 IPAddress getlocalIP() {
-  return IPAddress(mesh.getStationIP().addr);
+  return IPAddress(mesh.getStationIP());
 }

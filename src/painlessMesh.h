@@ -16,7 +16,6 @@ using namespace std;
 #ifdef ESP32
 #include <AsyncTCP.h>
 #elif defined(ESP8266)
-#include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #endif // ESP32
 
@@ -30,9 +29,9 @@ using namespace std;
 #define MAX_CONSECUTIVE_SEND 5 // Max message burst
 
 enum nodeMode {
-    AP_ONLY = WIFI_MODE_AP,
-    STA_ONLY = WIFI_MODE_STA,
-    STA_AP = WIFI_MODE_APSTA
+    AP_ONLY  = WIFI_AP,
+    STA_ONLY = WIFI_STA,
+    STA_AP   = WIFI_AP_STA
 };
 
 enum meshPackageType {
@@ -121,9 +120,9 @@ public:
     /// Connect (as a station) to a specified network and ip
     /// You can pass {0,0,0,0} as IP to have it connect to the gateway
     void stationManual(String ssid, String password, uint16_t port = 0,
-        uint8_t * remote_ip = NULL);
+        IPAddress remote_ip = IPAddress(0,0,0,0));
     bool setHostname(const char * hostname);
-    ip_addr getStationIP();
+    IPAddress getStationIP();
 
     StationScan stationScan;
 
@@ -131,7 +130,7 @@ public:
     size_t stability = 0;
 
     // in painlessMeshAP.cpp
-    ip_addr             getAPIP();
+    IPAddress             getAPIP();
 
 #if __cplusplus > 201103L
     [[deprecated("Use of the internal scheduler will be deprecated, please use an user provided scheduler instead (See the startHere example).")]]
@@ -204,7 +203,7 @@ protected:
     uint8_t           _meshHidden;
     uint8_t           _meshMaxConn;
 
-    ip_addr           _apIp;
+    IPAddress         _apIp;
 
     ConnectionList    _connections;
 

@@ -105,5 +105,5 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
 }
 
 IPAddress getlocalIP() {
-  return IPAddress(mesh.getStationIP().addr);
+  return IPAddress(mesh.getStationIP());
 }
