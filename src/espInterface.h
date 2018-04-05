@@ -139,7 +139,7 @@ esp_err_t esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_re
 esp_err_t esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf);
 
 #elif defined(ESP32)
-
+#include <WiFi.h>
 #define ICACHE_FLASH_ATTR 
 extern "C" {
     #include "esp_wifi.h"

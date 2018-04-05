@@ -16,7 +16,7 @@ ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
 
 // general functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Scheduler *baseScheduler, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
+void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Scheduler *baseScheduler, uint16_t port, WiFiMode_t connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
 
     baseScheduler->setHighPriorityScheduler(&this->_scheduler);
     isExternalScheduler = true;
@@ -24,7 +24,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Schedule
     init(ssid, password, port, connectMode, authmode, channel, phymode, maxtpw, hidden, maxconn);
 }
 
-void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
+void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, WiFiMode_t connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
@@ -42,10 +42,10 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         
     debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
     
-    if (connectMode == AP_ONLY || connectMode == STA_AP)
+    if (connectMode == WIFI_AP || connectMode == WIFI_AP_STA)
         tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
 
-    // Should check whether AP_ONLY etc.
+    // Should check whether WIFI_AP etc.
     esp_wifi_set_protocol(ESP_IF_WIFI_STA, phymode);
     esp_wifi_set_protocol(ESP_IF_WIFI_AP, phymode);
 #ifdef ESP8266
@@ -57,10 +57,10 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     // start configuration
     switch (connectMode) {
-    case STA_ONLY:
+    case WIFI_STA:
         debugMsg(GENERAL, "WiFi.mode(WIFI_STA) succeeded? %d\n", WiFi.mode(WIFI_STA));
         break;
-    case AP_ONLY:
+    case WIFI_AP:
         debugMsg(GENERAL, "WiFi.mode(WIFI_AP) succeeded? %d\n", WiFi.mode(WIFI_AP));
         break;
     default:
@@ -86,9 +86,9 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     _apIp = IPAddress(0, 0, 0, 0);
 
-    if (connectMode == AP_ONLY || connectMode == STA_AP)
+    if (connectMode == WIFI_AP || connectMode == WIFI_AP_STA)
         apInit();       // setup AP
-    if (connectMode == STA_ONLY || connectMode == STA_AP) {
+    if (connectMode == WIFI_STA || connectMode == WIFI_AP_STA) {
         stationScan.init(this, ssid, password, port);
         _scheduler.addTask(stationScan.task);
     }

@@ -67,7 +67,7 @@ The main member functions are included below. Full doxygen generated documentati
 
 ## Member Functions
 
-### void painlessMesh::init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4)
+### void painlessMesh::init(String ssid, String password, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4)
 
 Add this to your setup() function.
 Initialize the mesh network.  This routine does the following things.
@@ -79,7 +79,7 @@ Initialize the mesh network.  This routine does the following things.
 `ssid` = the name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
 `password` = wifi password to your mesh.
 `port` = the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
-[`connectMode`](https://gitlab.com/painlessMesh/painlessMesh/wikis/connect-mode:-ap_only,-sta_only,-sta_ap-mode) = switch between AP_ONLY, STA_ONLY and STA_AP (default) mode
+[`connectMode`](https://gitlab.com/painlessMesh/painlessMesh/wikis/connect-mode:-WIFI_AP,-WIFI_STA,-WIFI_AP_STA-mode) = switch between WIFI_AP, WIFI_STA and WIFI_AP_STA (default) mode
 
 ### void painlessMesh::stop()
 
