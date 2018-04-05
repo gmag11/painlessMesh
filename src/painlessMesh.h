@@ -43,20 +43,21 @@ enum meshPackageType {
 template<typename T>
 using SimpleList = std::list<T>; // backward compatibility
 
-typedef int debugType;
-
-#define ERROR 1
-#define STARTUP 1<<1
-#define MESH_STATUS 1<<2
-#define CONNECTION 1<<3
-#define SYNC 1<<4
-#define S_TIME 1<<5
-#define COMMUNICATION 1<<6
-#define GENERAL 1<<7
-#define MSG_TYPES 1<<8
-#define REMOTE 1<<9  // not yet implemented
-#define APPLICATION 1<<10
-#define DEBUG 1<<11
+typedef enum
+{
+    ERROR         = 1 << 0,
+    STARTUP       = 1 << 1,
+    MESH_STATUS   = 1 << 2,
+    CONNECTION    = 1 << 3,
+    SYNC          = 1 << 4,
+    S_TIME        = 1 << 5,
+    COMMUNICATION = 1 << 6,
+    GENERAL       = 1 << 7,
+    MSG_TYPES     = 1 << 8,
+    REMOTE        = 1 << 9, // not yet implemented
+    APPLICATION   = 1 << 10,
+    DEBUG         = 1 << 11
+} debugType_t;
 
 #ifdef ESP32
 #define MAX_CONN 10
@@ -80,7 +81,7 @@ public:
 
     // in painlessMeshDebug.cpp
     void                setDebugMsgTypes(uint16_t types);
-    void                debugMsg(debugType type, const char* format ...);
+    void                debugMsg(debugType_t type, const char* format ...);
 
     // in painlessMesh.cpp
 	 					painlessMesh();

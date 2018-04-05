@@ -25,7 +25,7 @@ void ICACHE_FLASH_ATTR painlessMesh::setDebugMsgTypes(uint16_t newTypes) {
 
 // To assign a debug message to several type use | (bitwise or) operator
 // Example: debugMsg( GENERAL | CONNECTION , "Debug message");
-void ICACHE_FLASH_ATTR painlessMesh::debugMsg(debugType type, const char* format ...) {
+void ICACHE_FLASH_ATTR painlessMesh::debugMsg(debugType_t type, const char* format ...) {
     if (type & types) {  //Print only the message types set for output
         va_list args;
         va_start(args, format);
@@ -34,7 +34,47 @@ void ICACHE_FLASH_ATTR painlessMesh::debugMsg(debugType type, const char* format
         //perror(str);
 
         if (types && MSG_TYPES)
-            Serial.printf("0x%x\t", type);
+        {
+            switch(type)
+            {
+                case ERROR:
+                    Serial.print("ERROR: ");
+                    break;
+                case STARTUP:
+                    Serial.print("STARTUP: ");
+                    break;
+                case MESH_STATUS:
+                    Serial.print("MESH_STATUS: ");
+                    break;
+                case CONNECTION:
+                    Serial.print("CONNECTION: ");
+                    break;
+                case SYNC:
+                    Serial.print("SYNC: ");
+                    break;
+                case S_TIME:
+                    Serial.print("S_TIME: ");
+                    break;
+                case COMMUNICATION:
+                    Serial.print("COMMUNICATION: ");
+                    break;
+                case GENERAL:
+                    Serial.print("GENERAL: ");
+                    break;
+                case MSG_TYPES:
+                    Serial.print("MSG_TYPES: ");
+                    break;
+                case REMOTE:
+                    Serial.print("REMOTE: ");
+                    break;
+                case APPLICATION:
+                    Serial.print("APPLICATION: ");
+                    break;
+                case DEBUG:
+                    Serial.print("DEBUG: ");
+                    break;
+            }
+        }
 
         Serial.print(str);
 
