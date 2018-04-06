@@ -26,17 +26,18 @@ class StationScan {
     void connectToAP();
 
   private:
-    String ssid;
-    String password;
-    painlessMesh *mesh;
-    uint16_t port;
+    String                      ssid;
+    String                      password;
+    painlessMesh                *mesh;
+    uint16_t                    port;
     std::list<wifi_ap_record_t> aps;
 
     void requestIP(wifi_ap_record_t &ap);
 
     // Manually configure network and ip
-    bool manual = false;
+    bool      manual   = false;
     IPAddress manualIP = IPAddress(0, 0, 0, 0);
+
     friend class painlessMesh;
 };
 

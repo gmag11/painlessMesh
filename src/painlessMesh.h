@@ -29,13 +29,13 @@ using namespace std;
 #define MAX_CONSECUTIVE_SEND 5 // Max message burst
 
 enum meshPackageType {
-    TIME_DELAY = 3,
-    TIME_SYNC = 4,
+    TIME_DELAY        = 3,
+    TIME_SYNC         = 4,
     NODE_SYNC_REQUEST = 5,
-    NODE_SYNC_REPLY = 6,
-    CONTROL = 7,  //deprecated
-    BROADCAST = 8,  //application data for everyone
-    SINGLE = 9   //application data for a single node
+    NODE_SYNC_REPLY   = 6,
+    CONTROL           = 7,  //deprecated
+    BROADCAST         = 8,  //application data for everyone
+    SINGLE            = 9   //application data for a single node
 };
 
 template<typename T>
@@ -113,18 +113,18 @@ public:
     uint32_t            encodeNodeId(uint8_t *hwaddr);
     /// Connect (as a station) to a specified network and ip
     /// You can pass {0,0,0,0} as IP to have it connect to the gateway
-    void stationManual(String ssid, String password, uint16_t port = 0,
-        IPAddress remote_ip = IPAddress(0,0,0,0));
-    bool setHostname(const char * hostname);
-    IPAddress getStationIP();
+    void                stationManual(String ssid, String password, uint16_t port = 0,
+                                        IPAddress remote_ip = IPAddress(0,0,0,0));
+    bool                setHostname(const char * hostname);
+    IPAddress           getStationIP();
 
-    StationScan stationScan;
+    StationScan         stationScan;
 
     // Rough estimate of the mesh stability (goes from 0-1000)
-    size_t stability = 0;
+    size_t              stability = 0;
 
     // in painlessMeshAP.cpp
-    IPAddress             getAPIP();
+    IPAddress           getAPIP();
 
 #if __cplusplus > 201103L
     [[deprecated("Use of the internal scheduler will be deprecated, please use an user provided scheduler instead (See the startHere example).")]]
@@ -178,7 +178,7 @@ protected:
 
     // callbacks
     // in painlessMeshConnection.cpp
-    static int         espWifiEventCb(void * ctx, system_event_t *event);
+    static int          espWifiEventCb(void * ctx, system_event_t *event);
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
@@ -208,8 +208,8 @@ protected:
     bool              isExternalScheduler = false;
 
     Scheduler         _scheduler;
-    Task droppedConnectionTask;
-    Task newConnectionTask;
+    Task              droppedConnectionTask;
+    Task              newConnectionTask;
 
     friend class StationScan;
     friend class MeshConnection;

@@ -116,15 +116,6 @@ esp_err_t esp_wifi_set_storage(wifi_storage_t storage) {
     return ESP_OK;
 }
 
-esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_hostname(tcpip_adapter_if_t tcpip_if,
-                                                       const char *hostname) {
-    // Currently only STA is supported
-    if (tcpip_if == TCPIP_ADAPTER_IF_STA) {
-        return WiFi.hostname((char *)hostname) ? ESP_OK : ESP_FAIL;
-    }
-    return ESP_FAIL;
-}
-
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf) {
     if (ifx == ESP_IF_WIFI_STA) {
         if(WiFi.getPersistent()) {

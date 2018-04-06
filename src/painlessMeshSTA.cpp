@@ -29,10 +29,14 @@ void ICACHE_FLASH_ATTR painlessMesh::stationManual(
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::setHostname(const char * hostname){
+#ifdef ESP8266
+  return WiFi.hostname(hostname);
+#elif defined(ESP32)
   if(strlen(hostname) > 32) {
     return false;
   }
-  return (tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname) == ESP_OK);
+  return WiFi.setHostname(hostname);
+#endif // ESP8266
 }
 
 IPAddress ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
@@ -108,9 +112,9 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
     memset(&scanConfig, 0, sizeof(scanConfig));
     ssid.toCharArray(tempssid, ssid.length() + 1);
 
-    scanConfig.ssid = (uint8_t *) tempssid; // limit scan to mesh ssid
-    scanConfig.bssid = 0;
-    scanConfig.channel = mesh->_meshChannel; // also limit scan to mesh channel to speed things up ...
+    scanConfig.ssid        = (uint8_t *) tempssid; // limit scan to mesh ssid
+    scanConfig.bssid       = 0;
+    scanConfig.channel     = mesh->_meshChannel; // also limit scan to mesh channel to speed things up ...
     scanConfig.show_hidden = 1; // add hidden APs ... why not? we might want to hide ...
 
     task.delay(1000*SCAN_INTERVAL); // Scan should be completed by them and next step called. If not then we restart here.

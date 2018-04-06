@@ -29,13 +29,13 @@ class ReceiveBuffer {
 
         ReceiveBuffer();
         
-        void push(const char * cstr, size_t length, temp_buffer_t &buf);
+        void   push(const char * cstr, size_t length, temp_buffer_t &buf);
 
         String front();
-        void pop_front();
+        void   pop_front();
 
-        bool empty();
-        void clear();
+        bool   empty();
+        void   clear();
 };
 
 class SentBuffer {
@@ -46,41 +46,41 @@ class SentBuffer {
 
         SentBuffer();
         
-        void push(String &message, bool priority = false);
+        void   push(String &message, bool priority = false);
 
         size_t requestLength(size_t buffer_size);
 
-        void read(size_t length, temp_buffer_t &buf);
+        void   read(size_t length, temp_buffer_t &buf);
 
-        void freeRead();
+        void   freeRead();
 
-        bool empty();
-        void clear();
+        bool   empty();
+        void   clear();
 
-        bool clean = true;
+        bool   clean = true;
 };
 
 class MeshConnection {
     public:
-        AsyncClient         *client;
-        painlessMesh        *mesh;
-        uint32_t            nodeId = 0;
-        String              subConnections;
-        timeSync            time;
-        bool                newConnection = true;
-        bool                connected = true;
-        bool                station = true;
+        AsyncClient   *client;
+        painlessMesh  *mesh;
+        uint32_t      nodeId = 0;
+        String        subConnections;
+        timeSync      time;
+        bool          newConnection = true;
+        bool          connected = true;
+        bool          station = true;
 
-        uint32_t            timeDelayLastRequested = 0; // Timestamp to be compared in manageConnections() to check response for timeout
+        uint32_t      timeDelayLastRequested = 0;   //Timestamp to be compared in manageConnections() to check response for timeout
 
-        bool                addMessage(String &message, bool priority = false);
-        bool                writeNext();
-        ReceiveBuffer       receiveBuffer;
-        SentBuffer          sentBuffer;
+        bool          addMessage(String &message, bool priority = false);
+        bool          writeNext();
+        ReceiveBuffer receiveBuffer;
+        SentBuffer    sentBuffer;
 
-        Task nodeSyncTask;
-        Task timeSyncTask;
-        Task readBufferTask;
+        Task          nodeSyncTask;
+        Task          timeSyncTask;
+        Task          readBufferTask;
 
         MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
         ~MeshConnection();
@@ -88,6 +88,7 @@ class MeshConnection {
         void handleMessage(String &msg, uint32_t receivedAt);
 
         void close();
+        
         friend class painlessMesh;
 };
 #endif

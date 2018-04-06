@@ -118,8 +118,8 @@ void tcpSentCb(void * arg, AsyncClient * tpcb, size_t len, uint32_t time);
 
 ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painlessMesh *pMesh, bool is_station) {
     station = is_station;
-    mesh = pMesh;
-    client = client_ptr;
+    mesh    = pMesh;
+    client  = client_ptr;
 
     client->setNoDelay(true);
     client->setRxTimeout(NODE_TIMEOUT/TASK_SECOND);
