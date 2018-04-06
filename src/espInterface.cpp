@@ -48,7 +48,16 @@ static void ICACHE_FLASH_ATTR wifiEventCb(System_Event_t *event) {
 
 esp_err_t ICACHE_FLASH_ATTR esp_event_loop_init(system_event_cb_t cb, void *ctx) {
     wifi_set_event_handler_cb(wifiEventCb);
-    system_event_cb = cb;
+    if (cb)
+    {
+        system_event_cb = cb;
+        system_event_t event;
+        event.event_id = SYSTEM_EVENT_STA_START;
+        system_event_cb(NULL, &event);
+        system_event_t event_ap;
+        event_ap.event_id = SYSTEM_EVENT_AP_START;
+        system_event_cb(NULL, &event_ap);
+    }
     return ESP_OK;
 }
 
@@ -107,32 +116,6 @@ esp_err_t esp_wifi_set_storage(wifi_storage_t storage) {
     return ESP_OK;
 }
 
-esp_err_t ICACHE_FLASH_ATTR esp_wifi_start() {
-    if (system_event_cb) {
-        system_event_t event;
-        event.event_id = SYSTEM_EVENT_STA_START;
-        system_event_cb(NULL, &event);
-        system_event_t event_ap;
-        event_ap.event_id = SYSTEM_EVENT_AP_START;
-        system_event_cb(NULL, &event_ap);
-    }
-    return ESP_OK;
-}
-
-esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_ip_info_t *ip_info) {
-    if (wifi_set_ip_info(tcpip_if, ip_info))
-        return ESP_OK;
-    return ESP_FAIL;
-}
-
-esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_dhcps_stop(tcpip_adapter_if_t tcpip_if) {
-    if (tcpip_if == TCPIP_ADAPTER_IF_AP) {
-        if (wifi_softap_dhcps_stop())
-            return ESP_OK;
-    }
-    return ESP_FAIL;
-}
-
 esp_err_t ICACHE_FLASH_ATTR tcpip_adapter_set_hostname(tcpip_adapter_if_t tcpip_if,
                                                        const char *hostname) {
     // Currently only STA is supported
@@ -166,21 +149,10 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_confi
     return ESP_FAIL;
 }
 
-esp_err_t ICACHE_FLASH_ATTR esp_wifi_get_config(wifi_interface_t ifx, wifi_config_t *conf) {
-    if (ifx == ESP_IF_WIFI_STA)
-        if (wifi_station_get_config(&conf->sta))
-            return ESP_OK;
-
-    if (ifx == ESP_IF_WIFI_AP)
-        if (wifi_softap_get_config(&conf->ap))
-            return ESP_OK;
-    return ESP_FAIL;
-}
-
 esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap) {
     // NOTE that esp8266 can't use a different mode for ap and station
     if (ifx == ESP_IF_WIFI_STA || ifx == ESP_IF_WIFI_AP) {
-        if (wifi_set_phy_mode(static_cast<phy_mode_t>(protocol_bitmap)))
+        if (WiFi.setPhyMode(static_cast<WiFiPhyMode_t>(protocol_bitmap)))
             return ESP_OK;
     }
     return ESP_FAIL;

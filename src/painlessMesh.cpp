@@ -41,9 +41,6 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         debugMsg(ERROR, "Unable to set storage to RAM only.\n");
         
     debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
-    
-    if (connectMode == WIFI_AP || connectMode == WIFI_AP_STA)
-        tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
 
     // Should check whether WIFI_AP etc.
     esp_wifi_set_protocol(ESP_IF_WIFI_STA, phymode);
@@ -81,7 +78,6 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     if (WiFi.softAPmacAddress(MAC) == 0) {
         debugMsg(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
     }
-    esp_wifi_start();
     _nodeId = encodeNodeId(MAC);
 
     _apIp = IPAddress(0, 0, 0, 0);
@@ -119,7 +115,6 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 
     // Shutdown wifi hardware
     WiFi.disconnect();
-    tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
 #ifdef ESP32
     esp_wifi_stop();
     esp_wifi_deinit();

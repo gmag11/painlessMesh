@@ -200,25 +200,18 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
     });
 
     if (manual) {
-        wifi_config_t stationConf;
-        if (esp_wifi_get_config(ESP_IF_WIFI_STA, &stationConf) != ESP_OK) {
-            mesh->debugMsg(CONNECTION, "connectToAP(): failed to get current station config. Retrying later\n");
-            task.delay(SCAN_INTERVAL);
-            return;
-        }
-       
-        if (ssid.equals((char *) stationConf.sta.ssid) && 
-                mesh->_station_got_ip) {
+
+        if((WiFi.SSID() == ssid) && mesh->_station_got_ip) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Already connected using manual connection. Disabling scanning.\n");
             task.disable();
             return;
         } else {
             if (mesh->_station_got_ip) {
                 mesh->closeConnectionSTA();
-                task.enableDelayed(1000*SCAN_INTERVAL);
+                task.enableDelayed(1000 * SCAN_INTERVAL);
                 return;
-            } else if (aps.empty() || 
-                    !ssid.equals((char *)aps.begin()->ssid)) {
+            } else if (aps.empty() ||
+                     !ssid.equals((char *)aps.begin()->ssid)) {
                 task.enableDelayed(SCAN_INTERVAL);
                 return;
             }
