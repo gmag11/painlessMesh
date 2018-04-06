@@ -108,45 +108,9 @@ esp_err_t ICACHE_FLASH_ATTR esp_wifi_scan_start(wifi_scan_config_t *config, bool
     return ESP_OK;
 }
 
-
-
-
 esp_err_t esp_wifi_set_storage(wifi_storage_t storage) {
     WiFi.persistent(!(bool)storage);
     return ESP_OK;
-}
-
-esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf) {
-    if (ifx == ESP_IF_WIFI_STA) {
-        if(WiFi.getPersistent()) {
-            if (wifi_station_set_config(&conf->sta))
-                return ESP_OK;
-        } else {
-            if (wifi_station_set_config_current(&conf->sta))
-                return ESP_OK;
-        }
-    }
-
-    if (ifx == ESP_IF_WIFI_AP) {
-        if (WiFi.getPersistent()) {
-            if (wifi_softap_set_config(&conf->ap))
-                return ESP_OK;
-        } else {
-            if (wifi_softap_set_config_current(&conf->ap))
-                return ESP_OK;
-        }
-    }
-
-    return ESP_FAIL;
-}
-
-esp_err_t ICACHE_FLASH_ATTR esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap) {
-    // NOTE that esp8266 can't use a different mode for ap and station
-    if (ifx == ESP_IF_WIFI_STA || ifx == ESP_IF_WIFI_AP) {
-        if (WiFi.setPhyMode(static_cast<WiFiPhyMode_t>(protocol_bitmap)))
-            return ESP_OK;
-    }
-    return ESP_FAIL;
 }
 
 #elif defined(ESP32)

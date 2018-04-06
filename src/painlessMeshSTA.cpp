@@ -181,19 +181,8 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
 void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t &ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
             mesh->encodeNodeId(ap.bssid));
-    wifi_sta_config_t stationConf;
-    stationConf.bssid_set = 1;
-    memcpy(&stationConf.bssid, ap.bssid, 6); // Connect to this specific HW Address
-    memcpy(&stationConf.ssid, ap.ssid, 32);
-    memset(&stationConf.password, 0, 64);
-    memcpy(&stationConf.password, password.c_str(), password.length() + 1); // Connect to this specific HW Address
-    /*memcpy(&stationConf.bssid, ap.bssid, 6); // Connect to this specific HW Address
-    memcpy(&stationConf.ssid, ap.ssid, 32);
-    memcpy(&stationConf.password, password.c_str(), 64);*/
-    wifi_config_t cfg;
-    cfg.sta = stationConf;
-    esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg);
-    WiFi.begin();
+    WiFi.begin((char*)ap.ssid, password.c_str(), mesh->_meshChannel, ap.bssid);
+    return;
 }
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {

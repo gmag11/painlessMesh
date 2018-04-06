@@ -83,8 +83,6 @@ typedef esp_err_t (*system_event_cb_t)(void *ctx, system_event_t *event);
 
 esp_err_t esp_wifi_set_storage(wifi_storage_t storage);
 
-esp_err_t esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap);
-
 esp_err_t esp_event_loop_init(system_event_cb_t cb, void *ctx);
 
 esp_err_t esp_wifi_scan_start(wifi_scan_config_t *config, bool block);
@@ -119,8 +117,6 @@ esp_err_t esp_wifi_scan_get_ap_num(uint16_t *number);
  *    - ESP_ERR_WIFI_NO_MEM: out of memory
  */
 esp_err_t esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records);
-
-esp_err_t esp_wifi_set_config(wifi_interface_t ifx, wifi_config_t *conf);
 
 #elif defined(ESP32)
 #include <WiFi.h>

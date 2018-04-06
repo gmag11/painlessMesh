@@ -200,8 +200,6 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
     }
     client->abort();
     delete client;
-    /*if (esp_conn)
-        espconn_disconnect(esp_conn);*/
 }
 
 void ICACHE_FLASH_ATTR MeshConnection::close() {
@@ -435,7 +433,7 @@ std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(u
 
 //***********************************************************************
 std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(AsyncClient *client) {
-    debugMsg(GENERAL, "In findConnection(esp_conn) conn=0x%x\n", client);
+    debugMsg(GENERAL, "In findConnection() conn=0x%x\n", client);
 
     for (auto &&connection : _connections) {
         if ((*connection->client) == (*client)) {
@@ -443,7 +441,7 @@ std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(
         }
     }
 
-    debugMsg(CONNECTION, "findConnection(espconn): Did not Find\n");
+    debugMsg(CONNECTION, "findConnection(): Did not Find\n");
     return NULL;
 }
 
