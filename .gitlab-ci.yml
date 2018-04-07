@@ -27,3 +27,14 @@ arduino:
   script:
     - ./arduino -v --board esp8266:esp8266:d1_mini:CpuFrequency=80,FlashSize=4M1M --verify ../examples/startHere/basic.ino
     - ./arduino -v --board esp8266:esp8266:d1_mini:CpuFrequency=80,FlashSize=4M1M --verify ../examples/startHere/startHere.ino
+
+pages:
+  script:
+  - apt-get update && apt-get install -y doxygen
+  - doxygen doxygen/Doxyfile
+  - mv doxygen/documentation/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master

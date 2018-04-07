@@ -57,6 +57,8 @@ First include the library and create an painlessMesh object like this…
 painlessMesh  mesh;
 ```
 
+The main member functions are included below. Full doxygen generated documentation can be found [here](https://painlessmesh.gitlab.io/painlessMesh/classpainlessMesh.html)
+
 ## Member Functions
 
 ### void painlessMesh::init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4)
