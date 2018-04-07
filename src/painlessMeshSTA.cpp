@@ -52,9 +52,9 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
 
     if (_station_got_ip && ipconfig.ip.addr != 0) {
-        TCPClient *pConn = new TCPClient();
+        AsyncClient *pConn = new AsyncClient();
 
-        pConn->onError([](void *, TCPClient * client, int8_t err) {
+        pConn->onError([](void *, AsyncClient * client, int8_t err) {
             staticThis->debugMsg(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
             if (client->connected())
                 client->close();
@@ -66,7 +66,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
             //ip = stationScan.manualIP;
             memcpy(&ip, &stationScan.manualIP, 4);
 
-        pConn->onConnect([](void *, TCPClient *client) {
+        pConn->onConnect([](void *, AsyncClient *client) {
                     staticThis->debugMsg(CONNECTION, "New STA connection incoming\n");
                     auto conn = std::make_shared<MeshConnection>(client, staticThis, true);
                     staticThis->_connections.push_back(conn);

@@ -2,7 +2,7 @@ platformio:
   before_script:
     - apt-get update -qq && apt-get install -y -qq python-pip
     - pip install platformio
-    - platformio lib --global install ArduinoJson TaskScheduler PubSubClient
+    - platformio lib --global install ArduinoJson TaskScheduler PubSubClient ESPAsyncTCP AsyncTCP
   script:
     - platformio ci --lib="." --board=nodemcuv2 examples/basic/basic.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/startHere/startHere.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror"
@@ -21,6 +21,8 @@ arduino:
     - ./arduino --install-boards esp8266:esp8266
     - ./arduino --install-library TaskScheduler
     - ./arduino --install-library ArduinoJson
+    - git clone https://github.com/me-no-dev/ESPAsyncTCP; cp -r ESPAsyncTCP/src ~/Arduino/libraries/ESPAsyncTCP
+    - git clone https://github.com/me-no-dev/AsyncTCP; cp -r AsyncTCP/src ~/Arduino/libraries/AsyncTCP
     - cp -r ../src ~/Arduino/libraries/painlessMesh
   script:
     - ./arduino -v --board esp8266:esp8266:d1_mini:CpuFrequency=80,FlashSize=4M1M --verify ../examples/startHere/basic.ino

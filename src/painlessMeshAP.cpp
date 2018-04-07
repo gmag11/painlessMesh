@@ -70,10 +70,10 @@ ip_addr ICACHE_FLASH_ATTR painlessMesh::getAPIP()
 void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
     debugMsg(GENERAL, "tcpServerInit():\n");
 
-    _tcpListener = new TCPServer(_meshPort);
+    _tcpListener = new AsyncServer(_meshPort);
     _tcpListener->setNoDelay(true);
 
-    _tcpListener->onClient([](void * arg, TCPClient *client) {
+    _tcpListener->onClient([](void * arg, AsyncClient *client) {
         staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
         auto conn = std::make_shared<MeshConnection>(client, staticThis, false);
         staticThis->_connections.push_back(conn);
