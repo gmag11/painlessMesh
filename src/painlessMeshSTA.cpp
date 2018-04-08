@@ -13,8 +13,6 @@
 #include "painlessMeshSTA.h"
 #include "painlessMesh.h"
 
-#include "lwip/ip_addr.h"
-
 extern painlessMesh* staticThis;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
@@ -80,7 +78,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
 //***********************************************************************
 // Calculate NodeID from a hardware MAC address
-uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(uint8_t *hwaddr) {
+uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(const uint8_t *hwaddr) {
     debugMsg(GENERAL, "encodeNodeId():\n");
     uint32_t value = 0;
 
@@ -107,20 +105,14 @@ void ICACHE_FLASH_ATTR StationScan::init(painlessMesh *pMesh, String &pssid,
 void ICACHE_FLASH_ATTR StationScan::stationScan() {
     staticThis->debugMsg(CONNECTION, "stationScan(): %s\n", ssid.c_str());
 
-    char tempssid[32];
-    wifi_scan_config_t scanConfig;
-    memset(&scanConfig, 0, sizeof(scanConfig));
-    ssid.toCharArray(tempssid, ssid.length() + 1);
-
-    scanConfig.ssid        = (uint8_t *) tempssid; // limit scan to mesh ssid
-    scanConfig.bssid       = 0;
-    scanConfig.channel     = mesh->_meshChannel; // also limit scan to mesh channel to speed things up ...
-    scanConfig.show_hidden = 1; // add hidden APs ... why not? we might want to hide ...
+#ifdef ESP32
+    WiFi.scanNetworks(true, true);
+#elif defined(ESP8266)
+    WiFi.scanNetworksAsync([&](int networks) { this->scanComplete(); }, true);
+#endif
 
     task.delay(1000*SCAN_INTERVAL); // Scan should be completed by them and next step called. If not then we restart here.
-
-    if (esp_wifi_scan_start(&scanConfig, false) != ESP_OK)
-        staticThis->debugMsg(ERROR, "wifi_station_scan() failed!?\n");
+    return;
 }
 
 void ICACHE_FLASH_ATTR StationScan::scanComplete() {
@@ -129,23 +121,40 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     aps.clear();
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > Cleared old aps.\n");
 
-    uint16_t num = 0;
-    auto err = esp_wifi_scan_get_ap_num(&num);
-    if (err != ESP_OK)
-        staticThis->debugMsg(CONNECTION, "scanComplete():-- > Error in scanning.\n");
-    //wifi_ap_record_t *records = new wifi_ap_record_t[num];
-    wifi_ap_record_t *records = (wifi_ap_record_t*)malloc(num*sizeof(wifi_ap_record_t));
-    //records = (wifi_ap_record_t *)malloc(num*sizeof(wifi_ap_record_t));
-    staticThis->debugMsg(CONNECTION, "scanComplete(): num=%d, err=%d\n", num, err);
-    err = esp_wifi_scan_get_ap_records(&num, records);
-    staticThis->debugMsg(CONNECTION, "scanComplete(): After getting records, num=%d, err=%d\n", num, err);
-    for (uint16_t i = 0; i < num; ++i) {
-        aps.push_back(records[i]);
-        staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm\n", (char*) records[i].ssid, (int16_t) records[i].rssi);
+    int8_t num = WiFi.scanComplete();
+    if(num == WIFI_SCAN_RUNNING || num == WIFI_SCAN_FAILED) return;
+
+    staticThis->debugMsg(CONNECTION, "scanComplete(): num = %d\n", num);
+    
+    for (uint8_t i = 0; i < num; ++i) {
+        wifi_ap_record_t record;
+        String  _ssid     = "";
+        uint8_t _authmode = 0;
+        int32_t _rssi     = 0;
+        uint8_t* _bssid   = 0;
+        int32_t _channel  = 0;
+
+#ifdef ESP32
+        WiFi.getNetworkInfo(i, _ssid, _authmode, _rssi, _bssid, _channel);
+        if(_ssid != ssid) continue;
+        record.primary = _channel;
+#elif defined(ESP8266)
+        bool _is_hidden = false;
+        WiFi.getNetworkInfo(i, _ssid, _authmode, _rssi, _bssid, _channel, _is_hidden);
+        if(_ssid != ssid) continue;
+        record.is_hidden = _is_hidden;
+        record.channel = _channel;
+#endif // ESP32
+        _ssid.toCharArray((char*)record.ssid, 32);
+        record.authmode = (wifi_auth_mode_t)_authmode;
+        record.rssi     = _rssi;
+        memcpy((void *)&record.bssid, (void *)_bssid, sizeof(record.bssid));
+
+        aps.push_back(record);
+        staticThis->debugMsg(CONNECTION, "\tfound : %s, %ddBm\n", (char*) record.ssid, (int16_t) record.rssi);
     }
-    //delete[] records;
-    free(records);
-    staticThis->debugMsg(CONNECTION, "\tFound % d nodes\n", aps.size());
+
+    staticThis->debugMsg(CONNECTION, "\tFound %d nodes\n", aps.size());
 
     task.yield([this]() {
         // Task filter all unknown
@@ -181,12 +190,11 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
 void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t &ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
             mesh->encodeNodeId(ap.bssid));
-    WiFi.begin((char*)ap.ssid, password.c_str(), mesh->_meshChannel, ap.bssid);
+    WiFi.begin((char*)ap.ssid, password.c_str());
     return;
 }
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {
-    mesh->debugMsg(CONNECTION, "connectToAP():");
     // Next task will be to rescan
     task.setCallback([this]() {
         stationScan();

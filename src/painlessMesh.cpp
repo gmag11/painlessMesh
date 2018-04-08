@@ -29,8 +29,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
-    if (esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK) // default is WIFI_STORAGE_FLASH, we need to this low level function to set only save in RAM
-        debugMsg(ERROR, "Unable to set storage to RAM only.\n");
+    WiFi.disconnect(true);
 
     debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
 
@@ -72,8 +71,8 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         _scheduler.addTask(stationScan.task);
     }
 
-    esp_event_loop_init(espWifiEventCb, NULL);
-
+    eventHandleInit();
+    
     _scheduler.enableAll();
 }
 

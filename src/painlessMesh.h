@@ -110,7 +110,7 @@ public:
     uint32_t            getNodeTime(void);
 
     // in painlessMeshSTA.cpp
-    uint32_t            encodeNodeId(uint8_t *hwaddr);
+    uint32_t            encodeNodeId(const uint8_t *hwaddr);
     /// Connect (as a station) to a specified network and ip
     /// You can pass {0,0,0,0} as IP to have it connect to the gateway
     void                stationManual(String ssid, String password, uint16_t port = 0,
@@ -178,7 +178,10 @@ protected:
 
     // callbacks
     // in painlessMeshConnection.cpp
-    static int          espWifiEventCb(void * ctx, system_event_t *event);
+    void                eventHandleInit();
+#ifdef ESP32
+    static void         espWiFiEventCb(WiFiEvent_t event);
+#endif // ESP32
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
@@ -187,6 +190,15 @@ protected:
     changedConnectionsCallback_t    changedConnectionsCallback;
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
     nodeDelayCallback_t             nodeDelayReceivedCallback;
+
+#ifdef ESP8266
+    WiFiEventHandler  eventSTAConnectedHandler;
+    WiFiEventHandler  eventSTADisconnectedHandler;
+    WiFiEventHandler  eventSTAAuthChangeHandler;
+    WiFiEventHandler  eventSTAGotIPHandler;
+    WiFiEventHandler  eventSoftAPConnectedHandler;
+    WiFiEventHandler  eventSoftAPDisconnectedHandler;
+#endif // ESP8266
 
     uint32_t          _nodeId;
     String            _meshSSID;
