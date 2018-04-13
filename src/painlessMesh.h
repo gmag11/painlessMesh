@@ -25,7 +25,7 @@ using namespace std;
 #include "painlessMeshConnection.h"
 
 #define NODE_TIMEOUT         10*TASK_SECOND
-#define MIN_FREE_MEMORY      16000 // Minimum free memory, besides here all packets in queue are discarded.
+#define MIN_FREE_MEMORY      4000 // Minimum free memory, besides here all packets in queue are discarded.
 #define MAX_MESSAGE_QUEUE    50 // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5 // Max message burst
 
