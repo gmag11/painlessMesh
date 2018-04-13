@@ -39,7 +39,7 @@ void setup() {
   //mesh.setDebugMsgTypes( ERROR | CONNECTION | SYNC | S_TIME );  // set before init() so that you can see startup messages
   mesh.setDebugMsgTypes( ERROR | CONNECTION | S_TIME );  // set before init() so that you can see startup messages
 
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, STA_AP, AUTH_WPA2_PSK, 6 );
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, AUTH_WPA2_PSK, 6 );
   mesh.onReceive(&receivedCallback);
 
   mesh.onNewConnection([](size_t nodeId) {

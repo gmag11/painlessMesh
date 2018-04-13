@@ -16,7 +16,7 @@ ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
 
 // general functions
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Scheduler *baseScheduler, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
+void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Scheduler *baseScheduler, uint16_t port, WiFiMode_t connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
 
     baseScheduler->setHighPriorityScheduler(&this->_scheduler);
     isExternalScheduler = true;
@@ -24,76 +24,55 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Schedule
     init(ssid, password, port, connectMode, authmode, channel, phymode, maxtpw, hidden, maxconn);
 }
 
-void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, nodeMode connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
+void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, WiFiMode_t connectMode, wifi_auth_mode_t authmode, uint8_t channel, uint8_t phymode, uint8_t maxtpw, uint8_t hidden, uint8_t maxconn) {
     // shut everything down, start with a blank slate.
 
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
-    tcpip_adapter_init();
+    WiFi.disconnect(true);
 
-    wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
-    if ((esp_wifi_init(&init_config)) != ESP_OK) {
-        //debugMsg(ERROR, "Station is doing something... wierd!? status=%d\n", err);
-    }
-    if (esp_wifi_set_storage(WIFI_STORAGE_RAM) != ESP_OK)
-        debugMsg(ERROR, "Unable to set storage to RAM only.\n");
-        
-    debugMsg(STARTUP, "init(): %d\n", esp_wifi_set_auto_connect(false)); // Disable autoconnect
-    
-    if (connectMode == AP_ONLY || connectMode == STA_AP)
-        tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
+    debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
 
-    // Should check whether AP_ONLY etc.
-    esp_wifi_set_protocol(ESP_IF_WIFI_STA, phymode);
-    esp_wifi_set_protocol(ESP_IF_WIFI_AP, phymode);
 #ifdef ESP8266
     system_phy_set_max_tpw(maxtpw); //maximum value of RF Tx Power, unit : 0.25dBm, range [0,82]
 #endif
-    esp_event_loop_init(espWifiEventCb, NULL);
 
     staticThis = this;  // provides a way for static callback methods to access "this" object;
 
     // start configuration
-    switch (connectMode) {
-    case STA_ONLY:
-        debugMsg(GENERAL, "esp_wifi_set_mode(STATION_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_STA) == ESP_OK);
-        break;
-    case AP_ONLY:
-        debugMsg(GENERAL, "esp_wifi_set_mode(AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_AP) == ESP_OK);
-        break;
-    default:
-        debugMsg(GENERAL, "esp_wifi_set_mode(STATION_AP_MODE) succeeded? %d\n", esp_wifi_set_mode(WIFI_MODE_APSTA) == ESP_OK);
+    if(!WiFi.mode(connectMode)) {
+        debugMsg(GENERAL, "WiFi.mode() false");
     }
 
-    _meshSSID = ssid;
+    _meshSSID     = ssid;
     _meshPassword = password;
-    _meshPort = port;
-    _meshChannel = channel;
+    _meshPort     = port;
+    _meshChannel  = channel;
     _meshAuthMode = authmode;
-    if (password == "")
+    _meshHidden   = hidden;
+    _meshMaxConn  = maxconn;
+    if (password == "") {
         _meshAuthMode = WIFI_AUTH_OPEN; //if no password ... set auth mode to open
-    _meshHidden = hidden;
-    _meshMaxConn = maxconn;
-
-    uint8_t MAC[] = { 0,0,0,0,0,0 };
-    if (esp_wifi_get_mac(ESP_IF_WIFI_AP, MAC) != ESP_OK) {
-        debugMsg(ERROR, "init(): esp_wifi_get_mac failed.\n");
     }
-    esp_wifi_start();
+
+    uint8_t MAC[] = {0, 0, 0, 0, 0, 0};
+    if (WiFi.softAPmacAddress(MAC) == 0) {
+        debugMsg(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
+    }
     _nodeId = encodeNodeId(MAC);
 
-    IP4_ADDR(&_apIp, 0, 0, 0, 0);
+    _apIp = IPAddress(0, 0, 0, 0);
 
-    if (connectMode == AP_ONLY || connectMode == STA_AP)
+    if (connectMode == WIFI_AP || connectMode == WIFI_AP_STA) {
         apInit();       // setup AP
-    if (connectMode == STA_ONLY || connectMode == STA_AP) {
+    }
+    if (connectMode == WIFI_STA || connectMode == WIFI_AP_STA) {
         stationScan.init(this, ssid, password, port);
         _scheduler.addTask(stationScan.task);
     }
 
-    //debugMsg(STARTUP, "init(): tcp_max_con=%u, nodeId = %u\n", espconn_tcp_get_max_con(), _nodeId);
-
-
+    eventHandleInit();
+    
     _scheduler.enableAll();
 }
 
@@ -116,17 +95,13 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
     _scheduler.deleteTask(droppedConnectionTask);
 
     // Shutdown wifi hardware
-    esp_wifi_disconnect();
-    tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP); // Disable ESP8266 Soft-AP DHCP server
-    esp_wifi_stop();
-    esp_wifi_deinit();
+    WiFi.disconnect();
 }
 
 //***********************************************************************
 // do nothing if user have other Scheduler, they have to run their scheduler in loop not this library
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
-    if (isExternalScheduler == false)
-    {
+    if (isExternalScheduler == false) {
         _scheduler.execute();
     }
     return;
