@@ -122,10 +122,11 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     meshPackageType message_type = (meshPackageType)(int)root["type"];
     uint32_t        remoteNodeId = root["from"];
 
-    /*for (auto && connection : _connections) {
-        debugMsg(SYNC, "handleNodeSync(): Sanity check %d\n", connection->esp_conn);
-        debugMsg(SYNC, "handleNodeSync(): Sanity check Id %u\n", connection->nodeId);
-    }*/
+    if (remoteNodeId == 0) {
+        debugMsg(ERROR, "handleNodeSync(): received invalid remote nodeId\n");
+        return;
+    }
+
     if (conn->newConnection) {
         // There is a small but significant probability that we get connected twice to the 
         // same node, e.g. if scanning happened while sub connection data was incomplete.
@@ -143,9 +144,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         newConnectionTask.set(TASK_SECOND, TASK_ONCE, [remoteNodeId]() {
             staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
             staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", remoteNodeId, staticThis->getNodeTime());
-           if (staticThis->newConnectionCallback)
+            if (staticThis->newConnectionCallback)
                 staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user            
-           staticThis->stability /= 2;
         });
 
         _scheduler.addTask(newConnectionTask);
@@ -167,7 +167,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         else
             // We are the AP, give STA the change to initiate time sync 
             conn->timeSyncTask.enableDelayed();
-        stability /= 2;
         conn->newConnection = false;
     }
 
@@ -175,7 +174,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         debugMsg(SYNC, "handleNodeSync(): Changed nodeId %u, closing connection %u.\n",
                 conn->nodeId, remoteNodeId);
         conn->close();
-        stability /= 2;
         return;
     }
 
@@ -183,8 +181,10 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     String inComingSubs = root["subs"];
     if (!conn->subConnections.equals(inComingSubs)) {  // change in the network
         // Check whether we already know any of the nodes
-        // This is necessary to avoid loops
-        if (stringContainsNumber(inComingSubs, String(conn->nodeId))) {
+        // This is necessary to avoid loops.. Not sure if we need to check
+        // for both this node and master node, but better safe than sorry
+        if ( stringContainsNumber(inComingSubs, String(conn->nodeId)) || 
+                stringContainsNumber(inComingSubs, String(this->_nodeId))) {
             // This node is also in the incoming subs, so we have a loop
             // Disconnecting to break the loop
             debugMsg(SYNC, "handleNodeSync(): Loop detected, disconnecting %u.\n",
@@ -198,7 +198,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         conn->subConnections = inComingSubs;
         if (changedConnectionsCallback)
             changedConnectionsCallback();
-        stability /= 2;
+
+        staticThis->syncSubConnections(conn->nodeId);
     } else {
         stability += min(1000-stability,(size_t)25);
     }
@@ -382,4 +383,17 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(std::shared_ptr<MeshConnect
 
     debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
 
+}
+
+void ICACHE_FLASH_ATTR painlessMesh::syncSubConnections(uint32_t changedId) {
+    debugMsg(SYNC, "syncSubConnections(): changedId = %u\n", changedId);
+    for (auto &&connection : _connections) {
+        if (connection->connected &&
+                !connection->newConnection &&
+                connection->nodeId != 0 && 
+                connection->nodeId != changedId) { // Exclude current
+            connection->nodeSyncTask.forceNextIteration();
+        }
+    }
+    staticThis->stability /= 2;
 }

@@ -62,7 +62,7 @@ class SentBuffer {
 
 class MeshConnection {
     public:
-        TCPClient         *client;
+        AsyncClient         *client;
         painlessMesh        *mesh;
         uint32_t            nodeId = 0;
         String              subConnections;
@@ -82,7 +82,7 @@ class MeshConnection {
         Task timeSyncTask;
         Task readBufferTask;
 
-        MeshConnection(TCPClient *client, painlessMesh *pMesh, bool station);
+        MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
         ~MeshConnection();
 
         void handleMessage(String &msg, uint32_t receivedAt);

@@ -6,12 +6,14 @@
         "type": "git",
         "url": "https://gitlab.com/painlessMesh/painlessMesh"
     },
-    "version": "0.7.0",
+    "version": "1.0.0",
     "frameworks": "arduino",
     "platforms": "espressif8266, espressif32",
     "dependencies": [
         { "name": "ArduinoJson" },
-        { "name": "TaskScheduler" }
+        { "name": "TaskScheduler" },
+        { "name": "AsyncTCP",  "platforms" : "espressif32" },
+        { "name": "ESPAsyncTCP",  "platforms" : "espressif8266" }
     ],
     "authors": [
         { "name": "Scotty Franzyshen" }, 
