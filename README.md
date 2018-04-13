@@ -25,18 +25,24 @@ painlessMesh does not create a TCP/IP network of nodes. Rather each of the nodes
 - Try to be conservative in the number of messages (and especially broadcast messages) you sent per minute. This is to prevent the hardware from overloading. Both esp8266 and esp32 are limited in processing power/memory, making it easy to overload the mesh and destabilise it. And while `painlessMesh` tries to prevent this from happening, it is not always possible to do so.
 - Messages can go missing or be dropped due to high traffic and you can not rely on all messages to be delivered. One suggestion to work around is to resend messages every so often. Even if some go missing, most should go through. Another option is to have your nodes send replies when they receive a message. The sending nodes can the resend the message if they haven’t gotten a reply in a certain amount of time. 
 
-### Examples
+# Installation
 
-StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh. Further examples are under the examples directory and shown on the platformio [page](http://platformio.org/lib/show/1269/painlessMesh).
+`painlessMesh` is included in both the Arduino Library Manager and the platformio library registry and can easily be installed via either of those methods. 
 
-### Dependencies
+## Dependencies
 
 painlessMesh makes use of the following libraries, which can be installed through the Arduino Library Manager
 
 - [ArduinoJson](https://github.com/bblanchon/ArduinoJson)
 - [TaskScheduler](https://github.com/arkhipenko/TaskScheduler)
+- [ESPAsyncTCP](https://github.com/me-no-dev/ESPAsyncTCP) (ESP8266)
+- [AsyncTCP](https://github.com/me-no-dev/AsyncTCP) (ESP32)
 
 If platformio is used to install the library, then the dependency will be installed automatically.
+
+## Examples
+
+StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh. Further examples are under the examples directory and shown on the platformio [page](http://platformio.org/lib/show/1269/painlessMesh).
 
 # Contributing
 
@@ -173,12 +179,6 @@ nodeDelayCallback_t is a funtion in the form of `void (uint32_t nodeId, int32_t 
 Connects the node to an AP outside the mesh. When specifying a `remote_ip` and `port`, the node opens a TCP connection after establishing the WiFi connection.
 
 Note: The mesh must be on the same WiFi channel as the AP.
-
-# Included dependencies
-
-`painlessMesh` includes one other projects within its source directory. This project was included to add ESP8266 support to it. The original version of the project is:
-
-- [AsyncTCP](https://github.com/me-no-dev/AsyncTCP)
 
 # Funding and donations
 
