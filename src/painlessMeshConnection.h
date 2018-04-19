@@ -65,7 +65,7 @@ class MeshConnection {
         AsyncClient         *client;
         painlessMesh        *mesh;
         uint32_t            nodeId = 0;
-        String              subConnections;
+        String              subConnections = "[]";
         timeSync            time;
         bool                newConnection = true;
         bool                connected = true;
