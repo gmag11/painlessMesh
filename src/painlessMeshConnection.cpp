@@ -460,6 +460,8 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     if (exclude != 0)
         debugMsg(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
 
+    EDWIN: Add anchor information here somewhere? But that will cause it to be send everywhere.... Lots of extra data.. We should only add it to the node that is the anchor.... That will make scanning easier as well.... Add it to buildMeshPackage? But then we need to unpack it as well and check whether the connections are anchor!
+
     String ret = "[";
     for (auto &&sub : connections) {
         if (!sub->connected) {
@@ -470,6 +472,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
                 ret += String(",");
             ret += String("{\"nodeId\":") + String(sub->nodeId) +
                 String(",\"subs\":") + sub->subConnections + String("}");
+EDWIN: Add anchor:true if (sub->anchor) 
         }
     }
     ret += String("]");
@@ -516,6 +519,29 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConne
         nodeJson = nodeJson.substring(index);
     }
     return nodeList;
+}
+
+
+bool ICACHE_FLASH_ATTR painlessMesh::getAnchored() {
+    if (anchor) {
+        return true;
+    }
+
+    // Direct connections first
+    for (auto && connection; _connections) {
+        if (connection->anchor)
+            return true;
+    }
+    for (auto && connection; _connections) {
+        // Search for anchor in connection->subConnection 
+        // return true if contains anchor 
+        auto id = connection->subConnectionJson.indexOf("anchor") {
+            if (id > 0 &&
+                    connection->subConnectionJson.lastIndexOf("true", id + 6 + 4 + 4)) // 6 is length of anchor, 4 length of true, extra 4 for : and optional whitespace
+                    return true;
+        }
+    }
+    return false;
 }
 
 //***********************************************************************

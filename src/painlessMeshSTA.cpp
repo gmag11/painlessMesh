@@ -225,7 +225,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         if (mesh->_station_got_ip) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Unknown nodes found. Current stability: %s\n", String(mesh->stability).c_str());
             int prob = mesh->stability/mesh->approxNoNodes();
-            if (random(0, 1000) < prob) {
+            if (!mesh->getAnchored() && random(0, 1000) < prob) {
                 mesh->debugMsg(CONNECTION, "connectToAP(): Reconfigure network: %s\n", String(prob).c_str());
                 // close STA connection, this will trigger station disconnect which will trigger
                 // connectToAP()
