@@ -12,10 +12,11 @@
 #include <functional>
 #include <memory>
 using namespace std;
-#include "espInterface.h"
 #ifdef ESP32
+#include <WiFi.h>
 #include <AsyncTCP.h>
 #elif defined(ESP8266)
+#include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #endif // ESP32
 
@@ -83,8 +84,8 @@ public:
 
     // in painlessMesh.cpp
 	 					painlessMesh();
-    void                init(String ssid, String password, Scheduler *baseScheduler, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
-    void                init(String ssid, String password, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
+    void                init(String ssid, String password, Scheduler *baseScheduler, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1, uint8_t hidden = 1, uint8_t maxconn = MAX_CONN);
+    void                init(String ssid, String password, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1, uint8_t hidden = 1, uint8_t maxconn = MAX_CONN);
     /**
      * Disconnect and stop this node
      */
@@ -205,7 +206,6 @@ protected:
     String            _meshPassword;
     uint16_t          _meshPort;
     uint8_t           _meshChannel;
-    wifi_auth_mode_t  _meshAuthMode;
     uint8_t           _meshHidden;
     uint8_t           _meshMaxConn;
 

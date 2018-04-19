@@ -127,27 +127,17 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     staticThis->debugMsg(CONNECTION, "scanComplete(): num = %d\n", num);
     
     for (uint8_t i = 0; i < num; ++i) {
-        wifi_ap_record_t record;
-        String  _ssid     = "";
-        uint8_t _authmode = 0;
-        int32_t _rssi     = 0;
-        uint8_t* _bssid   = 0;
-        int32_t _channel  = 0;
+        WiFi_AP_Record_t record;
+        String  _ssid     = WiFi.SSID(i);
+            if(_ssid != ssid && _ssid != "") continue;
 
-#ifdef ESP32
-        WiFi.getNetworkInfo(i, _ssid, _authmode, _rssi, _bssid, _channel);
-        if(_ssid != ssid) continue;
-        record.primary = _channel;
-#elif defined(ESP8266)
-        bool _is_hidden = false;
-        WiFi.getNetworkInfo(i, _ssid, _authmode, _rssi, _bssid, _channel, _is_hidden);
-        if(_ssid != ssid) continue;
-        record.is_hidden = _is_hidden;
-        record.channel = _channel;
-#endif // ESP32
+        record.rssi       = WiFi.RSSI(i);
+            if(record.rssi == 0) continue;
+        uint8_t* _bssid   = WiFi.BSSID(i);
+
+        if(_ssid == "") _ssid = ssid;
+
         _ssid.toCharArray((char*)record.ssid, 32);
-        record.authmode = (wifi_auth_mode_t)_authmode;
-        record.rssi     = _rssi;
         memcpy((void *)&record.bssid, (void *)_bssid, sizeof(record.bssid));
 
         aps.push_back(record);
@@ -162,7 +152,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 
         // Next task is to sort by strength
         task.yield([this] {
-            aps.sort([](wifi_ap_record_t a, wifi_ap_record_t b) {
+            aps.sort([](WiFi_AP_Record_t a, WiFi_AP_Record_t b) {
                     return a.rssi > b.rssi;
             });
             // Next task is to connect to the top ap
@@ -187,7 +177,7 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
     }
 }
 
-void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t &ap) {
+void ICACHE_FLASH_ATTR StationScan::requestIP(WiFi_AP_Record_t &ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
             mesh->encodeNodeId(ap.bssid));
     WiFi.begin((char*)ap.ssid, password.c_str());
