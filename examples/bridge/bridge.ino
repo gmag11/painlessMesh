@@ -27,7 +27,7 @@ void setup() {
 
   // Channel set to 6. Make sure to use the same channel for your mesh and for you other
   // network (STATION_SSID)
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, AUTH_WPA2_PSK, 6 );
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6 );
   mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT, station_ip);
   mesh.onReceive(&receivedCallback);
 }
