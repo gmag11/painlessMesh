@@ -24,7 +24,7 @@ class namedMesh : public painlessMesh {
                         if (nameMap.count(from) > 0) {
                             name = nameMap[from];
                         } else {
-                            name = String(this->getNodeId());
+                            name = String(from);
                         }
                         userNamedReceivedCallback(name, msg);
                     }
