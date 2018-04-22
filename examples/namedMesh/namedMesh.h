@@ -69,6 +69,7 @@ class namedMesh : public painlessMesh {
             nameBroadCastTask.forceNextIteration();
         }
 
+        using painlessMesh::sendSingle;
         bool sendSingle(String &name, String &msg) {
             // Look up name
             for (auto && pr : nameMap) {
