@@ -78,6 +78,9 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
     {
+        I am pretty sure there is no need to parse here
+        Also this is where we should add anchor if needed.
+        And I think we still need to do it separately for all the sub connections...
         JsonArray& subs = jsonBuffer.parseArray(msg);
         if (!subs.success()) {
             debugMsg(GENERAL, "buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!");

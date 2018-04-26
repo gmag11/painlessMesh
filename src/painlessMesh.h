@@ -90,6 +90,8 @@ public:
      */
     void setAnchor(bool on) { anchor = on };
 
+    Add an optional setContainAnchor, that will make reforming more common. And increase scan rate as long as no anchor is found.
+
     /**
      * Check whether this node is an anchor.
      */
