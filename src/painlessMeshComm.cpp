@@ -78,14 +78,12 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
     {
-        JsonArray& subs = jsonBuffer.parseArray(msg);
-        if (!subs.success()) {
-            debugMsg(GENERAL, "buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!");
-        }
-        root["subs"] = subs;
+        root["subs"] = msg;
         break;
     }
     case TIME_SYNC:
+        // TODO: Debug why we need this here. Seems something goes wrong with building the msg
+        // otherwise
         root["msg"] = jsonBuffer.parseObject(msg);
         break;
     default:
