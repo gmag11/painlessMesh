@@ -211,7 +211,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
 
     if (aps.empty()) {
         // No unknown nodes found
-        if (mesh->_station_got_ip) {
+        if (mesh->_station_got_ip && !(mesh->shouldContainRoot && !mesh->isRooted())) {
             // if already connected -> scan slow
             mesh->debugMsg(CONNECTION, "connectToAP(): Already connected, and no unknown nodes found: scan rate set to slow\n");
             task.delay(random(25,36)*SCAN_INTERVAL);
@@ -225,8 +225,9 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         if (mesh->_station_got_ip) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Unknown nodes found. Current stability: %s\n", String(mesh->stability).c_str());
 
-            // ROOT: This chance should depend on meshContainsRoot
-            int prob = mesh->stability/mesh->approxNoNodes();
+            int prob = mesh->stability;
+            if (!mesh->shouldContainRoot)
+                prob /= 2*(1+mesh->approxNoNodes()); // Slower when part of bigger network
             if (!mesh->isRooted() && random(0, 1000) < prob) {
                 mesh->debugMsg(CONNECTION, "connectToAP(): Reconfigure network: %s\n", String(prob).c_str());
                 // close STA connection, this will trigger station disconnect which will trigger

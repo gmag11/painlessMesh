@@ -435,8 +435,6 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     if (exclude != 0)
         debugMsg(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
 
-    // ROOT: Add anchor information here somewhere? But that will cause it to be send everywhere.... Lots of extra data.. We should only add it to the node that is the anchor.... That will make scanning easier as well.... Add it to buildMeshPackage? But then we need to unpack it as well and check whether the connections are anchor!
-
     String ret = "[";
     for (auto &&sub : connections) {
         if (!sub->connected) {
@@ -445,9 +443,10 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
         } else if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
             if (ret.length() > 1)
                 ret += String(",");
-            ret += String("{\"nodeId\":") + String(sub->nodeId) +
-                String(",\"subs\":") + sub->subConnections + String("}");
-// ROOT: Add anchor:true if (sub->anchor) 
+            ret += String("{\"nodeId\":") + String(sub->nodeId);
+            if (sub->root)
+                ret += String(",\"root\":true");
+            ret += String(",\"subs\":") + sub->subConnections + String("}");
         }
     }
     ret += String("]");
@@ -498,14 +497,14 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConne
 
 
 bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
-    if (root) {
+    if (this->isRoot()) {
         return true;
     }
 
     // Direct connections first
     for (auto && connection : _connections) {
-        /*if (connection->root || connection->rooted)
-            return true;*/
+        if (connection->root || connection->rooted)
+            return true;
     }
     return false;
 }
@@ -541,7 +540,7 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
     DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(buffer.c_str(), 100);
+    JsonObject& root = jsonBuffer.parseObject(buffer.c_str(), 255);
     if (!root.success()) {   // Test if parsing succeeded.
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());
         return;

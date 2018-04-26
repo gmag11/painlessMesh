@@ -88,12 +88,18 @@ public:
      * We recommend any AP_ONLY nodes (e.g. a bridgeNode) to be set
      * as a root node.
      *
-     * If one node is root, then it is also recommended to call setContainsRoot() on
+     * If one node is root, then it is also recommended to call painlessMesh::setContainsRoot() on
      * all the nodes in the mesh.
      */
     void setRoot(bool on = true) { root = on; };
 
-    // ROOT: Add an optional setContainsRoot, that will make reforming more common. And increase scan rate as long as no anchor is found.
+    /**
+     * The mesh should contains a root node
+     *
+     * This will cause the mesh to restructure more quickly around the root node. Note that this
+     * could have adverse effects if set, while there is no root node present. Also see painlessMesh::setRoot().
+     */
+    void setContainsRoot(bool on = true) { shouldContainRoot = on; };
 
     /**
      * Check whether this node is a root node.
@@ -255,6 +261,7 @@ protected:
 
     /// Is the node a root node
     bool root;
+    bool shouldContainRoot;
 
     Scheduler         _scheduler;
     Task              droppedConnectionTask;

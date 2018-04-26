@@ -171,11 +171,6 @@ void test_buildPackage_root() {
     TEST_ASSERT(jsonObj2["root"].as<bool>());
 }
 
-void test_subConnection_root() {
-    // Test subConnectionJsonHelper correctly adds root if one of the _connections is root
-    TEST_ASSERT(false);
-}
-
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
 }
@@ -189,7 +184,6 @@ void loop() {
     RUN_TEST(test_subRooted);
     RUN_TEST(test_parseNodeSyncRoot);
     RUN_TEST(test_buildPackage_root);
-    //RUN_TEST(test_subConnection_root);
     UNITY_END(); // stop unit testing
 }
 #endif
