@@ -1,6 +1,7 @@
 #include <arduinoUnity.h>
 
 #include <painlessMesh.h>
+#include <painlessMeshJson.h>
 
 #ifdef UNITY
 
@@ -103,6 +104,78 @@ void test_jsonnodeid() {
        String(root["test"].as<uint32_t>())));
 }
 
+void test_subRooted() {
+    String str = "";
+    TEST_ASSERT(!painlessmesh::subRooted(str));
+
+    str = "   root : true ";
+    TEST_ASSERT(painlessmesh::subRooted(str));
+    str = "bla root: true ";
+    TEST_ASSERT(painlessmesh::subRooted(str));
+    str = "bla root:true ";
+    TEST_ASSERT(painlessmesh::subRooted(str));
+    str = "bla {\"root\" : true ";
+    TEST_ASSERT(painlessmesh::subRooted(str));
+    str = "bla root:false ";
+    TEST_ASSERT(!painlessmesh::subRooted(str));
+    str = "bla {root:false ";
+    TEST_ASSERT(!painlessmesh::subRooted(str));
+    str = "blaroot:true ";
+    TEST_ASSERT(!painlessmesh::subRooted(str));
+}
+
+void test_parseNodeSyncRoot() {
+    // Test passing subconnection json correctly picks top level root
+    auto conn = std::make_shared<MeshConnection>();
+    DynamicJsonBuffer buf;
+    auto str = "{}";
+    auto& obj = buf.createObject();
+    obj["subs"] = "{}";
+    TEST_ASSERT(!painlessmesh::parseNodeSyncRoot(conn, obj));
+
+    obj["root"] = true;
+    TEST_ASSERT(painlessmesh::parseNodeSyncRoot(conn, obj));
+    TEST_ASSERT(conn->root);
+    TEST_ASSERT(!conn->rooted);
+    obj["root"] = false;
+    TEST_ASSERT(!painlessmesh::parseNodeSyncRoot(conn, obj));
+    TEST_ASSERT(!conn->root);
+
+    // Test passing subconnection json correctly picks sub level root (rooted)
+    obj["subs"] = "{\"root\" : true}";
+    TEST_ASSERT(painlessmesh::parseNodeSyncRoot(conn, obj));
+    TEST_ASSERT(!conn->root);
+    TEST_ASSERT(conn->rooted);
+    // Also correctly unsets
+    obj["subs"] = "{}";
+    TEST_ASSERT(!painlessmesh::parseNodeSyncRoot(conn, obj));
+    TEST_ASSERT(!conn->root);
+    TEST_ASSERT(!conn->rooted);
+}
+
+void test_buildPackage_root() {
+    // Test buildmeshpackage correctly adds root if mesh->root
+    painlessMesh mesh;
+    String msg = "subs";
+    String pkg;
+    pkg = mesh.buildMeshPackage(1, 2, NODE_SYNC_REQUEST, msg);
+    DynamicJsonBuffer jsonBuffer;
+    auto& jsonObj = jsonBuffer.parseObject(pkg);
+    TEST_ASSERT(!jsonObj.containsKey("root"));
+
+    mesh.setRoot();
+    pkg = mesh.buildMeshPackage(1, 2, NODE_SYNC_REQUEST, msg);
+    jsonBuffer;
+    auto& jsonObj2 = jsonBuffer.parseObject(pkg);
+    TEST_ASSERT(jsonObj2.containsKey("root"));
+    TEST_ASSERT(jsonObj2["root"].as<bool>());
+}
+
+void test_subConnection_root() {
+    // Test subConnectionJsonHelper correctly adds root if one of the _connections is root
+    TEST_ASSERT(false);
+}
+
 void setup() {
     UNITY_BEGIN();    // IMPORTANT LINE!
 }
@@ -113,6 +186,10 @@ void loop() {
     //RUN_TEST(test_subConnectionJsonHelper);
     //RUN_TEST(test_approxNoNodes);
     RUN_TEST(test_jsonnodeid);
+    RUN_TEST(test_subRooted);
+    RUN_TEST(test_parseNodeSyncRoot);
+    RUN_TEST(test_buildPackage_root);
+    //RUN_TEST(test_subConnection_root);
     UNITY_END(); // stop unit testing
 }
 #endif

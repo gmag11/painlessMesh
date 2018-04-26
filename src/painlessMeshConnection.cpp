@@ -10,6 +10,7 @@
 #include <ArduinoJson.h>
 
 #include "painlessMesh.h"
+#include "painlessMeshJson.h"
 
 //#include "lwip/priv/tcpip_priv.h"
 
@@ -379,32 +380,6 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
     return false;
 }
 
-// Check whether a string contains a numeric substring as a complete number
-//
-// "a:800" does contain "800", but does not contain "80"
-bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
-                                             const String & nodeIdStr, int from) {
-    auto index = subConnections.indexOf(nodeIdStr, from);
-    if (index == -1)
-        return false;
-    // Check that the preceding and following characters are not a number
-    else if (index > 0 &&
-             index + nodeIdStr.length() + 1 < subConnections.length() &&
-             // Preceding character is not a number
-             (subConnections.charAt(index - 1) < '0' ||
-             subConnections.charAt(index - 1) > '9') &&
-             // Following character is not a number
-             (subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
-             subConnections.charAt(index + nodeIdStr.length() + 1) > '9')
-             ) {
-        return true;
-    } else { // Check whether the nodeid occurs further in the subConnections string
-        return stringContainsNumber(subConnections, nodeIdStr,
-                                    index + nodeIdStr.length());
-    }
-    return false;
-}
-
 //***********************************************************************
 // Search for a connection to a given nodeID
 std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId, uint32_t exclude) {
@@ -421,7 +396,7 @@ std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(u
             return connection;
         }
 
-        if (stringContainsNumber(connection->subConnections,
+        if (painlessmesh::stringContainsNumber(connection->subConnections,
             String(nodeId))) { // check sub-connections
             debugMsg(GENERAL, "findConnection(%u): Found Sub Connection through %u\n", nodeId, connection->nodeId);
             return connection;
@@ -460,7 +435,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     if (exclude != 0)
         debugMsg(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
 
-    EDWIN: Add anchor information here somewhere? But that will cause it to be send everywhere.... Lots of extra data.. We should only add it to the node that is the anchor.... That will make scanning easier as well.... Add it to buildMeshPackage? But then we need to unpack it as well and check whether the connections are anchor!
+    // ROOT: Add anchor information here somewhere? But that will cause it to be send everywhere.... Lots of extra data.. We should only add it to the node that is the anchor.... That will make scanning easier as well.... Add it to buildMeshPackage? But then we need to unpack it as well and check whether the connections are anchor!
 
     String ret = "[";
     for (auto &&sub : connections) {
@@ -472,7 +447,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
                 ret += String(",");
             ret += String("{\"nodeId\":") + String(sub->nodeId) +
                 String(",\"subs\":") + sub->subConnections + String("}");
-EDWIN: Add anchor:true if (sub->anchor) 
+// ROOT: Add anchor:true if (sub->anchor) 
         }
     }
     ret += String("]");
@@ -522,24 +497,15 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConne
 }
 
 
-bool ICACHE_FLASH_ATTR painlessMesh::getAnchored() {
-    if (anchor) {
+bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
+    if (root) {
         return true;
     }
 
     // Direct connections first
-    for (auto && connection; _connections) {
-        if (connection->anchor)
-            return true;
-    }
-    for (auto && connection; _connections) {
-        // Search for anchor in connection->subConnection 
-        // return true if contains anchor 
-        auto id = connection->subConnectionJson.indexOf("anchor") {
-            if (id > 0 &&
-                    connection->subConnectionJson.lastIndexOf("true", id + 6 + 4 + 4)) // 6 is length of anchor, 4 length of true, extra 4 for : and optional whitespace
-                    return true;
-        }
+    for (auto && connection : _connections) {
+        /*if (connection->root || connection->rooted)
+            return true;*/
     }
     return false;
 }

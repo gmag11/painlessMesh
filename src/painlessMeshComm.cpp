@@ -68,34 +68,29 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     debugMsg(GENERAL, "In buildMeshPackage(): msg=%s\n", msg.c_str());
 
     DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.createObject();
-    root["dest"] = destId;
-    //root["from"] = _nodeId;
-    root["from"] = fromId;
-    root["type"] = (uint8_t)type;
+    JsonObject& jsonObj = jsonBuffer.createObject();
+    jsonObj["dest"] = destId;
+    //jsonObj["from"] = _nodeId;
+    jsonObj["from"] = fromId;
+    jsonObj["type"] = (uint8_t)type;
 
     switch (type) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
     {
-        I am pretty sure there is no need to parse here
-        Also this is where we should add anchor if needed.
-        And I think we still need to do it separately for all the sub connections...
-        JsonArray& subs = jsonBuffer.parseArray(msg);
-        if (!subs.success()) {
-            debugMsg(GENERAL, "buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!");
-        }
-        root["subs"] = subs;
+        jsonObj["subs"] = msg;
+        if (this->isRoot())
+            jsonObj["root"] = true;
         break;
     }
     case TIME_SYNC:
-        root["msg"] = jsonBuffer.parseObject(msg);
+        jsonObj["msg"] = jsonBuffer.parseObject(msg);
         break;
     default:
-        root["msg"] = msg;
+        jsonObj["msg"] = msg;
     }
 
     String ret;
-    root.printTo(ret);
+    jsonObj.printTo(ret);
     return ret;
 }

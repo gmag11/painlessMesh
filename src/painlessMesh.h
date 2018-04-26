@@ -79,23 +79,26 @@ public:
     uint32_t            getNodeId(void) { return _nodeId; };
 
     /**
-     * Set the node as an anchor/master node for the mesh
+     * Set the node as an root/master node for the mesh
      *
      * This is an optional setting that can speed up mesh formation. 
-     * At most one node in the mesh should be an anchor, or you could
+     * At most one node in the mesh should be a root, or you could
      * end up with multiple subMeshes.
      *
      * We recommend any AP_ONLY nodes (e.g. a bridgeNode) to be set
-     * as on anchor.
+     * as a root node.
+     *
+     * If one node is root, then it is also recommended to call setContainsRoot() on
+     * all the nodes in the mesh.
      */
-    void setAnchor(bool on) { anchor = on };
+    void setRoot(bool on = true) { root = on; };
 
-    Add an optional setContainAnchor, that will make reforming more common. And increase scan rate as long as no anchor is found.
+    // ROOT: Add an optional setContainsRoot, that will make reforming more common. And increase scan rate as long as no anchor is found.
 
     /**
-     * Check whether this node is an anchor.
+     * Check whether this node is a root node.
      */
-    bool getAnchor() { return anchor; };
+    bool isRoot() { return root; };
 
     // in painlessMeshDebug.cpp
     void                setDebugMsgTypes(uint16_t types);
@@ -127,10 +130,10 @@ public:
     std::list<uint32_t> getNodeList();
 
     /**
-     * Check whether this node is part of a mesh with an anchor in
+     * Check whether this node is part of a mesh with a root in
      * it.
      */
-    bool getAnchored();
+    bool isRooted();
 
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
@@ -250,8 +253,8 @@ protected:
 
     bool              isExternalScheduler = false;
 
-    /// Is the node an anchor node
-    bool anchor;
+    /// Is the node a root node
+    bool root;
 
     Scheduler         _scheduler;
     Task              droppedConnectionTask;
@@ -261,19 +264,5 @@ protected:
     friend class MeshConnection;
     friend void  onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
 };
-
-/*****
- *
- * Util functions
- *
- */
-
-/**
- * Check whether a string contains a numeric substring as a complete number
- *
- * "a:800" does contain "800", but does not contain "80"
- */
-bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
-                                             const String & nodeIdStr, int from = 0);
 
 #endif //   _EASY_MESH_H_

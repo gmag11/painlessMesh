@@ -86,8 +86,17 @@ class MeshConnection {
         Task          timeSyncTask;
         Task          readBufferTask;
 
+        // Is this connection a root or rooted
+        bool root = false;
+        bool rooted = false;
+
+#ifdef UNITY // Facilitate testing
+        MeshConnection() {};
+#endif
         MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
+#ifndef UNITY
         ~MeshConnection();
+#endif
 
         void handleMessage(String &msg, uint32_t receivedAt);
 
