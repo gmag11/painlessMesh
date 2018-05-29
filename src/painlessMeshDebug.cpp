@@ -13,14 +13,61 @@
 
 uint16_t types = 0;
 char str[200];
-//char *str = NULL;
 
 void ICACHE_FLASH_ATTR painlessMesh::setDebugMsgTypes(uint16_t newTypes) {
     // set the different kinds of debug messages you want to generate.
     types = newTypes;
-    Serial.printf("\nsetDebugTypes 0x%x\n", types);
-    //if (!str)
-    //    str = (char*) malloc(200 * sizeof(char));
+    Serial.print(F("\nsetDebugTypes:"));
+        if(types & ERROR)
+        {
+            Serial.print(F(" ERROR |"));
+        }
+        if (types & STARTUP)
+        {
+            Serial.print(F(" STARTUP |"));
+        }
+        if (types & MESH_STATUS)
+        {
+            Serial.print(F(" MESH_STATUS |"));
+        }
+        if (types & CONNECTION)
+        {
+            Serial.print(F(" CONNECTION |"));
+        }
+        if (types & SYNC)
+        {
+            Serial.print(F(" SYNC |"));
+        }
+        if (types & S_TIME)
+        {
+            Serial.print(F(" S_TIME |"));
+        }
+        if (types & COMMUNICATION)
+        {
+            Serial.print(F(" COMMUNICATION |"));
+        }
+        if (types & GENERAL)
+        {
+            Serial.print(F(" GENERAL |"));
+        }
+        if (types & MSG_TYPES)
+        {
+            Serial.print(F(" MSG_TYPES |"));
+        }
+        if (types & REMOTE)
+        {
+            Serial.print(F(" REMOTE |"));
+        }
+        if (types & APPLICATION)
+        {
+            Serial.print(F(" APPLICATION |"));
+        }
+        if (types & DEBUG)
+        {
+            Serial.print(F(" DEBUG |"));
+        }
+    Serial.println();
+    return;
 }
 
 // To assign a debug message to several type use | (bitwise or) operator
@@ -38,40 +85,40 @@ void ICACHE_FLASH_ATTR painlessMesh::debugMsg(debugType_t type, const char* form
             switch(type)
             {
                 case ERROR:
-                    Serial.print("ERROR: ");
+                    Serial.print(F("ERROR: "));
                     break;
                 case STARTUP:
-                    Serial.print("STARTUP: ");
+                    Serial.print(F("STARTUP: "));
                     break;
                 case MESH_STATUS:
-                    Serial.print("MESH_STATUS: ");
+                    Serial.print(F("MESH_STATUS: "));
                     break;
                 case CONNECTION:
-                    Serial.print("CONNECTION: ");
+                    Serial.print(F("CONNECTION: "));
                     break;
                 case SYNC:
-                    Serial.print("SYNC: ");
+                    Serial.print(F("SYNC: "));
                     break;
                 case S_TIME:
-                    Serial.print("S_TIME: ");
+                    Serial.print(F("S_TIME: "));
                     break;
                 case COMMUNICATION:
-                    Serial.print("COMMUNICATION: ");
+                    Serial.print(F("COMMUNICATION: "));
                     break;
                 case GENERAL:
-                    Serial.print("GENERAL: ");
+                    Serial.print(F("GENERAL: "));
                     break;
                 case MSG_TYPES:
-                    Serial.print("MSG_TYPES: ");
+                    Serial.print(F("MSG_TYPES: "));
                     break;
                 case REMOTE:
-                    Serial.print("REMOTE: ");
+                    Serial.print(F("REMOTE: "));
                     break;
                 case APPLICATION:
-                    Serial.print("APPLICATION: ");
+                    Serial.print(F("APPLICATION: "));
                     break;
                 case DEBUG:
-                    Serial.print("DEBUG: ");
+                    Serial.print(F("DEBUG: "));
                     break;
             }
         }

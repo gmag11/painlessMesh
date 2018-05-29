@@ -13,15 +13,13 @@
 #include "painlessMeshSTA.h"
 #include "painlessMesh.h"
 
-#include "lwip/ip_addr.h"
-
 extern painlessMesh* staticThis;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
         String ssid, String password, uint16_t port,
-        uint8_t *remote_ip) {
+        IPAddress remote_ip) {
     // Set station config
-    if (remote_ip != NULL) memcpy(stationScan.manualIP, remote_ip, 4 * sizeof(uint8_t));
+    stationScan.manualIP = remote_ip;
 
     // Start scan
     stationScan.init(this, ssid, password, port);
@@ -29,16 +27,18 @@ void ICACHE_FLASH_ATTR painlessMesh::stationManual(
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::setHostname(const char * hostname){
+#ifdef ESP8266
+  return WiFi.hostname(hostname);
+#elif defined(ESP32)
   if(strlen(hostname) > 32) {
     return false;
   }
-  return (tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname) == ESP_OK);
+  return WiFi.setHostname(hostname);
+#endif // ESP8266
 }
 
-ip_addr ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
-    tcpip_adapter_ip_info_t ipconfig;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
-    return ipconfig.ip;
+IPAddress ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
+    return WiFi.localIP();
 }
 
 //***********************************************************************
@@ -48,23 +48,21 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     if (stationScan.manual && stationScan.port == 0) return; // We have been configured not to connect to the mesh 
 
     // TODO: We could pass this to tcpConnect instead of loading it here
-    tcpip_adapter_ip_info_t ipconfig;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipconfig);
 
-    if (_station_got_ip && ipconfig.ip.addr != 0) {
+    if (_station_got_ip && WiFi.localIP() != 0) {
         AsyncClient *pConn = new AsyncClient();
 
         pConn->onError([](void *, AsyncClient * client, int8_t err) {
             staticThis->debugMsg(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
             if (client->connected())
                 client->close();
-            esp_wifi_disconnect();
+            WiFi.disconnect();
         });
 
-        auto ip = ipconfig.gw;
-        if (stationScan.manualIP[0] != 0)
-            //ip = stationScan.manualIP;
-            memcpy(&ip, &stationScan.manualIP, 4);
+        IPAddress ip = WiFi.gatewayIP();
+        if (stationScan.manualIP != 0) {
+            ip = stationScan.manualIP;
+        }
 
         pConn->onConnect([](void *, AsyncClient *client) {
                     staticThis->debugMsg(CONNECTION, "New STA connection incoming\n");
@@ -72,7 +70,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
                     staticThis->_connections.push_back(conn);
         }, NULL); 
 
-        pConn->connect(IPAddress(ip.addr), stationScan.port);
+        pConn->connect(ip, stationScan.port);
      } else {
         debugMsg(ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");
     }
@@ -80,7 +78,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
 //***********************************************************************
 // Calculate NodeID from a hardware MAC address
-uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(uint8_t *hwaddr) {
+uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(const uint8_t *hwaddr) {
     debugMsg(GENERAL, "encodeNodeId():\n");
     uint32_t value = 0;
 
@@ -107,20 +105,14 @@ void ICACHE_FLASH_ATTR StationScan::init(painlessMesh *pMesh, String &pssid,
 void ICACHE_FLASH_ATTR StationScan::stationScan() {
     staticThis->debugMsg(CONNECTION, "stationScan(): %s\n", ssid.c_str());
 
-    char tempssid[32];
-    wifi_scan_config_t scanConfig;
-    memset(&scanConfig, 0, sizeof(scanConfig));
-    ssid.toCharArray(tempssid, ssid.length() + 1);
-
-    scanConfig.ssid = (uint8_t *) tempssid; // limit scan to mesh ssid
-    scanConfig.bssid = 0;
-    scanConfig.channel = mesh->_meshChannel; // also limit scan to mesh channel to speed things up ...
-    scanConfig.show_hidden = 1; // add hidden APs ... why not? we might want to hide ...
+#ifdef ESP32
+    WiFi.scanNetworks(true, true);
+#elif defined(ESP8266)
+    WiFi.scanNetworksAsync([&](int networks) { this->scanComplete(); }, true);
+#endif
 
     task.delay(1000*SCAN_INTERVAL); // Scan should be completed by them and next step called. If not then we restart here.
-
-    if (esp_wifi_scan_start(&scanConfig, false) != ESP_OK)
-        staticThis->debugMsg(ERROR, "wifi_station_scan() failed!?\n");
+    return;
 }
 
 void ICACHE_FLASH_ATTR StationScan::scanComplete() {
@@ -129,23 +121,30 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     aps.clear();
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > Cleared old aps.\n");
 
-    uint16_t num = 0;
-    auto err = esp_wifi_scan_get_ap_num(&num);
-    if (err != ESP_OK)
-        staticThis->debugMsg(CONNECTION, "scanComplete():-- > Error in scanning.\n");
-    //wifi_ap_record_t *records = new wifi_ap_record_t[num];
-    wifi_ap_record_t *records = (wifi_ap_record_t*)malloc(num*sizeof(wifi_ap_record_t));
-    //records = (wifi_ap_record_t *)malloc(num*sizeof(wifi_ap_record_t));
-    staticThis->debugMsg(CONNECTION, "scanComplete(): num=%d, err=%d\n", num, err);
-    err = esp_wifi_scan_get_ap_records(&num, records);
-    staticThis->debugMsg(CONNECTION, "scanComplete(): After getting records, num=%d, err=%d\n", num, err);
-    for (uint16_t i = 0; i < num; ++i) {
-        aps.push_back(records[i]);
-        staticThis->debugMsg(CONNECTION, "\tfound : % s, % ddBm\n", (char*) records[i].ssid, (int16_t) records[i].rssi);
+    int8_t num = WiFi.scanComplete();
+    if(num == WIFI_SCAN_RUNNING || num == WIFI_SCAN_FAILED) return;
+
+    staticThis->debugMsg(CONNECTION, "scanComplete(): num = %d\n", num);
+    
+    for (uint8_t i = 0; i < num; ++i) {
+        WiFi_AP_Record_t record;
+        String  _ssid     = WiFi.SSID(i);
+            if(_ssid != ssid && _ssid != "") continue;
+
+        record.rssi       = WiFi.RSSI(i);
+            if(record.rssi == 0) continue;
+        uint8_t* _bssid   = WiFi.BSSID(i);
+
+        if(_ssid == "") _ssid = ssid;
+
+        _ssid.toCharArray((char*)record.ssid, 32);
+        memcpy((void *)&record.bssid, (void *)_bssid, sizeof(record.bssid));
+
+        aps.push_back(record);
+        staticThis->debugMsg(CONNECTION, "\tfound : %s, %ddBm\n", (char*) record.ssid, (int16_t) record.rssi);
     }
-    //delete[] records;
-    free(records);
-    staticThis->debugMsg(CONNECTION, "\tFound % d nodes\n", aps.size());
+
+    staticThis->debugMsg(CONNECTION, "\tFound %d nodes\n", aps.size());
 
     task.yield([this]() {
         // Task filter all unknown
@@ -153,7 +152,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 
         // Next task is to sort by strength
         task.yield([this] {
-            aps.sort([](wifi_ap_record_t a, wifi_ap_record_t b) {
+            aps.sort([](WiFi_AP_Record_t a, WiFi_AP_Record_t b) {
                     return a.rssi > b.rssi;
             });
             // Next task is to connect to the top ap
@@ -178,51 +177,32 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
     }
 }
 
-void ICACHE_FLASH_ATTR StationScan::requestIP(wifi_ap_record_t &ap) {
+void ICACHE_FLASH_ATTR StationScan::requestIP(WiFi_AP_Record_t &ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
             mesh->encodeNodeId(ap.bssid));
-    wifi_sta_config_t stationConf;
-    stationConf.bssid_set = 1;
-    memcpy(&stationConf.bssid, ap.bssid, 6); // Connect to this specific HW Address
-    memcpy(&stationConf.ssid, ap.ssid, 32);
-    memset(&stationConf.password, 0, 64);
-    memcpy(&stationConf.password, password.c_str(), password.length() + 1); // Connect to this specific HW Address
-    /*memcpy(&stationConf.bssid, ap.bssid, 6); // Connect to this specific HW Address
-    memcpy(&stationConf.ssid, ap.ssid, 32);
-    memcpy(&stationConf.password, password.c_str(), 64);*/
-    wifi_config_t cfg;
-    cfg.sta = stationConf;
-    esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg);
-    esp_wifi_connect();
+    WiFi.begin((char*)ap.ssid, password.c_str());
+    return;
 }
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {
-    mesh->debugMsg(CONNECTION, "connectToAP():");
     // Next task will be to rescan
     task.setCallback([this]() {
         stationScan();
     });
 
     if (manual) {
-        wifi_config_t stationConf;
-        if (esp_wifi_get_config(ESP_IF_WIFI_STA, &stationConf) != ESP_OK) {
-            mesh->debugMsg(CONNECTION, "connectToAP(): failed to get current station config. Retrying later\n");
-            task.delay(SCAN_INTERVAL);
-            return;
-        }
-       
-        if (ssid.equals((char *) stationConf.sta.ssid) && 
-                mesh->_station_got_ip) {
+
+        if((WiFi.SSID() == ssid) && mesh->_station_got_ip) {
             mesh->debugMsg(CONNECTION, "connectToAP(): Already connected using manual connection. Disabling scanning.\n");
             task.disable();
             return;
         } else {
             if (mesh->_station_got_ip) {
                 mesh->closeConnectionSTA();
-                task.enableDelayed(1000*SCAN_INTERVAL);
+                task.enableDelayed(1000 * SCAN_INTERVAL);
                 return;
-            } else if (aps.empty() || 
-                    !ssid.equals((char *)aps.begin()->ssid)) {
+            } else if (aps.empty() ||
+                     !ssid.equals((char *)aps.begin()->ssid)) {
                 task.enableDelayed(SCAN_INTERVAL);
                 return;
             }

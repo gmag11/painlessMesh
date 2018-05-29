@@ -12,8 +12,8 @@
 #include <functional>
 #include <memory>
 using namespace std;
-#include "espInterface.h"
 #ifdef ESP32
+#include <WiFi.h>
 #include <AsyncTCP.h>
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -29,20 +29,14 @@ using namespace std;
 #define MAX_MESSAGE_QUEUE    50 // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5 // Max message burst
 
-enum nodeMode {
-    AP_ONLY = WIFI_MODE_AP,
-    STA_ONLY = WIFI_MODE_STA,
-    STA_AP = WIFI_MODE_APSTA
-};
-
 enum meshPackageType {
-    TIME_DELAY = 3,
-    TIME_SYNC = 4,
+    TIME_DELAY        = 3,
+    TIME_SYNC         = 4,
     NODE_SYNC_REQUEST = 5,
-    NODE_SYNC_REPLY = 6,
-    CONTROL = 7,  //deprecated
-    BROADCAST = 8,  //application data for everyone
-    SINGLE = 9   //application data for a single node
+    NODE_SYNC_REPLY   = 6,
+    CONTROL           = 7,  //deprecated
+    BROADCAST         = 8,  //application data for everyone
+    SINGLE            = 9   //application data for a single node
 };
 
 template<typename T>
@@ -90,8 +84,8 @@ public:
 
     // in painlessMesh.cpp
 	 					painlessMesh();
-    void                init(String ssid, String password, Scheduler *baseScheduler, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
-    void                init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, wifi_auth_mode_t authmode = WIFI_AUTH_WPA2_PSK, uint8_t channel = 1, uint8_t phymode = WIFI_PROTOCOL_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
+    void                init(String ssid, String password, Scheduler *baseScheduler, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
+    void                init(String ssid, String password, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
     /**
      * Disconnect and stop this node
      */
@@ -117,21 +111,21 @@ public:
     uint32_t            getNodeTime(void);
 
     // in painlessMeshSTA.cpp
-    uint32_t            encodeNodeId(uint8_t *hwaddr);
+    uint32_t            encodeNodeId(const uint8_t *hwaddr);
     /// Connect (as a station) to a specified network and ip
     /// You can pass {0,0,0,0} as IP to have it connect to the gateway
-    void stationManual(String ssid, String password, uint16_t port = 0,
-        uint8_t * remote_ip = NULL);
-    bool setHostname(const char * hostname);
-    ip_addr getStationIP();
+    void                stationManual(String ssid, String password, uint16_t port = 0,
+                                        IPAddress remote_ip = IPAddress(0,0,0,0));
+    bool                setHostname(const char * hostname);
+    IPAddress           getStationIP();
 
-    StationScan stationScan;
+    StationScan         stationScan;
 
     // Rough estimate of the mesh stability (goes from 0-1000)
-    size_t stability = 0;
+    size_t              stability = 0;
 
     // in painlessMeshAP.cpp
-    ip_addr             getAPIP();
+    IPAddress           getAPIP();
 
 #if __cplusplus > 201103L
     [[deprecated("Use of the internal scheduler will be deprecated, please use an user provided scheduler instead (See the startHere example).")]]
@@ -185,7 +179,10 @@ protected:
 
     // callbacks
     // in painlessMeshConnection.cpp
-    static int         espWifiEventCb(void * ctx, system_event_t *event);
+    void                eventHandleInit();
+#ifdef ESP32
+    static void         espWiFiEventCb(WiFiEvent_t event);
+#endif // ESP32
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
@@ -195,16 +192,24 @@ protected:
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
     nodeDelayCallback_t             nodeDelayReceivedCallback;
 
+#ifdef ESP8266
+    WiFiEventHandler  eventSTAConnectedHandler;
+    WiFiEventHandler  eventSTADisconnectedHandler;
+    WiFiEventHandler  eventSTAAuthChangeHandler;
+    WiFiEventHandler  eventSTAGotIPHandler;
+    WiFiEventHandler  eventSoftAPConnectedHandler;
+    WiFiEventHandler  eventSoftAPDisconnectedHandler;
+#endif // ESP8266
+
     uint32_t          _nodeId;
     String            _meshSSID;
     String            _meshPassword;
     uint16_t          _meshPort;
     uint8_t           _meshChannel;
-    wifi_auth_mode_t  _meshAuthMode;
     uint8_t           _meshHidden;
     uint8_t           _meshMaxConn;
 
-    ip_addr           _apIp;
+    IPAddress         _apIp;
 
     ConnectionList    _connections;
 
@@ -215,8 +220,8 @@ protected:
     bool              isExternalScheduler = false;
 
     Scheduler         _scheduler;
-    Task droppedConnectionTask;
-    Task newConnectionTask;
+    Task              droppedConnectionTask;
+    Task              newConnectionTask;
 
     friend class StationScan;
     friend class MeshConnection;

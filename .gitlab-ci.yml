@@ -11,6 +11,7 @@ platformio:
     - platformio ci --lib="." --board=nodemcuv2 examples/logServer/logServer.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/mqttBridge/mqttBridge.ino -O "build_flags = -Werror"
+    - platformio ci --lib="." --lib="./examples/namedMesh/" --board=esp32dev examples/namedMesh/namedMesh.ino -O "build_flags = -Werror"
 
 arduino:
   before_script:

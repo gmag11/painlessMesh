@@ -21,7 +21,7 @@ painlessMesh does not create a TCP/IP network of nodes. Rather each of the nodes
 ### Limitations and caveats
 
 - Try to avoid using `delay()` in your code. To maintain the mesh we need to perform some tasks in the background. Using `delay()` will stop these tasks from happening and can cause the mesh to lose stability/fall apart. Instead we recommend using the scheduler included in `painlessMesh`. That scheduler is a slightly modified version of the [TaskScheduler](http://playground.arduino.cc/Code/TaskScheduler) library. Documentation can be found [here](http://www.smart4smart.com/TaskScheduler.pdf). For other examples on how to use the scheduler see the example folder.
-- `painlessMesh` uses the sdk provided by [esp8266](http://espressif.com/sites/default/files/documentation/2c-esp8266_non_os_sdk_api_reference_en.pdf)/[esp32](https://esp-idf.readthedocs.io/en/latest/index.html). Please be aware that as a result `painlessMesh` is incompatible with using the `WiFi.h` wrappers provided by the vendor, because both `painlessMesh` and the `WiFi.h` try to bind to the same events (e.g. disconnect event). Instead if you want to use the WiFi chip you will need to use same sdk as `painlessMesh`.
+- `painlessMesh` subscribes to WiFi events ([ESP8266](https://gitlab.com/painlessMesh/painlessMesh/blob/7ed16871eaa5a57b199d2a469cd48bfda8ad4eb7/src/painlessMeshConnection.cpp#L613) and [ESP32](https://gitlab.com/painlessMesh/painlessMesh/blob/7ed16871eaa5a57b199d2a469cd48bfda8ad4eb7/src/painlessMeshConnection.cpp#L611)). Please be aware that as a result `painlessMesh` can be incompatible with user programs/other libraries that try to bind to the same events.
 - Try to be conservative in the number of messages (and especially broadcast messages) you sent per minute. This is to prevent the hardware from overloading. Both esp8266 and esp32 are limited in processing power/memory, making it easy to overload the mesh and destabilise it. And while `painlessMesh` tries to prevent this from happening, it is not always possible to do so.
 - Messages can go missing or be dropped due to high traffic and you can not rely on all messages to be delivered. One suggestion to work around is to resend messages every so often. Even if some go missing, most should go through. Another option is to have your nodes send replies when they receive a message. The sending nodes can the resend the message if they haven’t gotten a reply in a certain amount of time. 
 
@@ -67,7 +67,7 @@ The main member functions are included below. Full doxygen generated documentati
 
 ## Member Functions
 
-### void painlessMesh::init(String ssid, String password, uint16_t port = 5555, enum nodeMode connectMode = STA_AP, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4)
+### void painlessMesh::init(String ssid, String password, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, _auth_mode authmode = AUTH_WPA2_PSK, uint8_t channel = 1, phy_mode_t phymode = PHY_MODE_11G, uint8_t maxtpw = 82, uint8_t hidden = 0, uint8_t maxconn = 4)
 
 Add this to your setup() function.
 Initialize the mesh network.  This routine does the following things.
@@ -79,7 +79,7 @@ Initialize the mesh network.  This routine does the following things.
 `ssid` = the name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
 `password` = wifi password to your mesh.
 `port` = the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
-[`connectMode`](https://gitlab.com/painlessMesh/painlessMesh/wikis/connect-mode:-ap_only,-sta_only,-sta_ap-mode) = switch between AP_ONLY, STA_ONLY and STA_AP (default) mode
+[`connectMode`](https://gitlab.com/painlessMesh/painlessMesh/wikis/connect-mode:-WIFI_AP,-WIFI_STA,-WIFI_AP_STA-mode) = switch between WIFI_AP, WIFI_STA and WIFI_AP_STA (default) mode
 
 ### void painlessMesh::stop()
 
