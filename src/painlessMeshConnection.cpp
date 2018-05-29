@@ -10,6 +10,7 @@
 #include <ArduinoJson.h>
 
 #include "painlessMesh.h"
+#include "painlessMeshJson.h"
 
 //#include "lwip/priv/tcpip_priv.h"
 
@@ -379,32 +380,6 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
     return false;
 }
 
-// Check whether a string contains a numeric substring as a complete number
-//
-// "a:800" does contain "800", but does not contain "80"
-bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
-                                             const String & nodeIdStr, int from) {
-    auto index = subConnections.indexOf(nodeIdStr, from);
-    if (index == -1)
-        return false;
-    // Check that the preceding and following characters are not a number
-    else if (index > 0 &&
-             index + nodeIdStr.length() + 1 < subConnections.length() &&
-             // Preceding character is not a number
-             (subConnections.charAt(index - 1) < '0' ||
-             subConnections.charAt(index - 1) > '9') &&
-             // Following character is not a number
-             (subConnections.charAt(index + nodeIdStr.length() + 1) < '0' ||
-             subConnections.charAt(index + nodeIdStr.length() + 1) > '9')
-             ) {
-        return true;
-    } else { // Check whether the nodeid occurs further in the subConnections string
-        return stringContainsNumber(subConnections, nodeIdStr,
-                                    index + nodeIdStr.length());
-    }
-    return false;
-}
-
 //***********************************************************************
 // Search for a connection to a given nodeID
 std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId, uint32_t exclude) {
@@ -421,7 +396,7 @@ std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(u
             return connection;
         }
 
-        if (stringContainsNumber(connection->subConnections,
+        if (painlessmesh::stringContainsNumber(connection->subConnections,
             String(nodeId))) { // check sub-connections
             debugMsg(GENERAL, "findConnection(%u): Found Sub Connection through %u\n", nodeId, connection->nodeId);
             return connection;
@@ -468,8 +443,10 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
         } else if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
             if (ret.length() > 1)
                 ret += String(",");
-            ret += String("{\"nodeId\":") + String(sub->nodeId) +
-                String(",\"subs\":") + sub->subConnections + String("}");
+            ret += String("{\"nodeId\":") + String(sub->nodeId);
+            if (sub->root)
+                ret += String(",\"root\":true");
+            ret += String(",\"subs\":") + sub->subConnections + String("}");
         }
     }
     ret += String("]");
@@ -518,6 +495,20 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConne
     return nodeList;
 }
 
+
+bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
+    if (this->isRoot()) {
+        return true;
+    }
+
+    // Direct connections first
+    for (auto && connection : _connections) {
+        if (connection->root || connection->rooted)
+            return true;
+    }
+    return false;
+}
+
 //***********************************************************************
 void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, uint32_t time) {
     if (arg == NULL) {
@@ -549,7 +540,7 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
     DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(buffer.c_str(), 100);
+    JsonObject& root = jsonBuffer.parseObject(buffer.c_str(), 255);
     if (!root.success()) {   // Test if parsing succeeded.
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());
         return;
