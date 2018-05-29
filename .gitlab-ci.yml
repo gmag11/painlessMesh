@@ -12,6 +12,8 @@ platformio:
     - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/mqttBridge/mqttBridge.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --lib="./examples/namedMesh/" --board=esp32dev examples/namedMesh/namedMesh.ino -O "build_flags = -Werror"
+    - platformio ci --lib="." --board=esp32dev test/debugNode/debugNode.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror -std=c++14"
+    - platformio ci --lib="." --board=nodemcuv2 test/debugNode/debugNode.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror"
 
 arduino:
   before_script:
