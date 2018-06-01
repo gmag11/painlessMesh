@@ -78,6 +78,34 @@ public:
     //inline functions
     uint32_t            getNodeId(void) { return _nodeId; };
 
+    /**
+     * Set the node as an root/master node for the mesh
+     *
+     * This is an optional setting that can speed up mesh formation. 
+     * At most one node in the mesh should be a root, or you could
+     * end up with multiple subMeshes.
+     *
+     * We recommend any AP_ONLY nodes (e.g. a bridgeNode) to be set
+     * as a root node.
+     *
+     * If one node is root, then it is also recommended to call painlessMesh::setContainsRoot() on
+     * all the nodes in the mesh.
+     */
+    void setRoot(bool on = true) { root = on; };
+
+    /**
+     * The mesh should contains a root node
+     *
+     * This will cause the mesh to restructure more quickly around the root node. Note that this
+     * could have adverse effects if set, while there is no root node present. Also see painlessMesh::setRoot().
+     */
+    void setContainsRoot(bool on = true) { shouldContainRoot = on; };
+
+    /**
+     * Check whether this node is a root node.
+     */
+    bool isRoot() { return root; };
+
     // in painlessMeshDebug.cpp
     void                setDebugMsgTypes(uint16_t types);
     void                debugMsg(debugType_t type, const char* format ...);
@@ -107,13 +135,25 @@ public:
 
     std::list<uint32_t> getNodeList();
 
+    /**
+     * Check whether this node is part of a mesh with a root in
+     * it.
+     */
+    bool isRooted();
+
     // in painlessMeshSync.cpp
     uint32_t            getNodeTime(void);
 
     // in painlessMeshSTA.cpp
     uint32_t            encodeNodeId(const uint8_t *hwaddr);
-    /// Connect (as a station) to a specified network and ip
-    /// You can pass {0,0,0,0} as IP to have it connect to the gateway
+    /**
+     * Connect (as a station) to a specified network and ip
+     *
+     * You can pass {0,0,0,0} as IP to have it connect to the gateway
+     *
+     * This stops the node from scanning for other (non specified) nodes
+     * and you should probably also use this node as an anchor: `setAnchor(true)`
+     */
     void                stationManual(String ssid, String password, uint16_t port = 0,
                                         IPAddress remote_ip = IPAddress(0,0,0,0));
     bool                setHostname(const char * hostname);
@@ -219,6 +259,10 @@ protected:
 
     bool              isExternalScheduler = false;
 
+    /// Is the node a root node
+    bool root;
+    bool shouldContainRoot;
+
     Scheduler         _scheduler;
     Task              droppedConnectionTask;
     Task              newConnectionTask;
@@ -227,19 +271,5 @@ protected:
     friend class MeshConnection;
     friend void  onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
 };
-
-/*****
- *
- * Util functions
- *
- */
-
-/**
- * Check whether a string contains a numeric substring as a complete number
- *
- * "a:800" does contain "800", but does not contain "80"
- */
-bool ICACHE_FLASH_ATTR  stringContainsNumber(const String &subConnections,
-                                             const String & nodeIdStr, int from = 0);
 
 #endif //   _EASY_MESH_H_

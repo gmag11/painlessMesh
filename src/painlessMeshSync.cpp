@@ -3,6 +3,7 @@
 
 #include "painlessMesh.h"
 #include "painlessMeshSync.h"
+#include "painlessMeshJson.h"
 
 #include "time.h"
 
@@ -171,14 +172,17 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         return;
     }
 
+
     // check to see if subs have changed.
     String inComingSubs = root["subs"];
-    if (!conn->subConnections.equals(inComingSubs)) {  // change in the network
+    bool changed = !conn->subConnections.equals(inComingSubs);
+    painlessmesh::parseNodeSyncRoot(conn, root, changed);
+    if (changed) {  // change in the network
         // Check whether we already know any of the nodes
         // This is necessary to avoid loops.. Not sure if we need to check
         // for both this node and master node, but better safe than sorry
-        if ( stringContainsNumber(inComingSubs, String(conn->nodeId)) || 
-                stringContainsNumber(inComingSubs, String(this->_nodeId))) {
+        if ( painlessmesh::stringContainsNumber(inComingSubs, String(conn->nodeId)) || 
+                painlessmesh::stringContainsNumber(inComingSubs, String(this->_nodeId))) {
             // This node is also in the incoming subs, so we have a loop
             // Disconnecting to break the loop
             debugMsg(SYNC, "handleNodeSync(): Loop detected, disconnecting %u.\n",
