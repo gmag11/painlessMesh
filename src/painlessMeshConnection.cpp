@@ -597,12 +597,14 @@ void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
     WiFi.onEvent(espWiFiEventCb);
 #elif defined(ESP8266)
     eventSTAConnectedHandler = WiFi.onStationModeConnected([&](const WiFiEventStationModeConnected &event) {
-        staticThis->debugMsg(CONNECTION, "Event: Station Mode Connected to \"%s\"\n", event.ssid.c_str());
+        //staticThis->debugMsg(CONNECTION, "Event: Station Mode Connected to \"%s\"\n", event.ssid.c_str());
+        staticThis->debugMsg(CONNECTION, "Event: Station Mode Connected\n");
     });
 
     eventSTADisconnectedHandler = WiFi.onStationModeDisconnected([&](const WiFiEventStationModeDisconnected &event) {
         staticThis->_station_got_ip = false;
-        staticThis->debugMsg(CONNECTION, "Event: Station Mode Disconnected from %s\n", event.ssid.c_str());
+        //staticThis->debugMsg(CONNECTION, "Event: Station Mode Disconnected from %s\n", event.ssid.c_str());
+        staticThis->debugMsg(CONNECTION, "Event: Station Mode Disconnected\n");
         //WiFi.disconnect();
         staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
     });
