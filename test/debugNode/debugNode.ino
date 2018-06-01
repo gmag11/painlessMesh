@@ -11,6 +11,7 @@
 // Collect nodeInformation (on every change and 10 seconds)
 // send it every 5 seconds
 // Print on change/newConnection/receive from other node
+#define UNITY
 #include <painlessMesh.h>
 
 // some gpio pin that is connected to an LED...
@@ -36,28 +37,53 @@ void changedConnectionCallback();
 Scheduler     userScheduler; // to control your personal task
 painlessMesh  mesh;
 
-DynamicJsonBuffer jsonBuffer;
-JsonObject& stateObj = jsonBuffer.createObject();
+String state;
 void collectData() {
+    state = "";
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject& stateObj = jsonBuffer.createObject();
     stateObj["nodeId"] = mesh.getNodeId();
+#ifdef ESP32
+    stateObj["hardware"] = "ESP32";
+#else
+    stateObj["hardware"] = "ESP8266";
+#endif
+
     stateObj["isRoot"] = mesh.isRoot();
     stateObj["isRooted"] = mesh.isRooted();
     String subs = mesh.subConnectionJson();
     DynamicJsonBuffer subsBuffer;
-    stateObj["subs"] = jsonBuffer.parseArray(subs, 255);
+    JsonArray& subsArr = jsonBuffer.parseArray(subs, 255);
+    if (subsArr.success())
+        stateObj["subs"] = subsArr;
+    //else
+    stateObj["subsOrig"] = subs;
+    JsonArray& connections = stateObj.createNestedArray("connections");
+    stateObj["csize"] = mesh._connections.size();
+    for(auto && conn : mesh._connections) {
+        JsonObject& connection = connections.createNestedObject();
+        connection["nodeId"] = conn->nodeId;
+        connection["connected"] = conn->connected;
+        connection["station"] = conn->station;
+        connection["root"] = conn->root;
+        connection["rooted"] = conn->rooted;
+        connection["subs"] = conn->subConnections;
+    }
+    stateObj.prettyPrintTo(state);
 }
 
 Task taskGatherState( TASK_SECOND * 30, TASK_FOREVER, &collectData); // start with a one second interval
 Task taskPrintState(TASK_SECOND * 5, TASK_FOREVER, []() {
     Serial.println("Node state:");
-    stateObj.prettyPrintTo(Serial);
-    Serial.println("\n");
+    Serial.printf("%s\n", state.c_str());
+    //stateObj.prettyPrintTo(Serial);
 });
 
 Task taskSendState(TASK_SECOND * 15, TASK_FOREVER, []() {
-    String str;
-    stateObj.prettyPrintTo(str);
-    mesh.sendBroadcast(str);
+    //String str;
+    //stateObj.prettyPrintTo(str);
+    //mesh.sendBroadcast(str);
+    mesh.sendBroadcast(state);
 });
 
 // Task to blink the number of nodes

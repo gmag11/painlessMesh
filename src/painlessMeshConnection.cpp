@@ -355,15 +355,10 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::eraseClosedConnections() {
-    auto connection = _connections.begin();
-    while (connection != _connections.end()) {
-        if (!(*connection)->connected) {
-            connection = _connections.erase(connection);
-            debugMsg(CONNECTION, "eraseClosedConnections():\n");
-        } else {
-            ++connection;
-        }
-    }
+    debugMsg(CONNECTION, "eraseClosedConnections():\n");
+    _connections.remove_if( [](const std::shared_ptr<MeshConnection>& conn){
+            return !conn->connected;
+    });
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
@@ -503,7 +498,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
 
     // Direct connections first
     for (auto && connection : _connections) {
-        if (connection->root || connection->rooted)
+        if (connection->connected && (connection->root || connection->rooted))
             return true;
     }
     return false;
