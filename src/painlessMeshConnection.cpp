@@ -234,7 +234,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
         client->close();
     }
 
-    if (station) {
+    if (station && WiFi.status() == WL_CONNECTED) {
         staticThis->debugMsg(CONNECTION, "close(): call WiFi.disconnect().\n");
         WiFi.disconnect();
     }
@@ -617,7 +617,7 @@ void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
     eventSTADisconnectedHandler = WiFi.onStationModeDisconnected([&](const WiFiEventStationModeDisconnected &event) {
         staticThis->_station_got_ip = false;
         staticThis->debugMsg(CONNECTION, "Event: Station Mode Disconnected from %s\n", event.ssid.c_str());
-        WiFi.disconnect();
+        //WiFi.disconnect();
         staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
     });
 
@@ -661,7 +661,7 @@ void ICACHE_FLASH_ATTR painlessMesh::espWiFiEventCb(WiFiEvent_t event) {
             staticThis->_station_got_ip = false;
             staticThis->debugMsg(CONNECTION, "espWiFiEventCb(): SYSTEM_EVENT_STA_DISCONNECTED\n");
             //staticThis->closeConnectionSTA();
-            WiFi.disconnect();
+            //WiFi.disconnect();
             staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
             break;
         case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
