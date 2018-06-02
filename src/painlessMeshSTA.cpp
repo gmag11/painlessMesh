@@ -129,10 +129,10 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     for (uint8_t i = 0; i < num; ++i) {
         WiFi_AP_Record_t record;
         String  _ssid     = WiFi.SSID(i);
-            if(_ssid != ssid && _ssid != "") continue;
+        if(_ssid != ssid && _ssid != "") continue;
 
         record.rssi       = WiFi.RSSI(i);
-            if(record.rssi == 0) continue;
+        if(record.rssi == 0) continue;
         uint8_t* _bssid   = WiFi.BSSID(i);
 
         if(_ssid == "") _ssid = ssid;
@@ -180,7 +180,7 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
 void ICACHE_FLASH_ATTR StationScan::requestIP(WiFi_AP_Record_t &ap) {
     mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
             mesh->encodeNodeId(ap.bssid));
-    WiFi.begin((char*)ap.ssid, password.c_str());
+    WiFi.begin((char*)ap.ssid, password.c_str(), mesh->_meshChannel, ap.bssid);
     return;
 }
 
