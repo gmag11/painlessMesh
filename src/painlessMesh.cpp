@@ -29,9 +29,10 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
 
     if (WiFi.status() != WL_DISCONNECTED)
-        WiFi.disconnect(true);
+        WiFi.disconnect();
 
     debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
+    WiFi.persistent(false);
 
     staticThis = this;  // provides a way for static callback methods to access "this" object;
 
