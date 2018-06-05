@@ -78,17 +78,13 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
     {
-        JsonArray& subs = jsonBuffer.parseArray(msg, 255);
-        if (!subs.success()) {
-            debugMsg(ERROR, "buildMeshPackage(): subs = jsonBuffer.parseArray( msg ) failed!\n");
-        }
-        jsonObj["subs"] = subs;
+        jsonObj["subs"] = RawJson(msg);
         if (this->isRoot())
             jsonObj["root"] = true;
         break;
     }
     case TIME_SYNC:
-        jsonObj["msg"] = jsonBuffer.parseObject(msg);
+        jsonObj["msg"] = RawJson(msg);
         break;
     default:
         jsonObj["msg"] = msg;
