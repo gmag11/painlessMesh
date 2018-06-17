@@ -188,6 +188,16 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     });
     staticThis->_scheduler.addTask(readBufferTask);
     readBufferTask.enableDelayed();
+
+    sentBufferTask.set(500*TASK_MILLISECOND, TASK_FOREVER, [this]() {
+        staticThis->debugMsg(GENERAL, "sentBufferTask()\n");
+        if (!this->sentBuffer.empty() && this->client->canSend()) {
+            this->writeNext();
+            this->sentBufferTask.forceNextIteration();
+        }
+    });
+    staticThis->_scheduler.addTask(sentBufferTask);
+    sentBufferTask.enableDelayed();
     
     staticThis->debugMsg(GENERAL, "MeshConnection(): leaving\n");
 }
@@ -213,6 +223,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     this->timeSyncTask.setCallback(NULL);
     this->nodeSyncTask.setCallback(NULL);
     this->readBufferTask.setCallback(NULL);
+    this->sentBufferTask.setCallback(NULL);
     this->client->onDisconnect(NULL, NULL);
     this->client->onError(NULL, NULL);
 
@@ -269,19 +280,16 @@ bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority
                 staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
             } else {
                 staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
-                if (client->canSend())
-                    writeNext();
+                sentBufferTask.forceNextIteration();
                 return false;
             }
         }
-        if (client->canSend())
-            writeNext();
+        sentBufferTask.forceNextIteration();
         return true;
     } else {
         //connection->sendQueue.clear(); // Discard all messages if free memory is low
         staticThis->debugMsg(DEBUG, "addMessage(): Memory low, message was discarded\n");
-        if (client->canSend())
-            writeNext();
+        sentBufferTask.forceNextIteration();
         return false;
     }
 }
@@ -302,7 +310,7 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", shared_buffer.buffer);
             client->send(); // TODO only do this for priority messages
             sentBuffer.freeRead();
-            writeNext();
+            sentBufferTask.forceNextIteration();
             return true;
         } else if (written == 0) {
             staticThis->debugMsg(COMMUNICATION, "writeNext(): tcp_write Failed node=%u. Resending later\n", nodeId);
@@ -510,7 +518,7 @@ void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, u
         staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
     }
     auto conn = static_cast<MeshConnection*>(arg);
-    conn->writeNext();
+    conn->sentBufferTask.forceNextIteration();
 }
 
 void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, size_t len) {

@@ -85,6 +85,7 @@ class MeshConnection {
         Task          nodeSyncTask;
         Task          timeSyncTask;
         Task          readBufferTask;
+        Task          sentBufferTask;
 
         // Is this connection a root or rooted
         bool root = false;
