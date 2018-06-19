@@ -604,8 +604,10 @@ void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
 #ifdef ESP32
     eventScanDoneHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
         staticThis->debugMsg(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
-            // Call the same thing original callback called
-        staticThis->stationScan.scanComplete();
+        staticThis->stationScan.task.setCallback([]() {
+            staticThis->stationScan.scanComplete();
+        });
+        staticThis->stationScan.task.forceNextIteration();
     }, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
     eventSTAStartHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
