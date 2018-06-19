@@ -220,9 +220,6 @@ protected:
     // callbacks
     // in painlessMeshConnection.cpp
     void                eventHandleInit();
-#ifdef ESP32
-    static void         espWiFiEventCb(WiFiEvent_t event);
-#endif // ESP32
 
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
@@ -231,8 +228,12 @@ protected:
     changedConnectionsCallback_t    changedConnectionsCallback;
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
     nodeDelayCallback_t             nodeDelayReceivedCallback;
-
-#ifdef ESP8266
+#ifdef ESP32
+    WiFiEventId_t eventScanDoneHandler;
+    WiFiEventId_t eventSTAStartHandler;
+    WiFiEventId_t eventSTADisconnectedHandler;
+    WiFiEventId_t eventSTAGotIPHandler;
+#elif defined(ESP8266)
     WiFiEventHandler  eventSTAConnectedHandler;
     WiFiEventHandler  eventSTADisconnectedHandler;
     WiFiEventHandler  eventSTAAuthChangeHandler;
