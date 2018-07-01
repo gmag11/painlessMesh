@@ -121,7 +121,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     aps.clear();
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > Cleared old aps.\n");
 
-    int8_t num = WiFi.scanComplete();
+    auto num = WiFi.scanComplete();
     if(num == WIFI_SCAN_RUNNING || num == WIFI_SCAN_FAILED) return;
 
     staticThis->debugMsg(CONNECTION, "scanComplete(): num = %d\n", num);
