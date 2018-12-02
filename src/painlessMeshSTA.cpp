@@ -126,16 +126,22 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 
     staticThis->debugMsg(CONNECTION, "scanComplete(): num = %d\n", num);
     
-    for (uint8_t i = 0; i < num; ++i) {
+    for (auto i = 0; i < num; ++i) {
         WiFi_AP_Record_t record;
         String  _ssid     = WiFi.SSID(i);
-        if(_ssid != ssid && _ssid != "") continue;
+        if(_ssid != ssid) {
+            if (ssid == "" && mesh->_meshHidden) {
+                // Hidden mesh
+                _ssid = ssid;
+            } else {
+                continue;
+            }
+        }
 
         record.rssi       = WiFi.RSSI(i);
         if(record.rssi == 0) continue;
         uint8_t* _bssid   = WiFi.BSSID(i);
 
-        if(_ssid == "") _ssid = ssid;
 
         _ssid.toCharArray((char*)record.ssid, 32);
         memcpy((void *)&record.bssid, (void *)_bssid, sizeof(record.bssid));

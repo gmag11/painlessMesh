@@ -612,13 +612,13 @@ void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
 
     eventSTAStartHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
         staticThis->stationScan.task.forceNextIteration();
-            staticThis->debugMsg(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
+        staticThis->debugMsg(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
     }, WiFiEvent_t::SYSTEM_EVENT_STA_START);
 
     eventSTADisconnectedHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
         staticThis->_station_got_ip = false;
-            staticThis->debugMsg(CONNECTION, "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-          staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
+        staticThis->debugMsg(CONNECTION, "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
+        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
     }, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
     eventSTAGotIPHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
