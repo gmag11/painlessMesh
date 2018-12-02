@@ -8,6 +8,7 @@
 #include <TaskSchedulerDeclarations.h>
 #include <Arduino.h>
 #include <list>
+#define ARDUINOJSON_USE_LONG_LONG 1
 #include <ArduinoJson.h>
 #include <functional>
 #include <memory>
