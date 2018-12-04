@@ -467,7 +467,7 @@ size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes() {
 }
 
 size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
-    return max((long int) 1,round(subConns.length()/30.0));
+    return max((long int) 1,(long int)round(subConns.length()/30.0));
 }
 
 //***********************************************************************
