@@ -130,7 +130,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
         WiFi_AP_Record_t record;
         String  _ssid     = WiFi.SSID(i);
         if(_ssid != ssid) {
-            if (ssid == "" && mesh->_meshHidden) {
+            if (_ssid == "" && mesh->_meshHidden) {
                 // Hidden mesh
                 _ssid = ssid;
             } else {
