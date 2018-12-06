@@ -18,17 +18,30 @@ void receivedCallback( uint32_t from, String &msg );
 
 // Send my ID every 10 seconds to inform others
 Task logServerTask(10000, TASK_FOREVER, []() {
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& msg = jsonBuffer.createObject();
+#if ARDUINOJSON_VERSION_MAJOR==6
+        DynamicJsonDocument jsonBuffer;
+        JsonObject msg = jsonBuffer.to<JsonObject>();
+#else
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject& msg = jsonBuffer.createObject();
+#endif
     msg["topic"] = "logServer";
     msg["nodeId"] = mesh.getNodeId();
 
     String str;
+#if ARDUINOJSON_VERSION_MAJOR==6
+    serializeJson(msg, str);
+#else
     msg.printTo(str);
+#endif
     mesh.sendBroadcast(str);
 
     // log to serial
+#if ARDUINOJSON_VERSION_MAJOR==6
+    serializeJson(msg, Serial);
+#else
     msg.printTo(Serial);
+#endif
     Serial.printf("\n");
 });
 

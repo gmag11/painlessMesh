@@ -19,20 +19,33 @@ size_t logServerId = 0;
 
 // Send message to the logServer every 10 seconds 
 Task myLoggingTask(10000, TASK_FOREVER, []() {
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& msg = jsonBuffer.createObject();
+#if ARDUINOJSON_VERSION_MAJOR==6
+        DynamicJsonDocument jsonBuffer;
+        JsonObject msg = jsonBuffer.to<JsonObject>();
+#else
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject& msg = jsonBuffer.createObject();
+#endif
     msg["topic"] = "sensor";
     msg["value"] = random(0, 180);
 
     String str;
+#if ARDUINOJSON_VERSION_MAJOR==6
+    serializeJson(msg, str);
+#else
     msg.printTo(str);
+#endif
     if (logServerId == 0) // If we don't know the logServer yet
         mesh.sendBroadcast(str);
     else
         mesh.sendSingle(logServerId, str);
 
     // log to serial
+#if ARDUINOJSON_VERSION_MAJOR==6
+    serializeJson(msg, Serial);
+#else
     msg.printTo(Serial);
+#endif
     Serial.printf("\n");
 });
 
@@ -58,8 +71,14 @@ void receivedCallback( uint32_t from, String &msg ) {
   Serial.printf("logClient: Received from %u msg=%s\n", from, msg.c_str());
 
   // Saving logServer
+#if ARDUINOJSON_VERSION_MAJOR==6
+  DynamicJsonDocument jsonBuffer;
+  DeserializationError error = deserializeJson(jsonBuffer, msg);
+  JsonObject root = jsonBuffer.as<JsonObject>();
+#else
   DynamicJsonBuffer jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(msg);
+#endif
   if (root.containsKey("topic")) {
       if (String("logServer").equals(root["topic"].as<String>())) {
           // check for on: true or false

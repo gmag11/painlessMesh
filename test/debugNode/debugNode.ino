@@ -40,8 +40,14 @@ painlessMesh  mesh;
 String state;
 void collectData() {
     state = "";
+
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    JsonObject stateObj = jsonBuffer.to<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer;
     JsonObject& stateObj = jsonBuffer.createObject();
+#endif
     stateObj["nodeId"] = mesh.getNodeId();
 #ifdef ESP32
     stateObj["hardware"] = "ESP32";
@@ -51,15 +57,28 @@ void collectData() {
 
     stateObj["isRoot"] = mesh.isRoot();
     stateObj["isRooted"] = mesh.isRooted();
+
     String subs = mesh.subConnectionJson();
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument subsBuffer;
+    subsBuffer.nestingLimit = 255;
+    DeserializationError error = deserializeJson(subsBuffer, subs);
+    if (error) {
+        return;
+    }
+    JsonArray subsArr = subsBuffer.as<JsonArray>();
+#else
     DynamicJsonBuffer subsBuffer;
-    JsonArray& subsArr = jsonBuffer.parseArray(subs, 255);
-    if (subsArr.success())
-        stateObj["subs"] = subsArr;
-    //else
+    JsonArray& subsArr = subsBuffer.parseArray(subs, 255);
+    if (!subsArr.success())
+        return;
+#endif
+    stateObj["subs"] = subsArr;
     stateObj["subsOrig"] = subs;
-    JsonArray& connections = stateObj.createNestedArray("connections");
     stateObj["csize"] = mesh._connections.size();
+#if ARDUINOJSON_VERSION_MAJOR==6
+#else
+    JsonArray& connections = stateObj.createNestedArray("connections");
     for(auto && conn : mesh._connections) {
         JsonObject& connection = connections.createNestedObject();
         connection["nodeId"] = conn->nodeId;
@@ -69,7 +88,12 @@ void collectData() {
         connection["rooted"] = conn->rooted;
         connection["subs"] = conn->subConnections;
     }
+#endif
+#if ARDUINOJSON_VERSION_MAJOR==6
+    serializeJsonPretty(stateObj, state);
+#else
     stateObj.prettyPrintTo(state);
+#endif
 }
 
 Task taskGatherState( TASK_SECOND * 30, TASK_FOREVER, &collectData); // start with a one second interval

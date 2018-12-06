@@ -66,8 +66,17 @@ void receivedCallback(uint32_t from, String &msg) {
 }
 
 void nodeStatusReceivedCallback(uint32_t from, String &msg) {
+#if ARDUINOJSON_VERSION_MAJOR==6
+  DynamicJsonDocument jsonBuffer;
+  DeserializationError error = deserializeJson(jsonBuffer, msg);
+  if (error) {
+      return;
+  }
+  JsonObject root = jsonBuffer.as<JsonObject>();
+#else
   DynamicJsonBuffer jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(msg);
+#endif
   if (root.containsKey("topic")) {
       if (String("nodeStatus").equals(root["topic"].as<String>())) {
         lastNodeStatus = msg;
@@ -93,8 +102,17 @@ void test_received_equals_expected() {
 
 void test_node_status() {
     Serial.printf("Status: %s\n", lastNodeStatus.c_str());
+#if ARDUINOJSON_VERSION_MAJOR==6
+      DynamicJsonDocument jsonBuffer;
+      DeserializationError error = deserializeJson(jsonBuffer, lastNodeStatus);
+      if (error) {
+          return;
+      }
+      JsonObject root = jsonBuffer.as<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(lastNodeStatus);
+#endif
     uint32_t t = root["time"];
     // Time delay within 50ms
     if (t > lastNSReceived) {
@@ -126,8 +144,13 @@ void logMessages() {
 }
 
 Task logServerTask(10000, TASK_FOREVER, []() {
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    JsonObject msg = jsonBuffer.to<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer;
     JsonObject& msg = jsonBuffer.createObject();
+#endif
     msg["topic"] = "logServer";
     msg["nodeId"] = mesh.getNodeId();
 
