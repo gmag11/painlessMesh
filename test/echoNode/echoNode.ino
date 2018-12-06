@@ -16,8 +16,13 @@ size_t logServerId = 0;
 // Send message to the logServer every 10 seconds 
 Task myLoggingTask(10000, TASK_FOREVER, []() {
     if (logServerId != 0) { 
+#if ARDUINOJSON_VERSION_MAJOR==6
+        DynamicJsonDocument jsonBuffer;
+        JsonObject msg = jsonBuffer.to<JsonObject>();
+#else
         DynamicJsonBuffer jsonBuffer;
         JsonObject& msg = jsonBuffer.createObject();
+#endif
         msg["topic"] = "nodeStatus";
         msg["nodeId"] = mesh.getNodeId();
         msg["subs"] = mesh.subConnectionJson();
@@ -54,9 +59,17 @@ void loop() {
 void receivedCallback( uint32_t from, String &msg ) {
   Serial.printf("echoNode: Received from %u msg=%s\n", from, msg.c_str());
   mesh.sendSingle(from, msg);
-
+#if ARDUINOJSON_VERSION_MAJOR==6
+  DynamicJsonDocument jsonBuffer;
+  DeserializationError error = deserializeJson(jsonBuffer, msg);
+  if (error) {
+      return;
+  }
+  JsonObject root = jsonBuffer.as<JsonObject>();
+#else
   DynamicJsonBuffer jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(msg);
+#endif
   if (root.containsKey("topic")) {
       if (String("logServer").equals(root["topic"].as<String>())) {
           // check for on: true or false

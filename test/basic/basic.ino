@@ -93,8 +93,13 @@ void test_approxNoNodes() {
 
 void test_jsonnodeid() {
     uint32_t mx = 0 - 1;
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    JsonObject root = jsonBuffer.to<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.createObject();
+#endif
     root["test"] = mx;
     TEST_ASSERT_EQUAL(root["test"], mx);
     TEST_ASSERT(String(mx).equals(root["test"].as<String>()));
@@ -127,9 +132,14 @@ void test_subRooted() {
 void test_parseNodeSyncRoot() {
     // Test passing subconnection json correctly picks top level root
     auto conn = std::make_shared<MeshConnection>();
-    DynamicJsonBuffer buf;
     auto str = "{}";
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument buf;
+    JsonObject obj = buf.to<JsonObject>();
+#else
+    DynamicJsonBuffer buf;
     auto& obj = buf.createObject();
+#endif
     obj["subs"] = "{}";
     TEST_ASSERT(!painlessmesh::parseNodeSyncRoot(conn, obj));
 
@@ -159,14 +169,31 @@ void test_buildPackage_root() {
     String msg = "subs";
     String pkg;
     pkg = mesh.buildMeshPackage(1, 2, NODE_SYNC_REQUEST, msg);
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    DeserializationError error = deserializeJson(jsonBuffer, pkg);
+    if (error) {
+        return;
+    }
+    JsonObject jsonObj = jsonBuffer.as<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer;
     auto& jsonObj = jsonBuffer.parseObject(pkg);
+#endif
     TEST_ASSERT(!jsonObj.containsKey("root"));
 
     mesh.setRoot();
     pkg = mesh.buildMeshPackage(1, 2, NODE_SYNC_REQUEST, msg);
-    jsonBuffer;
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    DeserializationError error = deserializeJson(jsonBuffer, pkg);
+    if (error) {
+        return;
+    }
+    JsonObject jsonObj2 = jsonBuffer.as<JsonObject>();
+#else
     auto& jsonObj2 = jsonBuffer.parseObject(pkg);
+#endif
     TEST_ASSERT(jsonObj2.containsKey("root"));
     TEST_ASSERT(jsonObj2["root"].as<bool>());
 }
