@@ -1,6 +1,3 @@
-#include <Arduino.h>
-#include <ArduinoJson.h>
-
 #include "painlessMesh.h"
 #include "painlessMeshSync.h"
 #include "painlessMeshJson.h"
@@ -22,8 +19,13 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
 //***********************************************************************
 String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS, uint32_t receiveTS, uint32_t transmitTS) {
     staticThis->debugMsg(S_TIME, "buildTimeStamp(): Type = %u, t0 = %u, t1 = %u, t2 = %u\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
+#if ARDUINOJSON_VERSION_MAJOR==6
+    StaticJsonDocument<75> jsonBuffer;
+    JsonObject timeStampObj = jsonBuffer.to<JsonObject>();
+#else
     StaticJsonBuffer<75> jsonBuffer;
     JsonObject& timeStampObj = jsonBuffer.createObject();
+#endif
     timeStampObj["type"] = (int)timeSyncMessageType;
     if (originateTS > 0)
         timeStampObj["t0"] = originateTS;
@@ -33,7 +35,11 @@ String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSync
         timeStampObj["t2"] = transmitTS;
 
     String timeStampStr;
+#if ARDUINOJSON_VERSION_MAJOR==6
+    serializeJson(timeStampObj, timeStampStr);
+#else
     timeStampObj.printTo(timeStampStr);
+#endif
     staticThis->debugMsg(S_TIME, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
 
     return timeStampStr;
@@ -46,20 +52,30 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStampDelay(String &
 
     staticThis->debugMsg(S_TIME, "processTimeStamp(): str=%s\n", str.c_str());
 
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    DeserializationError error = deserializeJson(jsonBuffer, str);
+    if (error) {
+        staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
+        return TIME_SYNC_ERROR;
+    }
+    JsonObject timeStampObj = jsonBuffer.as<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer(75);
     JsonObject& timeStampObj = jsonBuffer.parseObject(str);
     if (!timeStampObj.success()) {
         staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
         return TIME_SYNC_ERROR;
     }
+#endif
 
-    ret = static_cast<timeSyncMessageType_t>(timeStampObj.get<int>("type"));
+    ret = static_cast<timeSyncMessageType_t>(timeStampObj["type"].as<int>());
     if (ret == TIME_REQUEST || ret == TIME_RESPONSE) {
-        timeDelay[0] = timeStampObj.get<uint32_t>("t0");
+        timeDelay[0] = timeStampObj["t0"].as<uint32_t>();
     }
     if (ret == TIME_RESPONSE) {
-        timeDelay[1] = timeStampObj.get<uint32_t>("t1");
-        timeDelay[2] = timeStampObj.get<uint32_t>("t2");
+        timeDelay[1] = timeStampObj["t1"].as<uint32_t>();
+        timeDelay[2] = timeStampObj["t2"].as<uint32_t>();
     }
     return ret; // return type of sync message
 

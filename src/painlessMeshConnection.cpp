@@ -6,9 +6,6 @@
 //
 //
 
-#include <Arduino.h>
-#include <ArduinoJson.h>
-
 #include "painlessMesh.h"
 #include "painlessMeshJson.h"
 
@@ -467,7 +464,7 @@ size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes() {
 }
 
 size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
-    return max((long int) 1,round(subConns.length()/30.0));
+    return max((long int) 1,(long int)round(subConns.length()/30.0));
 }
 
 //***********************************************************************
@@ -542,12 +539,23 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    jsonBuffer.nestingLimit = 255;
+    DeserializationError error = deserializeJson(jsonBuffer, buffer);
+    if (error) {
+        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());
+        return;
+    }
+    JsonObject root = jsonBuffer.as<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(buffer.c_str(), 255);
     if (!root.success()) {   // Test if parsing succeeded.
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());
         return;
     }
+#endif
 
     String msg = root["msg"];
     meshPackageType t_message = (meshPackageType)(int)root["type"];
@@ -577,7 +585,11 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
             }
         } else {                                                    // pass it along
             String tempStr;
+#if ARDUINOJSON_VERSION_MAJOR==6
+            serializeJson(root, tempStr);
+#else
             root.printTo(tempStr);
+#endif
             auto conn = staticThis->findConnection((uint32_t)root["dest"], this->nodeId);
             if (conn) {
                 conn->addMessage(tempStr);

@@ -5,9 +5,6 @@
 //  Created by Bill Gray on 7/26/16.
 //
 //
-
-#include <Arduino.h>
-#include <ArduinoJson.h>
 #include "painlessMesh.h"
 
 extern painlessMesh* staticThis;
@@ -67,8 +64,13 @@ bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
 String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg) {
     debugMsg(GENERAL, "In buildMeshPackage(): msg=%s\n", msg.c_str());
 
+#if ARDUINOJSON_VERSION_MAJOR==6
+    DynamicJsonDocument jsonBuffer;
+    JsonObject jsonObj = jsonBuffer.to<JsonObject>();
+#else
     DynamicJsonBuffer jsonBuffer;
     JsonObject& jsonObj = jsonBuffer.createObject();
+#endif
     jsonObj["dest"] = destId;
     //jsonObj["from"] = _nodeId;
     jsonObj["from"] = fromId;
@@ -78,19 +80,31 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
     {
+#if ARDUINOJSON_VERSION_MAJOR==6
+        jsonObj["subs"] = serialized(msg);
+#else
         jsonObj["subs"] = RawJson(msg);
+#endif
         if (this->isRoot())
             jsonObj["root"] = true;
         break;
     }
     case TIME_SYNC:
+#if ARDUINOJSON_VERSION_MAJOR==6
+        jsonObj["msg"] = serialized(msg);
+#else
         jsonObj["msg"] = RawJson(msg);
+#endif
         break;
     default:
         jsonObj["msg"] = msg;
     }
 
     String ret;
+#if ARDUINOJSON_VERSION_MAJOR==6
+    serializeJson(jsonObj, ret);
+#else
     jsonObj.printTo(ret);
+#endif
     return ret;
 }
