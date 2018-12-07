@@ -6,7 +6,7 @@
         "type": "git",
         "url": "https://gitlab.com/painlessMesh/painlessMesh"
     },
-    "version": "1.2.8",
+    "version": "1.3.0",
     "frameworks": "arduino",
     "platforms": "espressif8266, espressif32",
     "dependencies": [
