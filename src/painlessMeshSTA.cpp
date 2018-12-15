@@ -111,7 +111,7 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
     WiFi.scanNetworksAsync([&](int networks) { this->scanComplete(); }, true);
 #endif
 
-    task.delay(1000*SCAN_INTERVAL); // Scan should be completed by them and next step called. If not then we restart here.
+    task.delay(1000*SCAN_INTERVAL); // Scan should be completed by then and next step called. If not then we restart here.
     return;
 }
 
