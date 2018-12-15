@@ -35,13 +35,13 @@ class StationScan {
     void scanComplete();
     void filterAPs();
     void connectToAP();
+    std::list<WiFi_AP_Record_t> aps;
 
   private:
     String                      ssid;
     String                      password;
     painlessMesh                *mesh;
-    uint16_t                    port;
-    std::list<WiFi_AP_Record_t> aps;
+    uint16_t                    port;    
 
     void requestIP(WiFi_AP_Record_t &ap);
 
