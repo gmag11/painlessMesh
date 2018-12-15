@@ -60,7 +60,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         });
 
         IPAddress ip = WiFi.gatewayIP();
-        if (stationScan.manualIP != 0) {
+        if (stationScan.manualIP.isSet() != 0) {
             ip = stationScan.manualIP;
         }
 
