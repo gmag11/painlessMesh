@@ -119,7 +119,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
     staticThis->debugMsg(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n", staticThis->getNodeTime());
 
     aps.clear();
-    staticThis->debugMsg(CONNECTION, "scanComplete():-- > Cleared old aps.\n");
+    staticThis->debugMsg(CONNECTION, "scanComplete():-- > Cleared old APs.\n");
 
     int8_t num = WiFi.scanComplete();
     if(num == WIFI_SCAN_RUNNING || num == WIFI_SCAN_FAILED) return;
