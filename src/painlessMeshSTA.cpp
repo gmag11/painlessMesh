@@ -49,7 +49,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
     // TODO: We could pass this to tcpConnect instead of loading it here
 
-    if (_station_got_ip && WiFi.localIP() != 0) {
+    if (_station_got_ip && WiFi.localIP().isSet() != 0) {
         AsyncClient *pConn = new AsyncClient();
 
         pConn->onError([](void *, AsyncClient * client, int8_t err) {
