@@ -19,7 +19,7 @@ ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
     buffer = String();
 }
 
-void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, 
+void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr,
         size_t length, temp_buffer_t &buf) {
     auto data_ptr = cstr;
     do {
@@ -124,9 +124,9 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
 
     //tcp_arg(pcb, static_cast<void*>(this));
     auto arg = static_cast<void*>(this);
-    client->onData(meshRecvCb, arg); 
+    client->onData(meshRecvCb, arg);
 
-    client->onAck(tcpSentCb, arg); 
+    client->onAck(tcpSentCb, arg);
 
     if (station) { // we are the station, start nodeSync
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
@@ -158,11 +158,11 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     this->nodeSyncTask.set(
             syncInterval, TASK_FOREVER, [this](){
         staticThis->debugMsg(SYNC, "nodeSyncTask(): \n");
-        staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
+        staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n",
                 this->nodeId);
         auto saveConn = staticThis->findConnection(this->client);
         String subs = staticThis->subConnectionJson(saveConn);
-        staticThis->sendMessage(saveConn, this->nodeId, 
+        staticThis->sendMessage(saveConn, this->nodeId,
                 staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
     });
     staticThis->_scheduler.addTask(this->nodeSyncTask);
@@ -195,7 +195,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     });
     staticThis->_scheduler.addTask(sentBufferTask);
     sentBufferTask.enableDelayed();
-    
+
     staticThis->debugMsg(GENERAL, "MeshConnection(): leaving\n");
 }
 
@@ -213,7 +213,7 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
 void ICACHE_FLASH_ATTR MeshConnection::close() {
     if (!connected)
         return;
-    
+
     staticThis->debugMsg(CONNECTION, "MeshConnection::close().\n");
     this->connected = false;
 
@@ -438,7 +438,7 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
     String ret = "[";
     for (auto &&sub : connections) {
         if (!sub->connected) {
-            debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n", 
+            debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n",
                     sub->nodeId);
         } else if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
             if (ret.length() > 1)
@@ -533,15 +533,15 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
     //client->ackLater();
     //tcp_recved(receiveConn->pcb, total_length);
 
-    receiveConn->readBufferTask.forceNextIteration(); 
+    receiveConn->readBufferTask.forceNextIteration();
 }
 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
 #if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer;
-    jsonBuffer.nestingLimit = 255;
+    DynamicJsonDocument jsonBuffer(1024);
+    //jsonBuffer.nestingLimit = 255;
     DeserializationError error = deserializeJson(jsonBuffer, buffer);
     if (error) {
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());

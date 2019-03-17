@@ -53,7 +53,7 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStampDelay(String &
     staticThis->debugMsg(S_TIME, "processTimeStamp(): str=%s\n", str.c_str());
 
 #if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer;
+    DynamicJsonDocument jsonBuffer(1024);
     DeserializationError error = deserializeJson(jsonBuffer, str);
     if (error) {
         staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
@@ -86,7 +86,7 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment(uint32_t times[NUMBER_OF_TIME
     staticThis->debugMsg(S_TIME, "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", times[0], times[1], times[2], times[3]);
 
     if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
-        // if any value is 0 
+        // if any value is 0
         staticThis->debugMsg(ERROR, "calcAdjustment(): TimeStamp error.\n");
         return 0x7FFFFFFF; // return max value
     }
@@ -96,11 +96,11 @@ int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment(uint32_t times[NUMBER_OF_TIME
 
 
     if (offset < TASK_SECOND && offset > 4)
-        timeAdjuster += offset/4; // Take small steps to avoid over correction 
-    else 
+        timeAdjuster += offset/4; // Take small steps to avoid over correction
+    else
         timeAdjuster += offset; // Accumulate offset
 
-    staticThis->debugMsg(S_TIME, 
+    staticThis->debugMsg(S_TIME,
             "calcAdjustment(): Calculated offset %d us.\n", offset);
     staticThis->debugMsg(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n", timeAdjuster, staticThis->getNodeTime());
 
@@ -112,7 +112,7 @@ int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
     staticThis->debugMsg(S_TIME, "delayCalc(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n", timeDelay[0], timeDelay[1], timeDelay[2], timeDelay[3]);
 
     if (timeDelay[0] == 0 || timeDelay[1] == 0 || timeDelay[2] == 0 || timeDelay[3] == 0) {
-        // if any value is 0 
+        // if any value is 0
         staticThis->debugMsg(ERROR, "delayCalc(): TimeStamp error.\n");
         return -1; // return max value
     }
@@ -139,7 +139,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     }
 
     if (conn->newConnection) {
-        // There is a small but significant probability that we get connected twice to the 
+        // There is a small but significant probability that we get connected twice to the
         // same node, e.g. if scanning happened while sub connection data was incomplete.
         auto oldConnection = findConnection(remoteNodeId);
         if (oldConnection) {
@@ -148,7 +148,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
             return;
         }
 
-        // 
+        //
         debugMsg(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n", conn->nodeId, remoteNodeId);
         conn->nodeId = remoteNodeId;
         // TODO: Move this to its own function
@@ -156,13 +156,13 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
             staticThis->debugMsg(CONNECTION, "newConnectionTask():\n");
             staticThis->debugMsg(CONNECTION, "newConnectionTask(): adding %u now= %u\n", remoteNodeId, staticThis->getNodeTime());
             if (staticThis->newConnectionCallback)
-                staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user            
+                staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user
         });
 
         _scheduler.addTask(newConnectionTask);
         newConnectionTask.enable();
 
-        // Initially interval is every 10 seconds, 
+        // Initially interval is every 10 seconds,
         // this will slow down to TIME_SYNC_INTERVAL
         // after first succesfull sync
         conn->timeSyncTask.set(10*TASK_SECOND, TASK_FOREVER,
@@ -176,7 +176,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
             // We are STA, request time immediately
             conn->timeSyncTask.enable();
         else
-            // We are the AP, give STA the change to initiate time sync 
+            // We are the AP, give STA the change to initiate time sync
             conn->timeSyncTask.enableDelayed();
         conn->newConnection = false;
     }
@@ -197,7 +197,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
         // Check whether we already know any of the nodes
         // This is necessary to avoid loops.. Not sure if we need to check
         // for both this node and master node, but better safe than sorry
-        if ( painlessmesh::stringContainsNumber(inComingSubs, String(conn->nodeId)) || 
+        if ( painlessmesh::stringContainsNumber(inComingSubs, String(conn->nodeId)) ||
                 painlessmesh::stringContainsNumber(inComingSubs, String(this->_nodeId))) {
             // This node is also in the incoming subs, so we have a loop
             // Disconnecting to break the loop
@@ -217,7 +217,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     } else {
         stability += min(1000-stability,(size_t)25);
     }
-    
+
     debugMsg(SYNC, "handleNodeSync(): json = %s\n", inComingSubs.c_str());
 
     switch (message_type) {
@@ -404,7 +404,7 @@ void ICACHE_FLASH_ATTR painlessMesh::syncSubConnections(uint32_t changedId) {
     for (auto &&connection : _connections) {
         if (connection->connected &&
                 !connection->newConnection &&
-                connection->nodeId != 0 && 
+                connection->nodeId != 0 &&
                 connection->nodeId != changedId) { // Exclude current
             connection->nodeSyncTask.forceNextIteration();
         }
