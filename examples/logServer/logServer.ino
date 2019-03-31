@@ -19,7 +19,7 @@ void receivedCallback( uint32_t from, String &msg );
 // Send my ID every 10 seconds to inform others
 Task logServerTask(10000, TASK_FOREVER, []() {
 #if ARDUINOJSON_VERSION_MAJOR==6
-        DynamicJsonDocument jsonBuffer;
+        DynamicJsonDocument jsonBuffer(256);
         JsonObject msg = jsonBuffer.to<JsonObject>();
 #else
         DynamicJsonBuffer jsonBuffer;
