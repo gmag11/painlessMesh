@@ -65,7 +65,7 @@ String ICACHE_FLASH_ATTR painlessMesh::buildMeshPackage(uint32_t destId, uint32_
     debugMsg(GENERAL, "In buildMeshPackage(): msg=%s\n", msg.c_str());
 
 #if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer;
+    DynamicJsonDocument jsonBuffer(256);
     JsonObject jsonObj = jsonBuffer.to<JsonObject>();
 #else
     DynamicJsonBuffer jsonBuffer;
