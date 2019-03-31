@@ -49,7 +49,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
     // TODO: We could pass this to tcpConnect instead of loading it here
 
-    if (_station_got_ip && WiFi.localIP() != (IPAddress)0) {
+    if (_station_got_ip && WiFi.localIP()) {
         AsyncClient *pConn = new AsyncClient();
 
         pConn->onError([](void *, AsyncClient * client, int8_t err) {
@@ -60,7 +60,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         });
 
         IPAddress ip = WiFi.gatewayIP();
-        if (stationScan.manualIP != (IPAddress)0) {
+        if (stationScan.manualIP) {
             ip = stationScan.manualIP;
         }
 
