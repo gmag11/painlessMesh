@@ -53,7 +53,7 @@ timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStampDelay(String &
     staticThis->debugMsg(S_TIME, "processTimeStamp(): str=%s\n", str.c_str());
 
 #if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer(256);
+    DynamicJsonDocument jsonBuffer(1024 + str.length());
     DeserializationError error = deserializeJson(jsonBuffer, str);
     if (error) {
         staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
