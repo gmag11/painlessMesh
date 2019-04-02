@@ -6,3 +6,8 @@ compile_*.sh
 .vscode/c_cpp_properties.json
 .vscode/settings.json
 doxygen/*/
+CMakeCache.txt
+CMakeFiles
+Makefile
+bin/
+cmake_install.cmake
