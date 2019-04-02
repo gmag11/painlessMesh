@@ -17,9 +17,9 @@ platformio:
 
 arduino:
   before_script:
-    - wget https://downloads.arduino.cc/arduino-1.8.5-linux64.tar.xz
-    - tar xvfJ arduino-1.8.5-linux64.tar.xz
-    - cd arduino-1.8.5
+    - wget https://downloads.arduino.cc/arduino-1.8.9-linux64.tar.xz
+    - tar xvfJ arduino-1.8.9-linux64.tar.xz
+    - cd arduino-1.8.9
     - ./arduino --pref "boardsmanager.additional.urls=https://adafruit.github.io/arduino-board-index/package_adafruit_index.json,http://arduino.esp8266.com/stable/package_esp8266com_index.json" --save-prefs
     - ./arduino --install-boards esp8266:esp8266
     - ./arduino --install-library TaskScheduler
@@ -28,8 +28,8 @@ arduino:
     - git clone https://github.com/me-no-dev/AsyncTCP; cp -r AsyncTCP/src ~/Arduino/libraries/AsyncTCP
     - cp -r ../src ~/Arduino/libraries/painlessMesh
   script:
-    - ./arduino -v --board esp8266:esp8266:d1_mini:CpuFrequency=80,FlashSize=4M1M --verify ../examples/startHere/basic.ino
-    - ./arduino -v --board esp8266:esp8266:d1_mini:CpuFrequency=80,FlashSize=4M1M --verify ../examples/startHere/startHere.ino
+    - ./arduino -v --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify ../examples/startHere/startHere.ino
+    - ./arduino -v --board esp8266:esp8266:d1_mini:xtal=80,eesz=4M1M --verify ../examples/startHere/basic.ino
 
 pages:
   script:

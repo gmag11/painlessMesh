@@ -540,7 +540,7 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
 #if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer(256);
+    DynamicJsonDocument jsonBuffer(1024 + buffer.length());
     DeserializationError error = deserializeJson(jsonBuffer, buffer, DeserializationOption::NestingLimit(255));
     if (error) {
         staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());

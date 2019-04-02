@@ -20,7 +20,7 @@ size_t logServerId = 0;
 // Send message to the logServer every 10 seconds 
 Task myLoggingTask(10000, TASK_FOREVER, []() {
 #if ARDUINOJSON_VERSION_MAJOR==6
-        DynamicJsonDocument jsonBuffer;
+        DynamicJsonDocument jsonBuffer(1024);
         JsonObject msg = jsonBuffer.to<JsonObject>();
 #else
         DynamicJsonBuffer jsonBuffer;
@@ -72,8 +72,12 @@ void receivedCallback( uint32_t from, String &msg ) {
 
   // Saving logServer
 #if ARDUINOJSON_VERSION_MAJOR==6
-  DynamicJsonDocument jsonBuffer;
+  DynamicJsonDocument jsonBuffer(1024 + msg.length());
   DeserializationError error = deserializeJson(jsonBuffer, msg);
+  if (error) {
+    Serial.printf("DeserializationError\n");
+    return;
+  }
   JsonObject root = jsonBuffer.as<JsonObject>();
 #else
   DynamicJsonBuffer jsonBuffer;

@@ -42,7 +42,7 @@ void collectData() {
     state = "";
 
 #if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer;
+    DynamicJsonDocument jsonBuffer(256);
     JsonObject stateObj = jsonBuffer.to<JsonObject>();
 #else
     DynamicJsonBuffer jsonBuffer;
@@ -60,9 +60,9 @@ void collectData() {
 
     String subs = mesh.subConnectionJson();
 #if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument subsBuffer;
-    subsBuffer.nestingLimit = 255;
-    DeserializationError error = deserializeJson(subsBuffer, subs);
+    DynamicJsonDocument subsBuffer(256);
+    DeserializationError error = deserializeJson(subsBuffer, subs, 
+        DeserializationOption::NestingLimit(255));
     if (error) {
         return;
     }
