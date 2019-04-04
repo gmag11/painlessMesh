@@ -88,7 +88,7 @@ void setup() {
 }
 
 void loop() {
-  //userScheduler.execute(); // it will run mesh scheduler as well
+  userScheduler.execute(); // it will run mesh scheduler as well
   mesh.update();
   digitalWrite(LED, !onFlag);
 }
