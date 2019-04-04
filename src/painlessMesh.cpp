@@ -111,19 +111,29 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 //***********************************************************************
 // do nothing if user have other Scheduler, they have to run their scheduler in loop not this library
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
-#ifdef ESP32
-    if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+    if( semaphoreTake() )
     {
-#endif
         _scheduler.execute();
-#ifdef ESP32
-        xSemaphoreGive( xSemaphore );
-    } else {
-        debugMsg(ERROR, "update(): Cannot get semaphore\n");
+        semaphoreGive();
     }
-#endif
     return;
 }
+
+bool ICACHE_FLASH_ATTR painlessMesh::semaphoreTake(void) {
+#ifdef ESP32
+    return xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE;
+#else
+    return true;
+#endif
+}
+
+
+void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
+#ifdef ESP32
+    xSemaphoreGive( xSemaphore );
+#endif
+}
+
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {

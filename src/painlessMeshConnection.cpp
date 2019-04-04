@@ -135,41 +135,26 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     }
 
     client->onError([](void * arg, AsyncClient *client, int8_t err) {
-#ifdef ESP32
-                if( xSemaphoreTake( staticThis->xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-                {
-#endif
-        staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %s\n", client->errorToString(err));
-#ifdef ESP32
-        xSemaphoreGive( staticThis->xSemaphore );
-    } else {
-        staticThis->debugMsg(ERROR, "onConnect(): Cannot get semaphore\n");
-    }
-#endif
+        if (staticThis->semaphoreTake()) {
+            staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %s\n", client->errorToString(err));
+            staticThis->semaphoreGive();
+        }
     }, arg);
 
     client->onDisconnect([](void *arg, AsyncClient *client) {
-#ifdef ESP32
-                if( xSemaphoreTake( staticThis->xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-                {
-#endif
-
-        if (arg == NULL) {
-            staticThis->debugMsg(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
-            if (client->connected())
-                client->close(true);
-            return;
+        if (staticThis->semaphoreTake()) {
+            if (arg == NULL) {
+                staticThis->debugMsg(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
+                if (client->connected())
+                    client->close(true);
+                return;
+            }
+            auto conn = static_cast<MeshConnection*>(arg);
+            staticThis->debugMsg(CONNECTION, "onDisconnect():\n");
+            staticThis->debugMsg(CONNECTION, "onDisconnect(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
+            conn->close();
+            staticThis->semaphoreGive();
         }
-        auto conn = static_cast<MeshConnection*>(arg);
-        staticThis->debugMsg(CONNECTION, "onDisconnect():\n");
-        staticThis->debugMsg(CONNECTION, "onDisconnect(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
-        conn->close();
-#ifdef ESP32
-        xSemaphoreGive( staticThis->xSemaphore );
-    } else {
-        staticThis->debugMsg(ERROR, "onConnect(): Cannot get semaphore\n");
-    }
-#endif
     }, arg);
 
     auto syncInterval = NODE_TIMEOUT/2;
@@ -533,49 +518,35 @@ bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, uint32_t time) {
-#ifdef ESP32
-                if( xSemaphoreTake( staticThis->xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-                {
-#endif
-    if (arg == NULL) {
-        staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
+    if (staticThis->semaphoreTake()) {
+        if (arg == NULL) {
+            staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
+        }
+        auto conn = static_cast<MeshConnection*>(arg);
+        conn->sentBufferTask.forceNextIteration();
+        staticThis->semaphoreGive();
     }
-    auto conn = static_cast<MeshConnection*>(arg);
-    conn->sentBufferTask.forceNextIteration();
-#ifdef ESP32
-        xSemaphoreGive( staticThis->xSemaphore );
-    } else {
-        staticThis->debugMsg(ERROR, "onConnect(): Cannot get semaphore\n");
-    }
-#endif
 }
 
 void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, size_t len) {
-#ifdef ESP32
-                if( xSemaphoreTake( staticThis->xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-                {
-#endif
-    if (arg == NULL) {
-        staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
+    if (staticThis->semaphoreTake()) {
+        if (arg == NULL) {
+            staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
+        }
+        auto receiveConn = static_cast<MeshConnection*>(arg);
+
+        staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
+
+        receiveConn->receiveBuffer.push(static_cast<const char*>(data), len, shared_buffer);
+
+        // Signal that we are done
+        client->ack(len); // ackLater?
+        //client->ackLater();
+        //tcp_recved(receiveConn->pcb, total_length);
+
+        receiveConn->readBufferTask.forceNextIteration(); 
+        staticThis->semaphoreGive();
     }
-    auto receiveConn = static_cast<MeshConnection*>(arg);
-
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
-
-    receiveConn->receiveBuffer.push(static_cast<const char*>(data), len, shared_buffer);
-
-    // Signal that we are done
-    client->ack(len); // ackLater?
-    //client->ackLater();
-    //tcp_recved(receiveConn->pcb, total_length);
-
-    receiveConn->readBufferTask.forceNextIteration(); 
-#ifdef ESP32
-        xSemaphoreGive( staticThis->xSemaphore );
-    } else {
-        staticThis->debugMsg(ERROR, "onConnect(): Cannot get semaphore\n");
-    }
-#endif
 }
 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {

@@ -39,19 +39,12 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
     _tcpListener->setNoDelay(true);
 
     _tcpListener->onClient([](void * arg, AsyncClient *client) {
-#ifdef ESP32
-                if( xSemaphoreTake( staticThis->xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-                {
-#endif
-        staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
-        auto conn = std::make_shared<MeshConnection>(client, staticThis, false);
-        staticThis->_connections.push_back(conn);
-#ifdef ESP32
-        xSemaphoreGive( staticThis->xSemaphore );
-    } else {
-        staticThis->debugMsg(ERROR, "onConnect(): Cannot get semaphore\n");
-    }
-#endif
+        if (staticThis->semaphoreTake()) {
+            staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
+            auto conn = std::make_shared<MeshConnection>(client, staticThis, false);
+            staticThis->_connections.push_back(conn);
+            staticThis->semaphoreGive();
+        }
     }, NULL);
 
     _tcpListener->begin();

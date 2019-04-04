@@ -173,10 +173,6 @@ public:
 #endif
     Scheduler &scheduler = _scheduler;
 
-#ifdef ESP32
-    SemaphoreHandle_t xSemaphore = NULL;
-#endif
-
 #ifndef UNITY // Make everything public in unit test mode
 protected:
 #endif
@@ -234,6 +230,8 @@ protected:
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
     nodeDelayCallback_t             nodeDelayReceivedCallback;
 #ifdef ESP32
+    SemaphoreHandle_t xSemaphore = NULL;
+
     WiFiEventId_t eventScanDoneHandler;
     WiFiEventId_t eventSTAStartHandler;
     WiFiEventId_t eventSTADisconnectedHandler;
@@ -273,9 +271,26 @@ protected:
     Task              droppedConnectionTask;
     Task              newConnectionTask;
 
+    /**
+     * Wrapper function for ESP32 semaphore function
+     *
+     * Waits for the semaphore to be available and then returns true
+     *
+     * Always return true on ESP8266
+     */
+    bool semaphoreTake();
+    /**
+     * Wrapper function for ESP32 semaphore give function
+     *
+     * Does nothing on ESP8266 hardware
+     */
+    void semaphoreGive();
+
     friend class StationScan;
     friend class MeshConnection;
-    friend void  onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
+    friend void onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
+    friend void tcpSentCb(void * arg, AsyncClient * tpcb, size_t len, uint32_t time);
+    friend void meshRecvCb(void * arg, AsyncClient *, void * data, size_t len);
 };
 
 #endif //   _EASY_MESH_H_
