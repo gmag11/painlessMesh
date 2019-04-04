@@ -60,6 +60,10 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         _scheduler.addTask(stationScan.task);
     }
 
+#ifdef ESP32
+    xSemaphore = xSemaphoreCreateMutex();
+#endif
+
     eventHandleInit();
     
     _scheduler.enableAll();
@@ -107,9 +111,17 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 //***********************************************************************
 // do nothing if user have other Scheduler, they have to run their scheduler in loop not this library
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
-    if (isExternalScheduler == false) {
+#ifdef ESP32
+    if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+    {
+#endif
         _scheduler.execute();
+#ifdef ESP32
+        xSemaphoreGive( xSemaphore );
+    } else {
+        debugMsg(ERROR, "update(): Cannot get semaphore\n");
     }
+#endif
     return;
 }
 

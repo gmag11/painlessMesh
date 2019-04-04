@@ -53,10 +53,20 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         AsyncClient *pConn = new AsyncClient();
 
         pConn->onError([](void *, AsyncClient * client, int8_t err) {
+#ifdef ESP32
+                if( xSemaphoreTake( staticThis->xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+                {
+#endif
             staticThis->debugMsg(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
             if (client->connected())
                 client->close();
             WiFi.disconnect();
+#ifdef ESP32
+        xSemaphoreGive( staticThis->xSemaphore );
+    } else {
+        staticThis->debugMsg(ERROR, "onConnect(): Cannot get semaphore\n");
+    }
+#endif
         });
 
         IPAddress ip = WiFi.gatewayIP();
@@ -65,9 +75,19 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
         }
 
         pConn->onConnect([](void *, AsyncClient *client) {
+#ifdef ESP32
+    if( xSemaphoreTake( staticThis->xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+    {
+#endif
             staticThis->debugMsg(CONNECTION, "New STA connection incoming\n");
             auto conn = std::make_shared<MeshConnection>(client, staticThis, true);
             staticThis->_connections.push_back(conn);
+#ifdef ESP32
+        xSemaphoreGive( staticThis->xSemaphore );
+    } else {
+        staticThis->debugMsg(ERROR, "onConnect(): Cannot get semaphore\n");
+    }
+#endif
         }, NULL); 
 
         pConn->connect(ip, stationScan.port);

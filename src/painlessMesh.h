@@ -173,6 +173,10 @@ public:
 #endif
     Scheduler &scheduler = _scheduler;
 
+#ifdef ESP32
+    SemaphoreHandle_t xSemaphore = NULL;
+#endif
+
 #ifndef UNITY // Make everything public in unit test mode
 protected:
 #endif
