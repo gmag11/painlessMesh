@@ -13,8 +13,13 @@ ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Scheduler *baseScheduler, uint16_t port, WiFiMode_t connectMode, uint8_t channel, uint8_t hidden, uint8_t maxconn) {
 
+#ifdef ESP8266
+    // Due to ESP32 multithreaded we need to protect the internal scheduler
+    // so currently we use a separate scheduler for internal and external for
+    // ESP32
     baseScheduler->setHighPriorityScheduler(&this->_scheduler);
     isExternalScheduler = true;
+#endif
 
     init(ssid, password, port, connectMode, channel, hidden, maxconn);
 }
@@ -59,6 +64,10 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
         stationScan.init(this, ssid, password, port);
         _scheduler.addTask(stationScan.task);
     }
+
+#ifdef ESP32
+    xSemaphore = xSemaphoreCreateMutex();
+#endif
 
     eventHandleInit();
     
@@ -107,11 +116,31 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 //***********************************************************************
 // do nothing if user have other Scheduler, they have to run their scheduler in loop not this library
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
-    if (isExternalScheduler == false) {
-        _scheduler.execute();
+    if ( isExternalScheduler == false ) {
+        if( semaphoreTake() )
+        {
+            _scheduler.execute();
+            semaphoreGive();
+        }
     }
     return;
 }
+
+bool ICACHE_FLASH_ATTR painlessMesh::semaphoreTake(void) {
+#ifdef ESP32
+    return xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE;
+#else
+    return true;
+#endif
+}
+
+
+void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
+#ifdef ESP32
+    xSemaphoreGive( xSemaphore );
+#endif
+}
+
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {

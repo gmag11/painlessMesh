@@ -39,9 +39,12 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
     _tcpListener->setNoDelay(true);
 
     _tcpListener->onClient([](void * arg, AsyncClient *client) {
-        staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
-        auto conn = std::make_shared<MeshConnection>(client, staticThis, false);
-        staticThis->_connections.push_back(conn);
+        if (staticThis->semaphoreTake()) {
+            staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
+            auto conn = std::make_shared<MeshConnection>(client, staticThis, false);
+            staticThis->_connections.push_back(conn);
+            staticThis->semaphoreGive();
+        }
     }, NULL);
 
     _tcpListener->begin();

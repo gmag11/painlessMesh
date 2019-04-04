@@ -135,20 +135,26 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     }
 
     client->onError([](void * arg, AsyncClient *client, int8_t err) {
-        staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %s\n", client->errorToString(err));
+        if (staticThis->semaphoreTake()) {
+            staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %s\n", client->errorToString(err));
+            staticThis->semaphoreGive();
+        }
     }, arg);
 
     client->onDisconnect([](void *arg, AsyncClient *client) {
-        if (arg == NULL) {
-            staticThis->debugMsg(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
-            if (client->connected())
-                client->close(true);
-            return;
+        if (staticThis->semaphoreTake()) {
+            if (arg == NULL) {
+                staticThis->debugMsg(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
+                if (client->connected())
+                    client->close(true);
+                return;
+            }
+            auto conn = static_cast<MeshConnection*>(arg);
+            staticThis->debugMsg(CONNECTION, "onDisconnect():\n");
+            staticThis->debugMsg(CONNECTION, "onDisconnect(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
+            conn->close();
+            staticThis->semaphoreGive();
         }
-        auto conn = static_cast<MeshConnection*>(arg);
-        staticThis->debugMsg(CONNECTION, "onDisconnect():\n");
-        staticThis->debugMsg(CONNECTION, "onDisconnect(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
-        conn->close();
     }, arg);
 
     auto syncInterval = NODE_TIMEOUT/2;
@@ -422,10 +428,11 @@ std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(
 
 //***********************************************************************
 String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(std::shared_ptr<MeshConnection> exclude) {
-    if (exclude == NULL)
+    if (exclude == NULL) {
         return subConnectionJsonHelper(_connections);
-    else
+    } else {
         return subConnectionJsonHelper(_connections, exclude->nodeId);
+    }
 }
 
 //***********************************************************************
@@ -511,29 +518,35 @@ bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, uint32_t time) {
-    if (arg == NULL) {
-        staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
+    if (staticThis->semaphoreTake()) {
+        if (arg == NULL) {
+            staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
+        }
+        auto conn = static_cast<MeshConnection*>(arg);
+        conn->sentBufferTask.forceNextIteration();
+        staticThis->semaphoreGive();
     }
-    auto conn = static_cast<MeshConnection*>(arg);
-    conn->sentBufferTask.forceNextIteration();
 }
 
 void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, size_t len) {
-    if (arg == NULL) {
-        staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
+    if (staticThis->semaphoreTake()) {
+        if (arg == NULL) {
+            staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
+        }
+        auto receiveConn = static_cast<MeshConnection*>(arg);
+
+        staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
+
+        receiveConn->receiveBuffer.push(static_cast<const char*>(data), len, shared_buffer);
+
+        // Signal that we are done
+        client->ack(len); // ackLater?
+        //client->ackLater();
+        //tcp_recved(receiveConn->pcb, total_length);
+
+        receiveConn->readBufferTask.forceNextIteration(); 
+        staticThis->semaphoreGive();
     }
-    auto receiveConn = static_cast<MeshConnection*>(arg);
-
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
-
-    receiveConn->receiveBuffer.push(static_cast<const char*>(data), len, shared_buffer);
-
-    // Signal that we are done
-    client->ack(len); // ackLater?
-    //client->ackLater();
-    //tcp_recved(receiveConn->pcb, total_length);
-
-    receiveConn->readBufferTask.forceNextIteration(); 
 }
 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
@@ -614,28 +627,39 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
 void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
 #ifdef ESP32
     eventScanDoneHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-        staticThis->debugMsg(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
-        staticThis->stationScan.task.setCallback([]() {
-            staticThis->stationScan.scanComplete();
-        });
-        staticThis->stationScan.task.forceNextIteration();
+        {
+            staticThis->debugMsg(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
+            staticThis->stationScan.task.setCallback([]() {
+              staticThis->stationScan.scanComplete();
+            });
+            staticThis->stationScan.task.forceNextIteration();
+        }
     }, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
     eventSTAStartHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-        staticThis->stationScan.task.forceNextIteration();
-        staticThis->debugMsg(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
+        {
+            //staticThis->stationScan.task.forceNextIteration();
+            staticThis->debugMsg(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
+        }
     }, WiFiEvent_t::SYSTEM_EVENT_STA_START);
 
     eventSTADisconnectedHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-        staticThis->_station_got_ip = false;
-        staticThis->debugMsg(CONNECTION, "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
+        {
+            staticThis->_station_got_ip = false;
+            staticThis->debugMsg(CONNECTION, "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
+            staticThis->stationScan.task.forceNextIteration();
+            //staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
+        }
+ 
     }, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
     eventSTAGotIPHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+        {
             staticThis->_station_got_ip = true;
             staticThis->debugMsg(CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
             staticThis->tcpConnect(); // Connect to TCP port
+
+        }  
     }, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 #elif defined(ESP8266)
     eventSTAConnectedHandler = WiFi.onStationModeConnected([&](const WiFiEventStationModeConnected &event) {
