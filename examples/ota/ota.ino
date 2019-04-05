@@ -1,12 +1,5 @@
-//************************************************************
-// this is a simple example that uses the painlessMesh library
-//
-// 1. sends a silly message to every node on the mesh at a random time between 1
-// and 5 seconds
-// 2. prints anything it receives to Serial.print
-//
-//
-//************************************************************
+#define ARDUINOJSON_ENABLE_STD_STRING 1
+
 #ifdef ESP32
 #include <SPIFFS.h>
 #include <Update.h>
@@ -14,10 +7,10 @@
 #include <FS.h>
 #endif
 
-#define OTA_FN "/ota_fw.json"
-
 #include "base64.h"
 #include "painlessMesh.h"
+
+#define OTA_FN "/ota_fw.json"
 
 #define MESH_PREFIX "whateverYouLike"
 #define MESH_PASSWORD "somethingSneaky"
@@ -82,7 +75,7 @@ void receivedCallback(uint32_t from, String &msg) {
     JsonObject root = jsonBuffer.as<JsonObject>();
 #else
     DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(msg);
+    JsonObject &root = jsonBuffer.parseObject(msg);
     if (root.success()) isJSON = true;
 #endif
     if (isJSON && root.containsKey("plugin") &&
@@ -153,31 +146,30 @@ void receivedCallback(uint32_t from, String &msg) {
                     }
                 }
                 //    write data
-                const char *b64data = root["data"];
-                size_t b64len = root["dataLength"];
-                size_t binlength = base64_dec_len((char *)b64data, b64len);
-                uint8_t *b64Data = (uint8_t *)malloc(binlength);
+                auto b64data = root["data"].as<std::string>();
+                auto b64Data = base64_decode(b64data);
 
-                base64_decode((char *)b64Data, (char *)b64data,
-                              b64len);  // Dekodiere Base64
-                if (Update.write(b64Data, binlength) != binlength) {
+                if (Update.write((uint8_t *)b64Data.c_str(),
+                                 b64Data.length()) != b64Data.length()) {
                     mesh.debugMsg(ERROR, "handleOTA(): OTA write failed!\n");
                     Update.printError(Serial);
                     Update.end();
                     return;
                 }
-                free(b64Data);
+
                 if (partNo == noPart - 1) {
                     //       check md5, reboot
                     if (Update.end(true)) {  // true to set the size to the
                                              // current progress
+                        Serial.printf("Update MD5: %s\n",
+                                      Update.md5String().c_str());
                         auto file = SPIFFS.open(OTA_FN, "w");
 #if ARDUINOJSON_VERSION_MAJOR == 6
                         DynamicJsonDocument jsonBuffer(1024);
                         auto req = jsonBuffer.to<JsonObject>();
 #else
                         DynamicJsonBuffer jsonBuffer;
-                        JsonObject& req = jsonBuffer.createObject();
+                        JsonObject &req = jsonBuffer.createObject();
 #endif
                         createDataRequest(req, updateFW);
                         String msg;
@@ -254,13 +246,13 @@ void setup() {
 #if ARDUINOJSON_VERSION_MAJOR == 6
         DynamicJsonDocument jsonBuffer(1024);
         DeserializationError error = deserializeJson(jsonBuffer, msg);
-        if (!error) {
+        if (error) {
             Serial.printf("JSON DeserializationError\n");
         }
         JsonObject root = jsonBuffer.as<JsonObject>();
 #else
         DynamicJsonBuffer jsonBuffer;
-        JsonObject& root = jsonBuffer.parseObject(msg);
+        JsonObject &root = jsonBuffer.parseObject(msg);
 #endif
         firmwareFromJSON(currentFW, root);
 
