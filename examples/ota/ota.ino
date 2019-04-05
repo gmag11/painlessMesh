@@ -161,7 +161,7 @@ void receivedCallback(uint32_t from, String &msg) {
                     //       check md5, reboot
                     if (Update.end(true)) {  // true to set the size to the
                                              // current progress
-                        Serial.printf("Update MD5: %s\n",
+                        Serial.printf("Update.MD5: %s\n",
                                       Update.md5String().c_str());
                         auto file = SPIFFS.open(OTA_FN, "w");
 #if ARDUINOJSON_VERSION_MAJOR == 6
@@ -212,11 +212,8 @@ void changedConnectionCallback() {
 void setup() {
     Serial.begin(115200);
 
-    // mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC |
-    // COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-    mesh.setDebugMsgTypes(
-        ERROR |
-        STARTUP);  // set before init() so that you can see startup messages
+    // set before init() so that you can see startup messages
+    mesh.setDebugMsgTypes(ERROR | STARTUP);
 
     mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT,
               WIFI_AP_STA, 6);

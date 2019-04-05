@@ -626,54 +626,62 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
 // WiFi event handler
 void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
 #ifdef ESP32
-    eventScanDoneHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-        {
-            staticThis->debugMsg(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
-            staticThis->stationScan.task.setCallback([]() {
-              staticThis->stationScan.scanComplete();
-            });
+    eventScanDoneHandler = WiFi.onEvent(
+        [](WiFiEvent_t event, WiFiEventInfo_t info) {
+            staticThis->debugMsg(
+                CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
+            staticThis->stationScan.task.setCallback(
+                []() { staticThis->stationScan.scanComplete(); });
             staticThis->stationScan.task.forceNextIteration();
-        }
-    }, WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
+        },
+        WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
-    eventSTAStartHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-        {
-            //staticThis->stationScan.task.forceNextIteration();
-            staticThis->debugMsg(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
-        }
-    }, WiFiEvent_t::SYSTEM_EVENT_STA_START);
+    eventSTAStartHandler = WiFi.onEvent(
+        [](WiFiEvent_t event, WiFiEventInfo_t info) {
+            // staticThis->stationScan.task.forceNextIteration();
+            staticThis->debugMsg(
+                CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
+        },
+        WiFiEvent_t::SYSTEM_EVENT_STA_START);
 
-    eventSTADisconnectedHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-        {
+    eventSTADisconnectedHandler = WiFi.onEvent(
+        [](WiFiEvent_t event, WiFiEventInfo_t info) {
             staticThis->_station_got_ip = false;
-            staticThis->debugMsg(CONNECTION, "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-            staticThis->stationScan.task.forceNextIteration();
-            //staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-        }
- 
-    }, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
+            staticThis->debugMsg(
+                CONNECTION,
+                "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
+            // staticThis->stationScan.task.forceNextIteration();
+            WiFi.disconnect();
+            // Search for APs and connect to the best one
+            staticThis->stationScan.connectToAP();
+        },
+        WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-    eventSTAGotIPHandler = WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-        {
+    eventSTAGotIPHandler = WiFi.onEvent(
+        [](WiFiEvent_t event, WiFiEventInfo_t info) {
             staticThis->_station_got_ip = true;
-            staticThis->debugMsg(CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
-            staticThis->tcpConnect(); // Connect to TCP port
-
-        }  
-    }, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+            staticThis->debugMsg(
+                CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
+            staticThis->tcpConnect();  // Connect to TCP port
+        },
+        WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 #elif defined(ESP8266)
     eventSTAConnectedHandler = WiFi.onStationModeConnected([&](const WiFiEventStationModeConnected &event) {
         //staticThis->debugMsg(CONNECTION, "Event: Station Mode Connected to \"%s\"\n", event.ssid.c_str());
         staticThis->debugMsg(CONNECTION, "Event: Station Mode Connected\n");
     });
 
-    eventSTADisconnectedHandler = WiFi.onStationModeDisconnected([&](const WiFiEventStationModeDisconnected &event) {
-        staticThis->_station_got_ip = false;
-        //staticThis->debugMsg(CONNECTION, "Event: Station Mode Disconnected from %s\n", event.ssid.c_str());
-        staticThis->debugMsg(CONNECTION, "Event: Station Mode Disconnected\n");
-        //WiFi.disconnect();
-        staticThis->stationScan.connectToAP(); // Search for APs and connect to the best one
-    });
+    eventSTADisconnectedHandler = WiFi.onStationModeDisconnected(
+        [&](const WiFiEventStationModeDisconnected &event) {
+            staticThis->_station_got_ip = false;
+            // staticThis->debugMsg(CONNECTION, "Event: Station Mode
+            // Disconnected from %s\n", event.ssid.c_str());
+            staticThis->debugMsg(CONNECTION,
+                                 "Event: Station Mode Disconnected\n");
+            WiFi.disconnect();
+            staticThis->stationScan
+                .connectToAP();  // Search for APs and connect to the best one
+        });
 
     eventSTAAuthChangeHandler = WiFi.onStationModeAuthModeChanged([&](const WiFiEventStationModeAuthModeChanged &event) {
         staticThis->debugMsg(CONNECTION, "Event: Station Mode Auth Mode Change\n");
