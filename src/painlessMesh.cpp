@@ -25,12 +25,11 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Schedule
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, WiFiMode_t connectMode, uint8_t channel, uint8_t hidden, uint8_t maxconn) {
-    // shut everything down, start with a blank slate.
+    // Init random generator seed to generate delay variance
+    randomSeed(millis());
 
-    randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
-
-    if (WiFi.status() != WL_DISCONNECTED)
-        WiFi.disconnect();
+    // Shut Wifi down and start with a blank slage
+    if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect();
 
     debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
     WiFi.persistent(false);
