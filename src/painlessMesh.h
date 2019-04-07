@@ -25,6 +25,10 @@ using namespace std;
 #include "painlessMeshSTA.h"
 #include "painlessMeshConnection.h"
 
+typedef String TSTRING;
+#undef ARDUINOJSON_ENABLE_STD_STRING
+#include "painlessmesh/protocol.hpp"
+
 #define NODE_TIMEOUT         10*TASK_SECOND
 #define MIN_FREE_MEMORY      4000 // Minimum free memory, besides here all packets in queue are discarded.
 #define MAX_MESSAGE_QUEUE    50 // MAX number of unsent messages in queue. Newer messages are discarded
