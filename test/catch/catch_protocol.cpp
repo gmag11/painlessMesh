@@ -405,3 +405,62 @@ SCENARIO("The Variant type properly carries over errors",
     }
   }
 }
+
+SCENARIO(
+    "The construction of a Time package automatically sets the correct time "
+    "sync type",
+    "[protocol]") {
+  GIVEN("Calling the constructor with no time") {
+    auto pkg1 = TimeSync(10, 11);
+    THEN("The time type is TIME_SYNC_REQUEST") {
+      REQUIRE(pkg1.msg.type == TIME_SYNC_REQUEST);
+    }
+  }
+  GIVEN("Calling the constructor with one time") {
+    auto pkg1 = TimeSync(10, 11, 12);
+    THEN("The time type is TIME_REQUEST") {
+      REQUIRE(pkg1.msg.type == TIME_REQUEST);
+      REQUIRE(pkg1.msg.t0 == 12);
+    }
+  }
+  GIVEN("Calling the constructor with two or three times") {
+    auto pkg2 = TimeSync(10, 11, 12, 13);
+    auto pkg3 = TimeSync(10, 11, 12, 13, 14);
+    THEN("The time type is TIME_REPLY") {
+      REQUIRE(pkg2.msg.type == TIME_REPLY);
+      REQUIRE(pkg2.msg.t0 == 12);
+      REQUIRE(pkg2.msg.t1 == 13);
+      REQUIRE(pkg3.msg.type == TIME_REPLY);
+      REQUIRE(pkg3.msg.t0 == 12);
+      REQUIRE(pkg3.msg.t1 == 13);
+      REQUIRE(pkg3.msg.t2 == 14);
+    }
+  }
+
+  GIVEN("Calling the constructor with no time") {
+    auto pkg1 = TimeDelay(10, 11);
+    THEN("The time type is TIME_SYNC_REQUEST") {
+      REQUIRE(pkg1.msg.type == TIME_SYNC_REQUEST);
+    }
+  }
+  GIVEN("Calling the constructor with one time") {
+    auto pkg1 = TimeDelay(10, 11, 12);
+    THEN("The time type is TIME_REQUEST") {
+      REQUIRE(pkg1.msg.type == TIME_REQUEST);
+      REQUIRE(pkg1.msg.t0 == 12);
+    }
+  }
+  GIVEN("Calling the constructor with two or three times") {
+    auto pkg2 = TimeDelay(10, 11, 12, 13);
+    auto pkg3 = TimeDelay(10, 11, 12, 13, 14);
+    THEN("The time type is TIME_REPLY") {
+      REQUIRE(pkg2.msg.type == TIME_REPLY);
+      REQUIRE(pkg2.msg.t0 == 12);
+      REQUIRE(pkg2.msg.t1 == 13);
+      REQUIRE(pkg3.msg.type == TIME_REPLY);
+      REQUIRE(pkg3.msg.t0 == 12);
+      REQUIRE(pkg3.msg.t1 == 13);
+      REQUIRE(pkg3.msg.t2 == 14);
+    }
+  }
+}

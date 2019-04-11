@@ -21,6 +21,13 @@ enum Type {
   SINGLE = 9      // application data for a single node
 };
 
+enum TimeType {
+  TIME_SYNC_ERROR = -1,
+  TIME_SYNC_REQUEST,
+  TIME_REQUEST,
+  TIME_REPLY
+};
+
 /**
  * Single package
  *
@@ -31,6 +38,12 @@ class Single {
   int type = SINGLE;
   uint32_t from;
   uint32_t dest;
+  Single() {}
+  Single(uint32_t fromID, uint32_t destID, TSTRING& message) {
+    from = fromID;
+    dest = destID;
+    msg = message;
+  }
   TSTRING msg;
 
   size_t jsonObjectSize() {
@@ -41,12 +54,15 @@ class Single {
 /**
  * Broadcast package
  */
-class Broadcast {
+class Broadcast : public Single {
  public:
   int type = BROADCAST;
   uint32_t from;
   uint32_t dest;
   TSTRING msg;
+
+  using Single::Single;
+
   size_t jsonObjectSize() {
     return JSON_OBJECT_SIZE(4) + round(1.1 * msg.length());
   }
@@ -124,6 +140,17 @@ class NodeSyncRequest : public NodeTree {
   int type = NODE_SYNC_REQUEST;
   uint32_t from;
   uint32_t dest;
+
+  NodeSyncRequest() {}
+  NodeSyncRequest(uint32_t fromID, uint32_t destID, std::list<NodeTree> subTree,
+                  bool iAmRoot = false) {
+    from = fromID;
+    dest = destID;
+    subs = subTree;
+    nodeId = fromID;
+    root = iAmRoot;
+  }
+
   bool operator==(const NodeSyncRequest& b) const {
     if (!(this->from == b.from && this->dest == b.dest)) return false;
     return NodeTree::operator==(b);
@@ -150,13 +177,15 @@ class NodeSyncRequest : public NodeTree {
 class NodeSyncReply : public NodeSyncRequest {
  public:
   int type = NODE_SYNC_REPLY;
+
+  using NodeSyncRequest::NodeSyncRequest;
 };
 
 struct time_sync_msg_t {
-  int type;
-  uint32_t t0;
-  uint32_t t1;
-  uint32_t t2;
+  int type = TIME_SYNC_ERROR;
+  uint32_t t0 = 0;
+  uint32_t t1 = 0;
+  uint32_t t2 = 0;
 };
 
 /**
@@ -168,6 +197,40 @@ class TimeSync {
   uint32_t dest;
   uint32_t from;
   time_sync_msg_t msg;
+
+  TimeSync() {}
+
+  TimeSync(uint32_t fromID, uint32_t destID) {
+    from = fromID;
+    dest = destID;
+    msg.type = TIME_SYNC_REQUEST;
+  }
+
+  TimeSync(uint32_t fromID, uint32_t destID, uint32_t t0) {
+    from = fromID;
+    dest = destID;
+    msg.type = TIME_REQUEST;
+    msg.t0 = t0;
+  }
+
+  TimeSync(uint32_t fromID, uint32_t destID, uint32_t t0, uint32_t t1) {
+    from = fromID;
+    dest = destID;
+    msg.type = TIME_REPLY;
+    msg.t0 = t0;
+    msg.t1 = t1;
+  }
+
+  TimeSync(uint32_t fromID, uint32_t destID, uint32_t t0, uint32_t t1,
+           uint32_t t2) {
+    from = fromID;
+    dest = destID;
+    msg.type = TIME_REPLY;
+    msg.t0 = t0;
+    msg.t1 = t1;
+    msg.t2 = t2;
+  }
+
   size_t jsonObjectSize() { return JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(4); }
 };
 
@@ -177,6 +240,7 @@ class TimeSync {
 class TimeDelay : public TimeSync {
  public:
   int type = TIME_DELAY;
+  using TimeSync::TimeSync;
 };
 
 /**
@@ -492,9 +556,12 @@ inline TimeSync Variant::to<TimeSync>() {
   pkg.dest = jsonObj["dest"].as<uint32_t>();
   pkg.from = jsonObj["from"].as<uint32_t>();
   pkg.msg.type = jsonObj["msg"]["type"].as<int>();
-  pkg.msg.t0 = jsonObj["msg"]["t0"].as<uint32_t>();
-  pkg.msg.t1 = jsonObj["msg"]["t1"].as<uint32_t>();
-  pkg.msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
+  if (jsonObj["msg"].containsKey("t0"))
+    pkg.msg.t0 = jsonObj["msg"]["t0"].as<uint32_t>();
+  if (jsonObj["msg"].containsKey("t1"))
+    pkg.msg.t1 = jsonObj["msg"]["t1"].as<uint32_t>();
+  if (jsonObj["msg"].containsKey("t2"))
+    pkg.msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
 
   return pkg;
 }
@@ -505,9 +572,12 @@ inline TimeDelay Variant::to<TimeDelay>() {
   pkg.dest = jsonObj["dest"].as<uint32_t>();
   pkg.from = jsonObj["from"].as<uint32_t>();
   pkg.msg.type = jsonObj["msg"]["type"].as<int>();
-  pkg.msg.t0 = jsonObj["msg"]["t0"].as<uint32_t>();
-  pkg.msg.t1 = jsonObj["msg"]["t1"].as<uint32_t>();
-  pkg.msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
+  if (jsonObj["msg"].containsKey("t0"))
+    pkg.msg.t0 = jsonObj["msg"]["t0"].as<uint32_t>();
+  if (jsonObj["msg"].containsKey("t1"))
+    pkg.msg.t1 = jsonObj["msg"]["t1"].as<uint32_t>();
+  if (jsonObj["msg"].containsKey("t2"))
+    pkg.msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
 
   return pkg;
 }
