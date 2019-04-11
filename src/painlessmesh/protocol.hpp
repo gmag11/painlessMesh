@@ -1,5 +1,5 @@
-#ifndef _PAINLESS_MESH_PROTOCOL_H_
-#define _PAINLESS_MESH_PROTOCOL_H_
+#ifndef _PAINLESS_MESH_PROTOCOL_HPP_
+#define _PAINLESS_MESH_PROTOCOL_HPP_
 
 #include <list>
 

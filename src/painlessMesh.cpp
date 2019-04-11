@@ -144,7 +144,11 @@ void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
     debugMsg(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
-    return sendMessage(destId, _nodeId, SINGLE, msg);
+    auto single = painlessmesh::protocol::Single();
+    single.dest = destId;
+    single.from = _nodeId;
+    single.msg = msg;
+    return send<painlessmesh::protocol::Single>(single);
 }
 
 //***********************************************************************
@@ -157,18 +161,20 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg, bool includeSelf
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
-    String timeStamp;
-    debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
+  String timeStamp;
+  debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
 
-    auto conn = findConnection(nodeId);
+  auto conn = findConnection(nodeId);
 
-    if (conn) {
-        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());
-        //conn->timeDelayStatus = IN_PROGRESS;
-    } else {
-        return false;
-    }
-    debugMsg(S_TIME, "startDelayMeas(): Sent delay calc request -> %s\n", timeStamp.c_str());
-    sendMessage(conn, nodeId, _nodeId, TIME_DELAY, timeStamp);
-    return true;
+  if (conn) {
+    // PROTOCOL: Make this return a TimeSyncRequest type (and add it to protocol
+    // if possible) This can actually become constructor for the package type
+    timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());
+  } else {
+    return false;
+  }
+  debugMsg(S_TIME, "startDelayMeas(): Sent delay calc request -> %s\n",
+           timeStamp.c_str());
+  sendMessage(conn, nodeId, _nodeId, TIME_DELAY, timeStamp);
+  return true;
 }

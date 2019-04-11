@@ -184,6 +184,30 @@ protected:
     //must be accessable from callback
     bool                sendMessage(std::shared_ptr<MeshConnection> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
     bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+
+    template <typename T>
+    bool send(std::shared_ptr<MeshConnection> conn, T package,
+              bool priority = false) {
+      auto variant = painlessmesh::protocol::Variant(package);
+      String msg;
+      variant.printTo(msg);
+      debugMsg(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
+               conn->nodeId, msg.c_str());
+      return conn->addMessage(msg, priority);
+    }
+
+    template <typename T>
+    bool send(T package, bool priority = false) {
+      std::shared_ptr<MeshConnection> conn = findConnection(package.dest);
+      if (conn) {
+        return send<T>(conn, package, priority);
+      } else {
+        debugMsg(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n",
+                 package.dest);
+        return false;
+      }
+    }
+
     bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<MeshConnection> exclude = NULL);
 
     String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
