@@ -208,9 +208,10 @@ protected:
       }
     }
 
-    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<MeshConnection> exclude = NULL);
-
-    String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
+    bool broadcastMessage(painlessmesh::protocol::Broadcast pkg,
+                          std::shared_ptr<MeshConnection> exclude = NULL);
+    String buildMeshPackage(uint32_t destId, uint32_t fromId,
+                            meshPackageType type, String &msg);
 
     // in painlessMeshSync.cpp
     //must be accessable from callback

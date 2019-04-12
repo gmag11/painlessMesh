@@ -38,13 +38,14 @@ class Single {
   int type = SINGLE;
   uint32_t from;
   uint32_t dest;
+  TSTRING msg = "";
+
   Single() {}
   Single(uint32_t fromID, uint32_t destID, TSTRING& message) {
     from = fromID;
     dest = destID;
     msg = message;
   }
-  TSTRING msg;
 
   size_t jsonObjectSize() {
     return JSON_OBJECT_SIZE(4) + round(1.1 * msg.length());
@@ -57,9 +58,6 @@ class Single {
 class Broadcast : public Single {
  public:
   int type = BROADCAST;
-  uint32_t from;
-  uint32_t dest;
-  TSTRING msg;
 
   using Single::Single;
 

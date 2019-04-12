@@ -464,3 +464,19 @@ SCENARIO(
     }
   }
 }
+
+SCENARIO("Package constructors work as expected", "[protocol]") {
+  GIVEN("A Single package constructed with the constructor") {
+    std::string str = "Blaat";
+    auto pkg = Single(10, 0, str);
+    THEN("Message will be set correctly") { REQUIRE(pkg.msg == "Blaat"); }
+  }
+  GIVEN("A Broadcast package constructed with the constructor") {
+    std::string str = "Blaat";
+    auto pkg = Broadcast(10, 0, str);
+    THEN("Message will be set correctly") {
+      REQUIRE(pkg.msg == "Blaat");
+      REQUIRE(pkg.type == BROADCAST);
+    }
+  }
+}

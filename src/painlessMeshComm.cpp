@@ -33,31 +33,31 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendMessage(uint32_t destId, uint32_t fromI
     }
 }
 
+bool ICACHE_FLASH_ATTR
+painlessMesh::broadcastMessage(painlessmesh::protocol::Broadcast pkg,
+                               std::shared_ptr<MeshConnection> exclude) {
+  // send a message to every node on the mesh
+  bool errCode = false;
 
-//***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::broadcastMessage(
-        uint32_t from,
-        meshPackageType type,
-        String &msg,
-        std::shared_ptr<MeshConnection> exclude) {
+  if (exclude != NULL)
+    debugMsg(COMMUNICATION,
+             "broadcastMessage(): from=%u type=%d, msg=%s exclude=%u\n",
+             pkg.from, pkg.type, pkg.msg.c_str(), exclude->nodeId);
+  else
+    debugMsg(COMMUNICATION,
+             "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n",
+             pkg.from, pkg.type, pkg.msg.c_str());
 
-    // send a message to every node on the mesh
-    bool errCode = false;
-
-    if (exclude != NULL)
-        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=%u\n", from, type, msg.c_str(), exclude->nodeId);
-    else
-        debugMsg(COMMUNICATION, "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n", from, type, msg.c_str());
-
-    if (_connections.size() > 0)
-        errCode = true; // Assume true if at least one connections
-    for (auto &&connection : _connections) {
-        if (!exclude || connection->nodeId != exclude->nodeId) {
-            if (!sendMessage(connection, connection->nodeId, from, type, msg))
-                errCode = false; // If any error return 0
-        }
+  if (_connections.size() > 0)
+    errCode = true;  // Assume true if at least one connections
+  for (auto &&connection : _connections) {
+    if (!exclude || connection->nodeId != exclude->nodeId) {
+      pkg.dest = connection->nodeId;
+      if (!send<painlessmesh::protocol::Broadcast>(connection, pkg))
+        errCode = false;  // If any error return 0
     }
-    return errCode;
+  }
+  return errCode;
 }
 
 //***********************************************************************

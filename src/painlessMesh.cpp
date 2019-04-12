@@ -153,9 +153,10 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
 bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg,
                                                    bool includeSelf) {
   debugMsg(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
-  bool success = broadcastMessage(_nodeId, BROADCAST, msg);
+  auto pkg = painlessmesh::protocol::Broadcast(_nodeId, 0, msg);
+  bool success = broadcastMessage(pkg);
   if (success && includeSelf && this->receivedCallback)
-    this->receivedCallback(this->getNodeId(), msg);
+    this->receivedCallback(this->getNodeId(), pkg.msg);
   return success;
 }
 

@@ -552,6 +552,25 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
 
+    auto rConn = staticThis->findConnection(this->client);
+
+    auto variant = painlessmesh::protocol::Variant(buffer);
+    if (variant.error) {
+      staticThis->debugMsg(ERROR,
+                           "handleMessage(): parseObject() failed. "
+                           "total_length=%d, data=%s<--\n",
+                           buffer.length(), buffer.c_str());
+      return;
+    }
+
+    if (variant.is<painlessmesh::protocol::Broadcast>()) {
+      auto pkg = variant.to<painlessmesh::protocol::Broadcast>();
+      staticThis->broadcastMessage(pkg, rConn);
+      if (staticThis->receivedCallback)
+        staticThis->receivedCallback(pkg.from, pkg.msg);
+      return;
+    }
+
 #if ARDUINOJSON_VERSION_MAJOR==6
     DynamicJsonDocument jsonBuffer(1024 + buffer.length());
     DeserializationError error = deserializeJson(jsonBuffer, buffer, DeserializationOption::NestingLimit(255));
@@ -574,7 +593,6 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
 
     staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%u type=%d\n", staticThis->getNodeTime(), this->nodeId, t_message);
 
-    auto rConn = staticThis->findConnection(this->client);
     switch (t_message) {
     case NODE_SYNC_REQUEST:
     case NODE_SYNC_REPLY:
@@ -609,13 +627,6 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t re
             }
         }
         break;
-
-    case BROADCAST:
-        staticThis->broadcastMessage((uint32_t)root["from"], BROADCAST, msg, rConn);
-        if (staticThis->receivedCallback)
-            staticThis->receivedCallback((uint32_t)root["from"], msg);
-        break;
-
     default:
         staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
     }
