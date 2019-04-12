@@ -164,8 +164,6 @@ bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
   debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
   auto conn = findConnection(nodeId);
   if (!conn) return false;
-  auto timeStamp =
-      painlessmesh::protocol::TimeDelay(_nodeId, nodeId, getNodeTime());
-  send<painlessmesh::protocol::TimeDelay>(conn, timeStamp);
-  return true;
+  return send<painlessmesh::protocol::TimeDelay>(
+      conn, painlessmesh::protocol::TimeDelay(_nodeId, nodeId, getNodeTime()));
 }

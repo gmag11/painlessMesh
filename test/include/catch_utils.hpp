@@ -170,8 +170,8 @@ painlessmesh::protocol::TimeSync createTimeSync(int type = -1) {
   if (type < 0) type = runif(0, 2);
   pkg.msg.type = type;
   auto t = runif(0, std::numeric_limits<uint32_t>::max());
-  if (type == 1) pkg.msg.t0 = t;
-  if (type == 2) {
+  if (type >= 1) pkg.msg.t0 = t;
+  if (type >= 2) {
     t += runif(0, 10000);
     pkg.msg.t1 = t;
     t += runif(0, 10000);

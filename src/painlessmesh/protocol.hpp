@@ -47,6 +47,20 @@ class Single {
     msg = message;
   }
 
+  Single(JsonObject jsonObj) {
+    dest = jsonObj["dest"].as<uint32_t>();
+    from = jsonObj["from"].as<uint32_t>();
+    msg = jsonObj["msg"].as<TSTRING>();
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj["type"] = type;
+    jsonObj["dest"] = dest;
+    jsonObj["from"] = from;
+    jsonObj["msg"] = msg;
+    return jsonObj;
+  }
+
   size_t jsonObjectSize() {
     return JSON_OBJECT_SIZE(4) + round(1.1 * msg.length());
   }
@@ -61,6 +75,12 @@ class Broadcast : public Single {
 
   using Single::Single;
 
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = Single::addTo(std::move(jsonObj));
+    jsonObj["type"] = type;
+    return jsonObj;
+  }
+
   size_t jsonObjectSize() {
     return JSON_OBJECT_SIZE(4) + round(1.1 * msg.length());
   }
@@ -71,6 +91,36 @@ class NodeTree {
   uint32_t nodeId;
   bool root = false;
   std::list<NodeTree> subs;
+
+  NodeTree() {}
+
+  NodeTree(JsonObject jsonObj) {
+    if (jsonObj.containsKey("root")) root = jsonObj["root"].as<bool>();
+    if (jsonObj.containsKey("nodeId"))
+      nodeId = jsonObj["nodeId"].as<uint32_t>();
+    else
+      nodeId = jsonObj["from"].as<uint32_t>();
+
+    if (jsonObj.containsKey("subs")) {
+      auto jsonArr = jsonObj["subs"].as<JsonArray>();
+      for (size_t i = 0; i < jsonArr.size(); ++i) {
+        subs.push_back(NodeTree(jsonArr[i].as<JsonObject>()));
+      }
+    }
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj["nodeId"] = nodeId;
+    if (root) jsonObj["root"] = root;
+    if (subs.size() > 0) {
+      JsonArray subsArr = jsonObj.createNestedArray("subs");
+      for (auto&& s : subs) {
+        JsonObject subObj = subsArr.createNestedObject();
+        subObj = s.addTo(std::move(subObj));
+      }
+    }
+    return jsonObj;
+  }
 
   bool operator==(const NodeTree& b) const {
     if (!(this->nodeId == b.nodeId && this->root == b.root &&
@@ -101,35 +151,6 @@ class NodeTree {
   }
 };
 
-inline JsonObject addNodeTree(JsonObject&& jsonObj, NodeTree& sub) {
-  jsonObj["nodeId"] = sub.nodeId;
-  if (sub.root) jsonObj["root"] = sub.root;
-  if (sub.subs.size() > 0) {
-    JsonArray subsArr = jsonObj.createNestedArray("subs");
-    for (auto&& s : sub.subs) {
-      JsonObject subObj = subsArr.createNestedObject();
-      subObj = addNodeTree(std::move(subObj), s);
-    }
-  }
-  return jsonObj;
-}
-
-inline NodeTree extractNodeTree(JsonObject jsonObj) {
-  NodeTree pkg;
-  pkg.nodeId = jsonObj["nodeId"].as<uint32_t>();
-  if (jsonObj.containsKey("root"))
-    pkg.root = jsonObj["root"].as<bool>();
-  else
-    pkg.root = false;
-  if (jsonObj.containsKey("subs")) {
-    auto jsonArr = jsonObj["subs"].as<JsonArray>();
-    for (size_t i = 0; i < jsonArr.size(); ++i) {
-      pkg.subs.push_back(extractNodeTree(jsonArr[i]));
-    }
-  }
-  return pkg;
-}
-
 /**
  * NodeSyncRequest package
  */
@@ -147,6 +168,19 @@ class NodeSyncRequest : public NodeTree {
     subs = subTree;
     nodeId = fromID;
     root = iAmRoot;
+  }
+
+  NodeSyncRequest(JsonObject jsonObj) : NodeTree(jsonObj) {
+    dest = jsonObj["dest"].as<uint32_t>();
+    from = jsonObj["from"].as<uint32_t>();
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = NodeTree::addTo(std::move(jsonObj));
+    jsonObj["type"] = type;
+    jsonObj["dest"] = dest;
+    jsonObj["from"] = from;
+    return jsonObj;
   }
 
   bool operator==(const NodeSyncRequest& b) const {
@@ -177,6 +211,12 @@ class NodeSyncReply : public NodeSyncRequest {
   int type = NODE_SYNC_REPLY;
 
   using NodeSyncRequest::NodeSyncRequest;
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = NodeSyncRequest::addTo(std::move(jsonObj));
+    jsonObj["type"] = type;
+    return jsonObj;
+  }
 };
 
 struct time_sync_msg_t {
@@ -229,6 +269,51 @@ class TimeSync {
     msg.t2 = t2;
   }
 
+  TimeSync(JsonObject jsonObj) {
+    dest = jsonObj["dest"].as<uint32_t>();
+    from = jsonObj["from"].as<uint32_t>();
+    msg.type = jsonObj["msg"]["type"].as<int>();
+    if (jsonObj["msg"].containsKey("t0"))
+      msg.t0 = jsonObj["msg"]["t0"].as<uint32_t>();
+    if (jsonObj["msg"].containsKey("t1"))
+      msg.t1 = jsonObj["msg"]["t1"].as<uint32_t>();
+    if (jsonObj["msg"].containsKey("t2"))
+      msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj["type"] = type;
+    jsonObj["dest"] = dest;
+    jsonObj["from"] = from;
+    auto msgObj = jsonObj.createNestedObject("msg");
+    msgObj["type"] = msg.type;
+    if (msg.type >= 1) msgObj["t0"] = msg.t0;
+    if (msg.type >= 2) {
+      msgObj["t1"] = msg.t1;
+      msgObj["t2"] = msg.t2;
+    }
+    return jsonObj;
+  }
+
+  /**
+   * Create a reply to the current message with the new time set
+   */
+  void reply(uint32_t newT0) {
+    msg.t0 = newT0;
+    ++msg.type;
+    std::swap(from, dest);
+  }
+
+  /**
+   * Create a reply to the current message with the new time set
+   */
+  void reply(uint32_t newT1, uint32_t newT2) {
+    msg.t1 = newT1;
+    msg.t2 = newT2;
+    ++msg.type;
+    std::swap(from, dest);
+  }
+
   size_t jsonObjectSize() { return JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(4); }
 };
 
@@ -239,6 +324,12 @@ class TimeDelay : public TimeSync {
  public:
   int type = TIME_DELAY;
   using TimeSync::TimeSync;
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = TimeSync::addTo(std::move(jsonObj));
+    jsonObj["type"] = type;
+    return jsonObj;
+  }
 };
 
 /**
@@ -310,10 +401,7 @@ class Variant {
    */
   Variant(Single single) : jsonBuffer(single.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
-    jsonObj["type"] = single.type;
-    jsonObj["dest"] = single.dest;
-    jsonObj["from"] = single.from;
-    jsonObj["msg"] = single.msg;
+    jsonObj = single.addTo(std::move(jsonObj));
   }
 
   /**
@@ -323,10 +411,7 @@ class Variant {
    */
   Variant(Broadcast broadcast) : jsonBuffer(broadcast.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
-    jsonObj["type"] = broadcast.type;
-    jsonObj["dest"] = broadcast.dest;
-    jsonObj["from"] = broadcast.from;
-    jsonObj["msg"] = broadcast.msg;
+    jsonObj = broadcast.addTo(std::move(jsonObj));
   }
 
   /**
@@ -337,10 +422,7 @@ class Variant {
   Variant(NodeSyncReply nodeSyncReply)
       : jsonBuffer(nodeSyncReply.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
-    jsonObj["type"] = nodeSyncReply.type;
-    jsonObj["dest"] = nodeSyncReply.dest;
-    jsonObj["from"] = nodeSyncReply.from;
-    jsonObj = addNodeTree(std::move(jsonObj), nodeSyncReply);
+    jsonObj = nodeSyncReply.addTo(std::move(jsonObj));
   }
 
   /**
@@ -351,10 +433,7 @@ class Variant {
   Variant(NodeSyncRequest nodeSyncRequest)
       : jsonBuffer(nodeSyncRequest.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
-    jsonObj["type"] = nodeSyncRequest.type;
-    jsonObj["dest"] = nodeSyncRequest.dest;
-    jsonObj["from"] = nodeSyncRequest.from;
-    jsonObj = addNodeTree(std::move(jsonObj), nodeSyncRequest);
+    jsonObj = nodeSyncRequest.addTo(std::move(jsonObj));
   }
 
   /**
@@ -364,16 +443,7 @@ class Variant {
    */
   Variant(TimeSync timeSync) : jsonBuffer(timeSync.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
-    jsonObj["type"] = timeSync.type;
-    jsonObj["dest"] = timeSync.dest;
-    jsonObj["from"] = timeSync.from;
-    auto msgObj = jsonObj.createNestedObject("msg");
-    msgObj["type"] = timeSync.msg.type;
-    if (timeSync.msg.type == 1) msgObj["t0"] = timeSync.msg.t0;
-    if (timeSync.msg.type == 2) {
-      msgObj["t1"] = timeSync.msg.t1;
-      msgObj["t2"] = timeSync.msg.t2;
-    }
+    jsonObj = timeSync.addTo(std::move(jsonObj));
   }
 
   /**
@@ -383,16 +453,7 @@ class Variant {
    */
   Variant(TimeDelay timeDelay) : jsonBuffer(timeDelay.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
-    jsonObj["type"] = timeDelay.type;
-    jsonObj["dest"] = timeDelay.dest;
-    jsonObj["from"] = timeDelay.from;
-    auto msgObj = jsonObj.createNestedObject("msg");
-    msgObj["type"] = timeDelay.msg.type;
-    if (timeDelay.msg.type == 1) msgObj["t0"] = timeDelay.msg.t0;
-    if (timeDelay.msg.type == 2) {
-      msgObj["t1"] = timeDelay.msg.t1;
-      msgObj["t2"] = timeDelay.msg.t2;
-    }
+    jsonObj = timeDelay.addTo(std::move(jsonObj));
   }
 
   /**
@@ -408,7 +469,7 @@ class Variant {
    */
   template <typename T>
   inline T to() {
-    return T();
+    return T(jsonObj);
   }
 
 #ifdef ARDUINOJSON_ENABLE_STD_STRING
@@ -467,117 +528,8 @@ inline bool Variant::is<TimeDelay>() {
 }
 
 template <>
-inline Single Variant::to<Single>() {
-  auto pkg = Single();
-  pkg.dest = jsonObj["dest"].as<uint32_t>();
-  pkg.from = jsonObj["from"].as<uint32_t>();
-  pkg.msg = jsonObj["msg"].as<TSTRING>();
-  return pkg;
-}
-
-template <>
-inline Broadcast Variant::to<Broadcast>() {
-  auto pkg = Broadcast();
-  pkg.dest = jsonObj["dest"].as<uint32_t>();
-  pkg.from = jsonObj["from"].as<uint32_t>();
-  pkg.msg = jsonObj["msg"].as<TSTRING>();
-  return pkg;
-}
-
-template <>
-inline NodeSyncReply Variant::to<NodeSyncReply>() {
-  auto pkg = NodeSyncReply();
-  pkg.dest = jsonObj["dest"].as<uint32_t>();
-  pkg.from = jsonObj["from"].as<uint32_t>();
-  if (jsonObj.containsKey("root")) pkg.root = jsonObj["root"].as<bool>();
-  if (jsonObj.containsKey("nodeId"))
-    pkg.nodeId = jsonObj["nodeId"].as<uint32_t>();
-  else
-    pkg.nodeId = pkg.from;
-
-  if (jsonObj.containsKey("subs")) {
-    auto jsonArr = jsonObj["subs"].as<JsonArray>();
-    for (size_t i = 0; i < jsonArr.size(); ++i) {
-      pkg.subs.push_back(extractNodeTree(jsonArr[i]));
-    }
-  }
-
-  return pkg;
-}
-
-template <>
-inline NodeTree Variant::to<NodeTree>() {
-  auto pkg = NodeTree();
-  if (jsonObj.containsKey("root")) pkg.root = jsonObj["root"].as<bool>();
-  if (jsonObj.containsKey("nodeId"))
-    pkg.nodeId = jsonObj["nodeId"].as<uint32_t>();
-  else
-    pkg.nodeId = jsonObj["from"].as<uint32_t>();
-
-  if (jsonObj.containsKey("subs")) {
-    auto jsonArr = jsonObj["subs"].as<JsonArray>();
-    for (size_t i = 0; i < jsonArr.size(); ++i) {
-      pkg.subs.push_back(extractNodeTree(jsonArr[i]));
-    }
-  }
-
-  return pkg;
-}
-
-template <>
-inline NodeSyncRequest Variant::to<NodeSyncRequest>() {
-  auto pkg = NodeSyncRequest();
-  pkg.dest = jsonObj["dest"].as<uint32_t>();
-  pkg.from = jsonObj["from"].as<uint32_t>();
-  if (jsonObj.containsKey("root"))
-    pkg.root = jsonObj["root"].as<bool>();
-  else
-    pkg.root = false;
-  if (jsonObj.containsKey("nodeId"))
-    pkg.nodeId = jsonObj["nodeId"].as<uint32_t>();
-  else
-    pkg.nodeId = pkg.from;
-
-  if (jsonObj.containsKey("subs")) {
-    auto jsonArr = jsonObj["subs"].as<JsonArray>();
-    for (size_t i = 0; i < jsonArr.size(); ++i) {
-      pkg.subs.push_back(extractNodeTree(jsonArr[i]));
-    }
-  }
-
-  return pkg;
-}
-
-template <>
-inline TimeSync Variant::to<TimeSync>() {
-  auto pkg = TimeSync();
-  pkg.dest = jsonObj["dest"].as<uint32_t>();
-  pkg.from = jsonObj["from"].as<uint32_t>();
-  pkg.msg.type = jsonObj["msg"]["type"].as<int>();
-  if (jsonObj["msg"].containsKey("t0"))
-    pkg.msg.t0 = jsonObj["msg"]["t0"].as<uint32_t>();
-  if (jsonObj["msg"].containsKey("t1"))
-    pkg.msg.t1 = jsonObj["msg"]["t1"].as<uint32_t>();
-  if (jsonObj["msg"].containsKey("t2"))
-    pkg.msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
-
-  return pkg;
-}
-
-template <>
-inline TimeDelay Variant::to<TimeDelay>() {
-  auto pkg = TimeDelay();
-  pkg.dest = jsonObj["dest"].as<uint32_t>();
-  pkg.from = jsonObj["from"].as<uint32_t>();
-  pkg.msg.type = jsonObj["msg"]["type"].as<int>();
-  if (jsonObj["msg"].containsKey("t0"))
-    pkg.msg.t0 = jsonObj["msg"]["t0"].as<uint32_t>();
-  if (jsonObj["msg"].containsKey("t1"))
-    pkg.msg.t1 = jsonObj["msg"]["t1"].as<uint32_t>();
-  if (jsonObj["msg"].containsKey("t2"))
-    pkg.msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
-
-  return pkg;
+inline JsonObject Variant::to<JsonObject>() {
+  return jsonObj;
 }
 }  // namespace protocol
 }  // namespace painlessmesh

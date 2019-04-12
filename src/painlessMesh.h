@@ -216,9 +216,14 @@ protected:
     // in painlessMeshSync.cpp
     //must be accessable from callback
     void                handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root);
+
     void                startTimeSync(std::shared_ptr<MeshConnection> conn);
-    void                handleTimeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt);
-    void                handleTimeDelay(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt);
+    void handleTimeSync(std::shared_ptr<MeshConnection> conn,
+                        painlessmesh::protocol::TimeSync, uint32_t receivedAt);
+    void handleTimeDelay(std::shared_ptr<MeshConnection> conn,
+                         painlessmesh::protocol::TimeDelay timeDelay,
+                         uint32_t receivedAt);
+
     bool                adoptionCalc(std::shared_ptr<MeshConnection> conn);
 
     // Update other connections of a change

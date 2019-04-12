@@ -16,69 +16,13 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
     return ret;
 }
 
-//***********************************************************************
-String ICACHE_FLASH_ATTR timeSync::buildTimeStamp(timeSyncMessageType_t timeSyncMessageType, uint32_t originateTS, uint32_t receiveTS, uint32_t transmitTS) {
-    staticThis->debugMsg(S_TIME, "buildTimeStamp(): Type = %u, t0 = %u, t1 = %u, t2 = %u\n", timeSyncMessageType, originateTS, receiveTS, transmitTS);
-#if ARDUINOJSON_VERSION_MAJOR==6
-    StaticJsonDocument<75> jsonBuffer;
-    JsonObject timeStampObj = jsonBuffer.to<JsonObject>();
-#else
-    StaticJsonBuffer<75> jsonBuffer;
-    JsonObject& timeStampObj = jsonBuffer.createObject();
-#endif
-    timeStampObj["type"] = (int)timeSyncMessageType;
-    if (originateTS > 0)
-        timeStampObj["t0"] = originateTS;
-    if (receiveTS > 0)
-        timeStampObj["t1"] = receiveTS;
-    if (transmitTS > 0)
-        timeStampObj["t2"] = transmitTS;
-
-    String timeStampStr;
-#if ARDUINOJSON_VERSION_MAJOR==6
-    serializeJson(timeStampObj, timeStampStr);
-#else
-    timeStampObj.printTo(timeStampStr);
-#endif
-    staticThis->debugMsg(S_TIME, "buildTimeStamp(): timeStamp=%s\n", timeStampStr.c_str());
-
-    return timeStampStr;
-}
-
-//***********************************************************************
-timeSyncMessageType_t ICACHE_FLASH_ATTR timeSync::processTimeStampDelay(String &str) {
-    // Extracts and fills timestamp values from json
-    timeSyncMessageType_t ret = TIME_SYNC_ERROR;
-
-    staticThis->debugMsg(S_TIME, "processTimeStamp(): str=%s\n", str.c_str());
-
-#if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer(1024 + str.length());
-    DeserializationError error = deserializeJson(jsonBuffer, str);
-    if (error) {
-        staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
-        return TIME_SYNC_ERROR;
-    }
-    JsonObject timeStampObj = jsonBuffer.as<JsonObject>();
-#else
-    DynamicJsonBuffer jsonBuffer(75);
-    JsonObject& timeStampObj = jsonBuffer.parseObject(str);
-    if (!timeStampObj.success()) {
-        staticThis->debugMsg(ERROR, "processTimeStamp(): out of memory1?\n");
-        return TIME_SYNC_ERROR;
-    }
-#endif
-
-    ret = static_cast<timeSyncMessageType_t>(timeStampObj["type"].as<int>());
-    if (ret == TIME_REQUEST || ret == TIME_RESPONSE) {
-        timeDelay[0] = timeStampObj["t0"].as<uint32_t>();
-    }
-    if (ret == TIME_RESPONSE) {
-        timeDelay[1] = timeStampObj["t1"].as<uint32_t>();
-        timeDelay[2] = timeStampObj["t2"].as<uint32_t>();
-    }
-    return ret; // return type of sync message
-
+int ICACHE_FLASH_ATTR timeSync::processTimeStampDelay(
+    painlessmesh::protocol::TimeDelay timeDelayPkg) {
+  // REFACTOR Do we need to store these values?
+  this->timeDelay[0] = timeDelayPkg.msg.t0;
+  this->timeDelay[1] = timeDelayPkg.msg.t1;
+  this->timeDelay[2] = timeDelayPkg.msg.t2;
+  return timeDelayPkg.msg.type;
 }
 
 //***********************************************************************
@@ -236,20 +180,23 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     }
 }
 
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
-    String timeStamp;
-
-    debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId, conn->client->getLocalPort());
-    auto adopt = adoptionCalc(conn);
-    if (adopt) {
-        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime()); // Ask other party its time
-        debugMsg(S_TIME, "startTimeSync(): Requesting %u to adopt our time\n", conn->nodeId);
-    } else {
-        timeStamp = conn->time.buildTimeStamp(TIME_SYNC_REQUEST); // Tell other party to ask me the time
-        debugMsg(S_TIME, "startTimeSync(): Requesting time from %u\n", conn->nodeId);
-    }
-    sendMessage(conn, conn->nodeId, _nodeId, TIME_SYNC, timeStamp, true);
+void ICACHE_FLASH_ATTR
+painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
+  debugMsg(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId,
+           conn->client->getLocalPort());
+  auto adopt = adoptionCalc(conn);
+  painlessmesh::protocol::TimeSync timeSync;
+  if (adopt) {
+    timeSync =
+        painlessmesh::protocol::TimeSync(_nodeId, conn->nodeId, getNodeTime());
+    debugMsg(S_TIME, "startTimeSync(): Requesting %u to adopt our time\n",
+             conn->nodeId);
+  } else {
+    timeSync = painlessmesh::protocol::TimeSync(_nodeId, conn->nodeId);
+    debugMsg(S_TIME, "startTimeSync(): Requesting time from %u\n",
+             conn->nodeId);
+  }
+  send<painlessmesh::protocol::TimeSync>(conn, timeSync, true);
 }
 
 //***********************************************************************
@@ -275,128 +222,130 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt) {
-    auto timeSyncMessageType = static_cast<timeSyncMessageType_t>(root["msg"]["type"].as<int>());
-    String msg;
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(
+    std::shared_ptr<MeshConnection> conn,
+    painlessmesh::protocol::TimeSync timeSync, uint32_t receivedAt) {
+  switch (timeSync.msg.type) {
+    case (painlessmesh::protocol::TIME_SYNC_ERROR):
+      debugMsg(ERROR,
+               "handleTimeSync(): Received time sync error. Restarting time "
+               "sync.\n");
+      conn->timeSyncTask.forceNextIteration();
+      break;
+    case (painlessmesh::protocol::TIME_SYNC_REQUEST):  // Other party request me
+                                                       // to ask it for time
+      debugMsg(S_TIME,
+               "handleTimeSync(): Received requesto to start TimeSync with "
+               "node: %u\n",
+               conn->nodeId);
+      timeSync.reply(getNodeTime());
+      staticThis->send<painlessmesh::protocol::TimeSync>(conn, timeSync, true);
+      break;
 
-    switch (timeSyncMessageType) {
-    case (TIME_SYNC_ERROR):
-        debugMsg(S_TIME, "handleTimeSync(): Received time sync error. Restarting time sync.\n");
-        conn->timeSyncTask.forceNextIteration();
-        break;
-    case (TIME_SYNC_REQUEST):  // Other party request me to ask it for time
-        debugMsg(S_TIME, "handleTimeSync(): Received requesto to start TimeSync with node: %u\n", conn->nodeId);
-        root["msg"]["type"] = static_cast<int>(TIME_REQUEST);
-        root["msg"]["t0"] = getNodeTime();
-        msg = root["msg"].as<String>();
-        staticThis->sendMessage(conn, conn->nodeId, _nodeId, TIME_SYNC, msg, true);
-        break;
+    case (painlessmesh::protocol::TIME_REQUEST):
+      timeSync.reply(receivedAt, getNodeTime());
+      staticThis->send<painlessmesh::protocol::TimeSync>(conn, timeSync, true);
 
-    case (TIME_REQUEST):
-        root["msg"]["type"] = static_cast<int>(TIME_RESPONSE);
-        root["msg"]["t1"] = receivedAt;
-        root["msg"]["t2"] = getNodeTime();
-        msg = root["msg"].as<String>();
-        staticThis->sendMessage(conn, conn->nodeId, _nodeId, TIME_SYNC, msg, true);
+      debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n",
+               conn->nodeId);
 
-        // Build time response
-        debugMsg(S_TIME, "handleTimeSync(): Response sent %s\n", msg.c_str());
-        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
+      // After response is sent I assume sync is completed
+      conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
+      break;
 
-        // After response is sent I assume sync is completed
+    case (painlessmesh::protocol::TIME_REPLY): {
+      debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE received.\n");
+      uint32_t times[NUMBER_OF_TIMESTAMPS] = {timeSync.msg.t0, timeSync.msg.t1,
+                                              timeSync.msg.t2, receivedAt};
+
+      int32_t offset = conn->time.calcAdjustment(
+          times);  // Adjust time and get calculated offset
+
+      // flag all connections for re-timeSync
+      if (nodeTimeAdjustedCallback) {
+        nodeTimeAdjustedCallback(offset);
+      }
+
+      if (offset < TIME_SYNC_ACCURACY && offset > -TIME_SYNC_ACCURACY) {
+        // mark complete only if offset was less than 10 ms
         conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
-        break;
+        debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n",
+                 conn->nodeId);
 
-    case (TIME_RESPONSE):
-        debugMsg(S_TIME, "handleTimeSync(): TIME RESPONSE received.\n");
-        uint32_t times[NUMBER_OF_TIMESTAMPS] = {
-            root["msg"]["t0"],
-            root["msg"]["t1"],
-            root["msg"]["t2"],
-            receivedAt};
-
-        int32_t offset = conn->time.calcAdjustment(times); // Adjust time and get calculated offset
-
-        // flag all connections for re-timeSync
-        if (nodeTimeAdjustedCallback) {
-            nodeTimeAdjustedCallback(offset);
+        // Time has changed, update other nodes
+        for (auto&& connection : _connections) {
+          if (connection->nodeId != conn->nodeId) {  // exclude this connection
+            connection->timeSyncTask.forceNextIteration();
+            debugMsg(
+                S_TIME,
+                "handleTimeSync(): timeSyncStatus with %u brought forward\n",
+                connection->nodeId);
+          }
         }
-
-        if (offset < TIME_SYNC_ACCURACY && offset > -TIME_SYNC_ACCURACY) {
-            // mark complete only if offset was less than 10 ms
-            conn->timeSyncTask.delay(TIME_SYNC_INTERVAL);
-            debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u completed\n", conn->nodeId);
-
-            // Time has changed, update other nodes
-            for (auto &&connection : _connections) {
-                if (connection->nodeId != conn->nodeId) {  // exclude this connection
-                    connection->timeSyncTask.forceNextIteration();
-                    debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u brought forward\n", connection->nodeId);
-                }
-            }
-        } else {
-            // Iterate sync procedure if accuracy was not enough
-            conn->timeSyncTask.delay(200*TASK_MILLISECOND); // Small delay
-            debugMsg(S_TIME, "handleTimeSync(): timeSyncStatus with %u needs further tries\n", conn->nodeId);
-
-        }
-        break;
+      } else {
+        // Iterate sync procedure if accuracy was not enough
+        conn->timeSyncTask.delay(200 * TASK_MILLISECOND);  // Small delay
+        debugMsg(
+            S_TIME,
+            "handleTimeSync(): timeSyncStatus with %u needs further tries\n",
+            conn->nodeId);
+      }
+      break;
     }
+    default:
+      debugMsg(ERROR, "handleTimeSync(): unkown type %u, %u\n",
+               timeSync.msg.type, painlessmesh::protocol::TIME_SYNC_REQUEST);
+      break;
+  }
 
-    debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
-
+  debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
 }
 
-void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt) {
-    String timeStamp = root["msg"];
-    uint32_t from = root["from"];
-    debugMsg(S_TIME, "handleTimeDelay(): from %u in timestamp = %s\n", from, timeStamp.c_str());
+void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(
+    std::shared_ptr<MeshConnection> conn,
+    painlessmesh::protocol::TimeDelay timeDelay, uint32_t receivedAt) {
+  debugMsg(S_TIME, "handleTimeDelay(): from %u in timestamp\n", timeDelay.from);
 
-    timeSyncMessageType_t timeSyncMessageType = conn->time.processTimeStampDelay(timeStamp); // Extract timestamps and get type of message
+  conn->time.processTimeStampDelay(timeDelay);
 
-    String t_stamp;
+  switch (timeDelay.msg.type) {
+    case (painlessmesh::protocol::TIME_SYNC_ERROR):
+      debugMsg(ERROR,
+               "handleTimeDelay(): Error in requesting time delay. Please try "
+               "again.\n");
+      break;
 
-    switch (timeSyncMessageType) {
-    case (TIME_SYNC_ERROR):
-        debugMsg(ERROR, "handleTimeDelay(): Error in requesting time delay. Please try again.\n");
-        break;
+    case (painlessmesh::protocol::TIME_REQUEST):
+      // conn->timeSyncStatus == IN_PROGRESS;
+      debugMsg(S_TIME, "handleTimeDelay(): TIME REQUEST received.\n");
 
-    case (TIME_REQUEST):
-        //conn->timeSyncStatus == IN_PROGRESS;
-        debugMsg(S_TIME, "handleTimeDelay(): TIME REQUEST received.\n");
+      // Build time response
+      timeDelay.reply(receivedAt, getNodeTime());
+      staticThis->send<painlessmesh::protocol::TimeDelay>(conn, timeDelay);
+      break;
 
-        // Build time response
-        t_stamp = conn->time.buildTimeStamp(TIME_RESPONSE, conn->time.timeDelay[0], receivedAt, getNodeTime());
-        staticThis->sendMessage(conn, from, _nodeId, TIME_DELAY, t_stamp);
+    case (painlessmesh::protocol::TIME_REPLY): {
+      debugMsg(S_TIME, "handleTimeDelay(): TIME RESPONSE received.\n");
+      conn->time.timeDelay[3] =
+          receivedAt;  // Calculate fourth timestamp (response received time)
 
-        debugMsg(S_TIME, "handleTimeDelay(): Response sent %s\n", t_stamp.c_str());
+      int32_t delay =
+          conn->time.delayCalc();  // Adjust time and get calculated offset
+      debugMsg(S_TIME, "handleTimeDelay(): Delay is %d\n", delay);
 
-        // After response is sent I assume sync is completed
-        //conn->timeSyncStatus == COMPLETE;
-        //conn->lastTimeSync = getNodeTime();
-        break;
+      // conn->timeSyncStatus == COMPLETE;
 
-    case (TIME_RESPONSE):
-        {
-            debugMsg(S_TIME, "handleTimeDelay(): TIME RESPONSE received.\n");
-            conn->time.timeDelay[3] = receivedAt; // Calculate fourth timestamp (response received time)
-
-            int32_t delay = conn->time.delayCalc(); // Adjust time and get calculated offset
-            debugMsg(S_TIME, "handleTimeDelay(): Delay is %d\n", delay);
-
-            //conn->timeSyncStatus == COMPLETE;
-
-            if (nodeDelayReceivedCallback)
-                nodeDelayReceivedCallback(from, delay);
-        }
-        break;
+      if (nodeDelayReceivedCallback)
+        nodeDelayReceivedCallback(timeDelay.from, delay);
+    } break;
 
     default:
-        debugMsg(S_TIME, "handleTimeDelay(): Unknown timeSyncMessageType received. Ignoring for now.\n");
-    }
+      debugMsg(ERROR,
+               "handleTimeDelay(): Unknown timeSyncMessageType received. "
+               "Ignoring for now.\n");
+  }
 
-    debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
-
+  debugMsg(S_TIME, "handleTimeSync(): ----------------------------------\n");
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::syncSubConnections(uint32_t changedId) {

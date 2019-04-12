@@ -549,88 +549,65 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
     }
 }
 
-void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer, uint32_t receivedAt) {
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId, buffer.c_str());
+void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
+                                                     uint32_t receivedAt) {
+  staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n",
+                       this->nodeId, buffer.c_str());
 
-    auto rConn = staticThis->findConnection(this->client);
+  auto rConn = staticThis->findConnection(this->client);
 
-    auto variant = painlessmesh::protocol::Variant(buffer);
-    if (variant.error) {
-      staticThis->debugMsg(ERROR,
-                           "handleMessage(): parseObject() failed. "
-                           "total_length=%d, data=%s<--\n",
-                           buffer.length(), buffer.c_str());
-      return;
-    }
+  auto variant = painlessmesh::protocol::Variant(buffer);
+  if (variant.error) {
+    staticThis->debugMsg(ERROR,
+                         "handleMessage(): parseObject() failed. "
+                         "total_length=%d, data=%s<--\n",
+                         buffer.length(), buffer.c_str());
+    return;
+  }
 
-    if (variant.is<painlessmesh::protocol::Broadcast>()) {
-      auto pkg = variant.to<painlessmesh::protocol::Broadcast>();
-      staticThis->broadcastMessage(pkg, rConn);
+  if (variant.is<painlessmesh::protocol::Broadcast>()) {
+    auto pkg = variant.to<painlessmesh::protocol::Broadcast>();
+    staticThis->broadcastMessage(pkg, rConn);
+    if (staticThis->receivedCallback)
+      staticThis->receivedCallback(pkg.from, pkg.msg);
+    return;
+  }
+
+  if (variant.is<painlessmesh::protocol::TimeSync>()) {
+    auto pkg = variant.to<painlessmesh::protocol::TimeSync>();
+    staticThis->handleTimeSync(rConn, pkg, receivedAt);
+    return;
+  }
+
+  if (variant.is<painlessmesh::protocol::Single>()) {
+    auto pkg = variant.to<painlessmesh::protocol::Single>();
+    if (pkg.dest == staticThis->getNodeId()) {
       if (staticThis->receivedCallback)
         staticThis->receivedCallback(pkg.from, pkg.msg);
-      return;
-    }
-
-#if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer(1024 + buffer.length());
-    DeserializationError error = deserializeJson(jsonBuffer, buffer, DeserializationOption::NestingLimit(255));
-    if (error) {
-        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());
-        return;
-    }
-    JsonObject root = jsonBuffer.as<JsonObject>();
-#else
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(buffer.c_str(), 255);
-    if (!root.success()) {   // Test if parsing succeeded.
-        staticThis->debugMsg(ERROR, "meshRecvCb(): parseObject() failed. total_length=%d, data=%s<--\n", buffer.length(), buffer.c_str());
-        return;
-    }
-#endif
-
-    String msg = root["msg"];
-    meshPackageType t_message = (meshPackageType)(int)root["type"];
-
-    staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): lastRecieved=%u fromId=%u type=%d\n", staticThis->getNodeTime(), this->nodeId, t_message);
-
-    switch (t_message) {
-    case NODE_SYNC_REQUEST:
-    case NODE_SYNC_REPLY:
-        // TODO: These findConnections are not the most efficient way of doing it.
-        staticThis->handleNodeSync(rConn, root);
-        break;
-
-    case TIME_SYNC:
-        staticThis->handleTimeSync(rConn, root, receivedAt);
-        break;
-
-    case SINGLE:
-    case TIME_DELAY:
-        if ((uint32_t)root["dest"] == staticThis->getNodeId()) {  // msg for us!
-            if (t_message == TIME_DELAY) {
-                staticThis->handleTimeDelay(rConn, root, receivedAt);
-            } else {
-                if (staticThis->receivedCallback)
-                    staticThis->receivedCallback((uint32_t)root["from"], msg);
-            }
-        } else {                                                    // pass it along
-            String tempStr;
-#if ARDUINOJSON_VERSION_MAJOR==6
-            serializeJson(root, tempStr);
-#else
-            root.printTo(tempStr);
-#endif
-            auto conn = staticThis->findConnection((uint32_t)root["dest"], this->nodeId);
-            if (conn) {
-                conn->addMessage(tempStr);
-                staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Message %s to %u forwarded through %u\n", tempStr.c_str(), (uint32_t)root["dest"], conn->nodeId);
-            }
-        }
-        break;
-    default:
-        staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json, root[\"type\"]=%d", (int)root["type"]);
+    } else {
+      staticThis->send<painlessmesh::protocol::Single>(pkg);
     }
     return;
+  }
+
+  if (variant.is<painlessmesh::protocol::TimeDelay>()) {
+    auto pkg = variant.to<painlessmesh::protocol::TimeDelay>();
+    if (pkg.dest == staticThis->getNodeId())
+      staticThis->handleTimeDelay(rConn, pkg, receivedAt);
+    else
+      staticThis->send<painlessmesh::protocol::TimeDelay>(pkg);
+    return;
+  }
+
+  if (variant.is<painlessmesh::protocol::NodeSyncReply>() ||
+      variant.is<painlessmesh::protocol::NodeSyncRequest>()) {
+    auto jsonObj = variant.to<JsonObject>();
+    staticThis->handleNodeSync(rConn, jsonObj);
+    return;
+  }
+
+  staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json\n");
+  return;
 }
 
 //***********************************************************************

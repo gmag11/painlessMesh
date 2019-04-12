@@ -465,6 +465,54 @@ SCENARIO(
   }
 }
 
+SCENARIO("We can construct a reply to Time packages", "[protocol]") {
+  GIVEN("A reply to a TIME_SYNC_REQUEST") {
+    auto origPkg1 = TimeSync(10, 11);
+    auto pkg1 = TimeSync(10, 11);
+    pkg1.reply(12);
+    auto origPkg2 = TimeDelay(10, 11);
+    auto pkg2 = TimeDelay(10, 11);
+    pkg2.reply(12);
+    THEN("It will set t0, update type and swap from and dest.") {
+      REQUIRE(pkg1.msg.type == TIME_REQUEST);
+      REQUIRE(pkg2.msg.type == TIME_REQUEST);
+      REQUIRE(pkg1.msg.t0 == 12);
+      REQUIRE(pkg2.msg.t0 == 12);
+      REQUIRE(pkg1.from == origPkg1.dest);
+      REQUIRE(pkg2.from == origPkg2.dest);
+      REQUIRE(pkg1.dest == origPkg1.from);
+      REQUIRE(pkg2.dest == origPkg2.from);
+      REQUIRE(pkg1.type == origPkg1.type);
+      REQUIRE(pkg2.type == origPkg2.type);
+    }
+  }
+
+  GIVEN("A reply to a TIME_REQUEST") {
+    auto origPkg1 = TimeSync(10, 11, 12);
+    auto pkg1 = TimeSync(10, 11, 12);
+    pkg1.reply(13, 14);
+    auto origPkg2 = TimeDelay(10, 11, 12);
+    auto pkg2 = TimeDelay(10, 11, 12);
+    pkg2.reply(13, 14);
+    THEN("It will set t1 and t2, update type and swap from and dest.") {
+      REQUIRE(pkg1.msg.type == TIME_REPLY);
+      REQUIRE(pkg2.msg.type == TIME_REPLY);
+      REQUIRE(pkg1.msg.t0 == 12);
+      REQUIRE(pkg2.msg.t0 == 12);
+      REQUIRE(pkg1.msg.t1 == 13);
+      REQUIRE(pkg2.msg.t1 == 13);
+      REQUIRE(pkg1.msg.t2 == 14);
+      REQUIRE(pkg2.msg.t2 == 14);
+      REQUIRE(pkg1.from == origPkg1.dest);
+      REQUIRE(pkg2.from == origPkg2.dest);
+      REQUIRE(pkg1.dest == origPkg1.from);
+      REQUIRE(pkg2.dest == origPkg2.from);
+      REQUIRE(pkg1.type == origPkg1.type);
+      REQUIRE(pkg2.type == origPkg2.type);
+    }
+  }
+}
+
 SCENARIO("Package constructors work as expected", "[protocol]") {
   GIVEN("A Single package constructed with the constructor") {
     std::string str = "Blaat";
