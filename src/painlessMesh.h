@@ -34,16 +34,6 @@ typedef String TSTRING;
 #define MAX_MESSAGE_QUEUE    50 // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5 // Max message burst
 
-enum meshPackageType {
-    TIME_DELAY        = 3,
-    TIME_SYNC         = 4,
-    NODE_SYNC_REQUEST = 5,
-    NODE_SYNC_REPLY   = 6,
-    CONTROL           = 7,  //deprecated
-    BROADCAST         = 8,  //application data for everyone
-    SINGLE            = 9   //application data for a single node
-};
-
 template<typename T>
 using SimpleList = std::list<T>; // backward compatibility
 
@@ -182,18 +172,19 @@ protected:
 #endif
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(std::shared_ptr<MeshConnection> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
-    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
+ bool sendNodeSync(std::shared_ptr<MeshConnection> conn, uint32_t destId,
+                   uint32_t fromId, painlessmesh::protocol::Type type,
+                   String &msg, bool priority = false);
 
-    template <typename T>
-    bool send(std::shared_ptr<MeshConnection> conn, T package,
-              bool priority = false) {
-      auto variant = painlessmesh::protocol::Variant(package);
-      String msg;
-      variant.printTo(msg);
-      debugMsg(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
-               conn->nodeId, msg.c_str());
-      return conn->addMessage(msg, priority);
+ template <typename T>
+ bool send(std::shared_ptr<MeshConnection> conn, T package,
+           bool priority = false) {
+   auto variant = painlessmesh::protocol::Variant(package);
+   String msg;
+   variant.printTo(msg);
+   debugMsg(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
+            conn->nodeId, msg.c_str());
+   return conn->addMessage(msg, priority);
     }
 
     template <typename T>
@@ -210,8 +201,6 @@ protected:
 
     bool broadcastMessage(painlessmesh::protocol::Broadcast pkg,
                           std::shared_ptr<MeshConnection> exclude = NULL);
-    String buildMeshPackage(uint32_t destId, uint32_t fromId,
-                            meshPackageType type, String &msg);
 
     // in painlessMeshSync.cpp
     //must be accessable from callback

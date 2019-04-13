@@ -72,14 +72,15 @@ int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root) {
-    debugMsg(SYNC, "handleNodeSync(): with %u\n", conn->nodeId);
+  using namespace painlessmesh;
+  debugMsg(SYNC, "handleNodeSync(): with %u\n", conn->nodeId);
 
-    meshPackageType message_type = (meshPackageType)(int)root["type"];
-    uint32_t        remoteNodeId = root["from"];
+  protocol::Type message_type = (protocol::Type)(int)root["type"];
+  uint32_t remoteNodeId = root["from"];
 
-    if (remoteNodeId == 0) {
-        debugMsg(ERROR, "handleNodeSync(): received invalid remote nodeId\n");
-        return;
+  if (remoteNodeId == 0) {
+    debugMsg(ERROR, "handleNodeSync(): received invalid remote nodeId\n");
+    return;
     }
 
     if (conn->newConnection) {
@@ -165,16 +166,17 @@ void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnecti
     debugMsg(SYNC, "handleNodeSync(): json = %s\n", inComingSubs.c_str());
 
     switch (message_type) {
-    case NODE_SYNC_REQUEST:
-    {
+      case protocol::NODE_SYNC_REQUEST: {
         debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REQUEST %u sending NODE_SYNC_REPLY\n", conn->nodeId);
         String myOtherSubConnections = subConnectionJson(conn);
-        sendMessage(conn, conn->nodeId, _nodeId, NODE_SYNC_REPLY, myOtherSubConnections, true);
+        sendNodeSync(conn, conn->nodeId, _nodeId, protocol::NODE_SYNC_REPLY,
+                     myOtherSubConnections, true);
         break;
     }
-    case NODE_SYNC_REPLY:
-        debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %u\n", conn->nodeId);
-        break;
+    case protocol::NODE_SYNC_REPLY:
+      debugMsg(SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %u\n",
+               conn->nodeId);
+      break;
     default:
         debugMsg(ERROR, "handleNodeSync(): weird type? %d\n", message_type);
     }

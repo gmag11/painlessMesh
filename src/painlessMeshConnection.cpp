@@ -115,21 +115,22 @@ void meshRecvCb(void * arg, AsyncClient *, void * data, size_t len);
 void tcpSentCb(void * arg, AsyncClient * tpcb, size_t len, uint32_t time);
 
 ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painlessMesh *pMesh, bool is_station) {
-    station = is_station;
-    mesh    = pMesh;
-    client  = client_ptr;
+  using namespace painlessmesh;
+  station = is_station;
+  mesh = pMesh;
+  client = client_ptr;
 
-    client->setNoDelay(true);
-    client->setRxTimeout(NODE_TIMEOUT/TASK_SECOND);
+  client->setNoDelay(true);
+  client->setRxTimeout(NODE_TIMEOUT / TASK_SECOND);
 
-    //tcp_arg(pcb, static_cast<void*>(this));
-    auto arg = static_cast<void*>(this);
-    client->onData(meshRecvCb, arg); 
+  // tcp_arg(pcb, static_cast<void*>(this));
+  auto arg = static_cast<void *>(this);
+  client->onData(meshRecvCb, arg);
 
-    client->onAck(tcpSentCb, arg); 
+  client->onAck(tcpSentCb, arg);
 
-    if (station) { // we are the station, start nodeSync
-        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
+  if (station) {  // we are the station, start nodeSync
+    staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
     } else {
         staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");
     }
@@ -168,8 +169,8 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
                 this->nodeId);
         auto saveConn = staticThis->findConnection(this->client);
         String subs = staticThis->subConnectionJson(saveConn);
-        staticThis->sendMessage(saveConn, this->nodeId, 
-                staticThis->_nodeId, NODE_SYNC_REQUEST, subs, true);
+        staticThis->sendNodeSync(saveConn, this->nodeId, staticThis->_nodeId,
+                                 protocol::NODE_SYNC_REQUEST, subs, true);
     });
     staticThis->_scheduler.addTask(this->nodeSyncTask);
     if (station)
