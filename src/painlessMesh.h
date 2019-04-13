@@ -25,20 +25,14 @@ using namespace std;
 #include "painlessMeshSTA.h"
 #include "painlessMeshConnection.h"
 
+typedef String TSTRING;
+#undef ARDUINOJSON_ENABLE_STD_STRING
+#include "painlessmesh/protocol.hpp"
+
 #define NODE_TIMEOUT         10*TASK_SECOND
 #define MIN_FREE_MEMORY      4000 // Minimum free memory, besides here all packets in queue are discarded.
 #define MAX_MESSAGE_QUEUE    50 // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5 // Max message burst
-
-enum meshPackageType {
-    TIME_DELAY        = 3,
-    TIME_SYNC         = 4,
-    NODE_SYNC_REQUEST = 5,
-    NODE_SYNC_REPLY   = 6,
-    CONTROL           = 7,  //deprecated
-    BROADCAST         = 8,  //application data for everyone
-    SINGLE            = 9   //application data for a single node
-};
 
 template<typename T>
 using SimpleList = std::list<T>; // backward compatibility
@@ -178,18 +172,47 @@ protected:
 #endif
     // in painlessMeshComm.cpp
     //must be accessable from callback
-    bool                sendMessage(std::shared_ptr<MeshConnection> conn, uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
-    bool                sendMessage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg, bool priority = false);
-    bool                broadcastMessage(uint32_t fromId, meshPackageType type, String &msg, std::shared_ptr<MeshConnection> exclude = NULL);
+ bool sendNodeSync(std::shared_ptr<MeshConnection> conn, uint32_t destId,
+                   uint32_t fromId, painlessmesh::protocol::Type type,
+                   String &msg, bool priority = false);
 
-    String              buildMeshPackage(uint32_t destId, uint32_t fromId, meshPackageType type, String &msg);
+ template <typename T>
+ bool send(std::shared_ptr<MeshConnection> conn, T package,
+           bool priority = false) {
+   auto variant = painlessmesh::protocol::Variant(package);
+   String msg;
+   variant.printTo(msg);
+   debugMsg(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
+            conn->nodeId, msg.c_str());
+   return conn->addMessage(msg, priority);
+    }
+
+    template <typename T>
+    bool send(T package, bool priority = false) {
+      std::shared_ptr<MeshConnection> conn = findConnection(package.dest);
+      if (conn) {
+        return send<T>(conn, package, priority);
+      } else {
+        debugMsg(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n",
+                 package.dest);
+        return false;
+      }
+    }
+
+    bool broadcastMessage(painlessmesh::protocol::Broadcast pkg,
+                          std::shared_ptr<MeshConnection> exclude = NULL);
 
     // in painlessMeshSync.cpp
     //must be accessable from callback
     void                handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root);
+
     void                startTimeSync(std::shared_ptr<MeshConnection> conn);
-    void                handleTimeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt);
-    void                handleTimeDelay(std::shared_ptr<MeshConnection> conn, JsonObject& root, uint32_t receivedAt);
+    void handleTimeSync(std::shared_ptr<MeshConnection> conn,
+                        painlessmesh::protocol::TimeSync, uint32_t receivedAt);
+    void handleTimeDelay(std::shared_ptr<MeshConnection> conn,
+                         painlessmesh::protocol::TimeDelay timeDelay,
+                         uint32_t receivedAt);
+
     bool                adoptionCalc(std::shared_ptr<MeshConnection> conn);
 
     // Update other connections of a change

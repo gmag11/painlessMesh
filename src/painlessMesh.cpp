@@ -143,32 +143,27 @@ void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
-    debugMsg(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
-    return sendMessage(destId, _nodeId, SINGLE, msg);
+  debugMsg(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId,
+           msg.c_str());
+  auto single = painlessmesh::protocol::Single(_nodeId, destId, msg);
+  return send<painlessmesh::protocol::Single>(single);
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg, bool includeSelf) {
-    debugMsg(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
-    bool success = broadcastMessage(_nodeId, BROADCAST, msg);
-    if (success && includeSelf && this->receivedCallback)
-        this->receivedCallback(this->getNodeId(), msg);
-    return success; 
+bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg,
+                                                   bool includeSelf) {
+  debugMsg(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
+  auto pkg = painlessmesh::protocol::Broadcast(_nodeId, 0, msg);
+  bool success = broadcastMessage(pkg);
+  if (success && includeSelf && this->receivedCallback)
+    this->receivedCallback(this->getNodeId(), pkg.msg);
+  return success;
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
-    String timeStamp;
-    debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
-
-    auto conn = findConnection(nodeId);
-
-    if (conn) {
-        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());
-        //conn->timeDelayStatus = IN_PROGRESS;
-    } else {
-        return false;
-    }
-    debugMsg(S_TIME, "startDelayMeas(): Sent delay calc request -> %s\n", timeStamp.c_str());
-    sendMessage(conn, nodeId, _nodeId, TIME_DELAY, timeStamp);
-    return true;
+  debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
+  auto conn = findConnection(nodeId);
+  if (!conn) return false;
+  return send<painlessmesh::protocol::TimeDelay>(
+      conn, painlessmesh::protocol::TimeDelay(_nodeId, nodeId, getNodeTime()));
 }
