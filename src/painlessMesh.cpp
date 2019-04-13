@@ -4,6 +4,7 @@
 #include "lwip/init.h"
 
 painlessMesh* staticThis;
+LogClass Log;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
@@ -31,14 +32,15 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     // Shut Wifi down and start with a blank slage
     if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect();
 
-    debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
+    Log(STARTUP, "init(): %d\n",
+        WiFi.setAutoConnect(false));  // Disable autoconnect
     WiFi.persistent(false);
 
     staticThis = this;  // provides a way for static callback methods to access "this" object;
 
     // start configuration
     if(!WiFi.mode(connectMode)) {
-        debugMsg(GENERAL, "WiFi.mode() false");
+      Log(GENERAL, "WiFi.mode() false");
     }
 
     _meshSSID     = ssid;
@@ -50,7 +52,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     uint8_t MAC[] = {0, 0, 0, 0, 0, 0};
     if (WiFi.softAPmacAddress(MAC) == 0) {
-        debugMsg(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
+      Log(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
     }
     _nodeId = encodeNodeId(MAC);
 
@@ -143,8 +145,7 @@ void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
-  debugMsg(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId,
-           msg.c_str());
+  Log(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
   auto single = painlessmesh::protocol::Single(_nodeId, destId, msg);
   return send<painlessmesh::protocol::Single>(single);
 }
@@ -152,7 +153,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg,
                                                    bool includeSelf) {
-  debugMsg(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
+  Log(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
   auto pkg = painlessmesh::protocol::Broadcast(_nodeId, 0, msg);
   bool success = broadcastMessage(pkg);
   if (success && includeSelf && this->receivedCallback)
@@ -161,9 +162,13 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg,
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
-  debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
+  Log(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
   auto conn = findConnection(nodeId);
   if (!conn) return false;
   return send<painlessmesh::protocol::TimeDelay>(
       conn, painlessmesh::protocol::TimeDelay(_nodeId, nodeId, getNodeTime()));
+}
+
+void ICACHE_FLASH_ATTR painlessMesh::setDebugMsgTypes(uint16_t newTypes) {
+  Log.setLogLevel(newTypes);
 }

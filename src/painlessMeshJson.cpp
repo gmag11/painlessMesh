@@ -2,6 +2,8 @@
 
 #include "painlessMesh.h"
 
+extern LogClass Log;
+
 bool ICACHE_FLASH_ATTR painlessmesh::subRooted(const String &subs) {
     auto id = subs.indexOf("root");
     if (id == 0 || (id > 0 &&

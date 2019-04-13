@@ -6,6 +6,8 @@
 
 #include <sys/time.h>
 
+#define F(string_literal) string_literal
+
 unsigned long millis() {
     struct timeval te; 
     gettimeofday(&te, NULL); // get current time

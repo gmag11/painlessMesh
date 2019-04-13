@@ -11,6 +11,7 @@
 
 //#include "lwip/priv/tcpip_priv.h"
 
+extern LogClass Log;
 extern painlessMesh* staticThis;
 
 static temp_buffer_t shared_buffer;
@@ -43,7 +44,8 @@ void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr,
             }
         }
     } while (length > 0);
-    staticThis->debugMsg(COMMUNICATION, "ReceiveBuffer::push(): buffer size=%u, %u\n", jsonStrings.size(), buffer.length());
+    Log(COMMUNICATION, "ReceiveBuffer::push(): buffer size=%u, %u\n",
+        jsonStrings.size(), buffer.length());
 }
 
 String ICACHE_FLASH_ATTR ReceiveBuffer::front() {
@@ -91,10 +93,10 @@ void ICACHE_FLASH_ATTR SentBuffer::read(size_t length, temp_buffer_t &buf) {
 }
 
 void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
-    staticThis->debugMsg(COMMUNICATION, "SentBuffer::freeRead(): %u\n", last_read_size);
-    if (last_read_size == jsonStrings.begin()->length() + 1) {
-        jsonStrings.pop_front();
-        clean = true;
+  Log(COMMUNICATION, "SentBuffer::freeRead(): %u\n", last_read_size);
+  if (last_read_size == jsonStrings.begin()->length() + 1) {
+    jsonStrings.pop_front();
+    clean = true;
     } else {
         jsonStrings.begin()->remove(0, last_read_size);
         clean = false;
@@ -130,29 +132,30 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
   client->onAck(tcpSentCb, arg);
 
   if (station) {  // we are the station, start nodeSync
-    staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are STA\n");
+    Log(CONNECTION, "meshConnectedCb(): we are STA\n");
     } else {
-        staticThis->debugMsg(CONNECTION, "meshConnectedCb(): we are AP\n");
+      Log(CONNECTION, "meshConnectedCb(): we are AP\n");
     }
 
     client->onError([](void * arg, AsyncClient *client, int8_t err) {
         if (staticThis->semaphoreTake()) {
-            staticThis->debugMsg(CONNECTION, "tcp_err(): MeshConnection %s\n", client->errorToString(err));
-            staticThis->semaphoreGive();
+          Log(CONNECTION, "tcp_err(): MeshConnection %s\n",
+              client->errorToString(err));
+          staticThis->semaphoreGive();
         }
     }, arg);
 
     client->onDisconnect([](void *arg, AsyncClient *client) {
         if (staticThis->semaphoreTake()) {
             if (arg == NULL) {
-                staticThis->debugMsg(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
-                if (client->connected())
-                    client->close(true);
-                return;
+              Log(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
+              if (client->connected()) client->close(true);
+              return;
             }
             auto conn = static_cast<MeshConnection*>(arg);
-            staticThis->debugMsg(CONNECTION, "onDisconnect():\n");
-            staticThis->debugMsg(CONNECTION, "onDisconnect(): dropping %u now= %u\n", conn->nodeId, staticThis->getNodeTime());
+            Log(CONNECTION, "onDisconnect():\n");
+            Log(CONNECTION, "onDisconnect(): dropping %u now= %u\n",
+                conn->nodeId, staticThis->getNodeTime());
             conn->close();
             staticThis->semaphoreGive();
         }
@@ -162,15 +165,13 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     if (!station)
         syncInterval = NODE_TIMEOUT*2;
 
-    this->nodeSyncTask.set(
-            syncInterval, TASK_FOREVER, [this](){
-        staticThis->debugMsg(SYNC, "nodeSyncTask(): \n");
-        staticThis->debugMsg(SYNC, "nodeSyncTask(): request with %u\n", 
-                this->nodeId);
-        auto saveConn = staticThis->findConnection(this->client);
-        String subs = staticThis->subConnectionJson(saveConn);
-        staticThis->sendNodeSync(saveConn, this->nodeId, staticThis->_nodeId,
-                                 protocol::NODE_SYNC_REQUEST, subs, true);
+    this->nodeSyncTask.set(syncInterval, TASK_FOREVER, [this]() {
+      Log(SYNC, "nodeSyncTask(): \n");
+      Log(SYNC, "nodeSyncTask(): request with %u\n", this->nodeId);
+      auto saveConn = staticThis->findConnection(this->client);
+      String subs = staticThis->subConnectionJson(saveConn);
+      staticThis->sendNodeSync(saveConn, this->nodeId, staticThis->_nodeId,
+                               protocol::NODE_SYNC_REQUEST, subs, true);
     });
     staticThis->_scheduler.addTask(this->nodeSyncTask);
     if (station)
@@ -193,25 +194,25 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     staticThis->_scheduler.addTask(readBufferTask);
     readBufferTask.enableDelayed();
 
-    sentBufferTask.set(500*TASK_MILLISECOND, TASK_FOREVER, [this]() {
-        staticThis->debugMsg(GENERAL, "sentBufferTask()\n");
-        if (!this->sentBuffer.empty() && this->client->canSend()) {
-            this->writeNext();
-            this->sentBufferTask.forceNextIteration();
-        }
+    sentBufferTask.set(500 * TASK_MILLISECOND, TASK_FOREVER, [this]() {
+      Log(GENERAL, "sentBufferTask()\n");
+      if (!this->sentBuffer.empty() && this->client->canSend()) {
+        this->writeNext();
+        this->sentBufferTask.forceNextIteration();
+      }
     });
     staticThis->_scheduler.addTask(sentBufferTask);
     sentBufferTask.enableDelayed();
-    
-    staticThis->debugMsg(GENERAL, "MeshConnection(): leaving\n");
+
+    Log(GENERAL, "MeshConnection(): leaving\n");
 }
 
 ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
-    staticThis->debugMsg(CONNECTION, "~MeshConnection():\n");
-    this->close();
-    if (!client->freeable()) {
-        mesh->debugMsg(CONNECTION, "~MeshConnection(): Closing pcb\n");
-        client->close(true);
+  Log(CONNECTION, "~MeshConnection():\n");
+  this->close();
+  if (!client->freeable()) {
+    Log(CONNECTION, "~MeshConnection(): Closing pcb\n");
+    client->close(true);
     }
     client->abort();
     delete client;
@@ -220,8 +221,8 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
 void ICACHE_FLASH_ATTR MeshConnection::close() {
     if (!connected)
         return;
-    
-    staticThis->debugMsg(CONNECTION, "MeshConnection::close().\n");
+
+    Log(CONNECTION, "MeshConnection::close().\n");
     this->connected = false;
 
     this->timeSyncTask.setCallback(NULL);
@@ -233,26 +234,28 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
 
     auto nodeId = this->nodeId;
 
-    mesh->droppedConnectionTask.set(TASK_SECOND, TASK_ONCE, [nodeId]() {
-        staticThis->debugMsg(CONNECTION, "closingTask():\n");
-        staticThis->debugMsg(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId, staticThis->getNodeTime());
-       if (staticThis->changedConnectionsCallback)
+    mesh->droppedConnectionTask.set(
+        TASK_SECOND, TASK_ONCE, [nodeId]() {
+          Log(CONNECTION, "closingTask():\n");
+          Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
+              staticThis->getNodeTime());
+          if (staticThis->changedConnectionsCallback)
             staticThis->changedConnectionsCallback(); // Connection dropped. Signal user
-       if (staticThis->droppedConnectionCallback)
+          if (staticThis->droppedConnectionCallback)
             staticThis->droppedConnectionCallback(nodeId); // Connection dropped. Signal user
-       staticThis->syncSubConnections(nodeId);
-    });
+          staticThis->syncSubConnections(nodeId);
+        });
     mesh->_scheduler.addTask(staticThis->droppedConnectionTask);
     mesh->droppedConnectionTask.enable();
 
     if (client->connected()) {
-        mesh->debugMsg(CONNECTION, "close(): Closing pcb\n");
-        client->close();
+      Log(CONNECTION, "close(): Closing pcb\n");
+      client->close();
     }
 
     if (station && WiFi.status() == WL_CONNECTED) {
-        staticThis->debugMsg(CONNECTION, "close(): call WiFi.disconnect().\n");
-        WiFi.disconnect();
+      Log(CONNECTION, "close(): call WiFi.disconnect().\n");
+      WiFi.disconnect();
     }
 
     receiveBuffer.clear();
@@ -263,36 +266,38 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
 
     this->nodeId = 0;
     mesh->eraseClosedConnections();
-    staticThis->debugMsg(CONNECTION, "MeshConnection::close() Done.\n");
+    Log(CONNECTION, "MeshConnection::close() Done.\n");
 }
 
 
 bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority) {
-    /*
-    mesh->debugMsg(DEBUG, "No connections: %u, sentMessages: %u, receiveMessages: %u, station: %u, canSend: %u, nodeId: %u\n",
-            mesh->_connections.size(), sentBuffer.jsonStrings.size(), receiveBuffer.jsonStrings.size(), station, client->canSend(), nodeId);
-    if (receiveBuffer.jsonStrings.size() > 3)
-        mesh->debugMsg(DEBUG, "Msg %s\n", message.c_str());
-    */
     if (ESP.getFreeHeap() - message.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
         if (priority) {
             sentBuffer.push(message, priority);
-            mesh->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue beginning -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
+            Log(COMMUNICATION,
+                "addMessage(): Package sent to queue beginning -> %d , "
+                "FreeMem: %d\n",
+                sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
         } else {
             if (sentBuffer.jsonStrings.size() < MAX_MESSAGE_QUEUE) {
                 sentBuffer.push(message, priority);
-                staticThis->debugMsg(COMMUNICATION, "addMessage(): Package sent to queue end -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
+                Log(COMMUNICATION,
+                    "addMessage(): Package sent to queue end -> %d , FreeMem: "
+                    "%d\n",
+                    sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
             } else {
-                staticThis->debugMsg(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n", sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
-                sentBufferTask.forceNextIteration();
-                return false;
+              Log(ERROR,
+                  "addMessage(): Message queue full -> %d , FreeMem: %d\n",
+                  sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
+              sentBufferTask.forceNextIteration();
+              return false;
             }
         }
         sentBufferTask.forceNextIteration();
         return true;
     } else {
         //connection->sendQueue.clear(); // Discard all messages if free memory is low
-        staticThis->debugMsg(DEBUG, "addMessage(): Memory low, message was discarded\n");
+        Log(DEBUG, "addMessage(): Memory low, message was discarded\n");
         sentBufferTask.forceNextIteration();
         return false;
     }
@@ -300,8 +305,8 @@ bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority
 
 bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     if (sentBuffer.empty()) {
-        staticThis->debugMsg(COMMUNICATION, "writeNext(): sendQueue is empty\n");
-        return false;
+      Log(COMMUNICATION, "writeNext(): sendQueue is empty\n");
+      return false;
     }
     auto len = sentBuffer.requestLength(shared_buffer.length);
     auto snd_len = client->space();
@@ -311,21 +316,26 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
         sentBuffer.read(len, shared_buffer);
         auto written = client->write(shared_buffer.buffer, len, 1);
         if (written == len) {
-            staticThis->debugMsg(COMMUNICATION, "writeNext(): Package sent = %s\n", shared_buffer.buffer);
-            client->send(); // TODO only do this for priority messages
-            sentBuffer.freeRead();
-            sentBufferTask.forceNextIteration();
-            return true;
+          Log(COMMUNICATION, "writeNext(): Package sent = %s\n",
+              shared_buffer.buffer);
+          client->send();  // TODO only do this for priority messages
+          sentBuffer.freeRead();
+          sentBufferTask.forceNextIteration();
+          return true;
         } else if (written == 0) {
-            staticThis->debugMsg(COMMUNICATION, "writeNext(): tcp_write Failed node=%u. Resending later\n", nodeId);
-            return false;
+          Log(COMMUNICATION,
+              "writeNext(): tcp_write Failed node=%u. Resending later\n",
+              nodeId);
+          return false;
         } else {
-            staticThis->debugMsg(ERROR, "writeNext(): Less written than requested. Please report bug on the issue tracker\n");
-            return false;
+          Log(ERROR,
+              "writeNext(): Less written than requested. Please report bug on "
+              "the issue tracker\n");
+          return false;
         }
     } else {
-        staticThis->debugMsg(COMMUNICATION, "writeNext(): tcp_sndbuf not enough space\n");
-        return false;
+      Log(COMMUNICATION, "writeNext(): tcp_sndbuf not enough space\n");
+      return false;
     }
 
 }
@@ -333,44 +343,44 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
 // connection managment functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::onReceive(receivedCallback_t  cb) {
-    debugMsg(GENERAL, "onReceive():\n");
-    receivedCallback = cb;
+  Log(GENERAL, "onReceive():\n");
+  receivedCallback = cb;
 }
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::onNewConnection(newConnectionCallback_t cb) {
-    debugMsg(GENERAL, "onNewConnection():\n");
-    newConnectionCallback = cb;
+  Log(GENERAL, "onNewConnection():\n");
+  newConnectionCallback = cb;
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::onDroppedConnection(droppedConnectionCallback_t cb) {
-    debugMsg(GENERAL, "onDroppedConnection():\n");
-    droppedConnectionCallback = cb;
+  Log(GENERAL, "onDroppedConnection():\n");
+  droppedConnectionCallback = cb;
 }
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::onChangedConnections(changedConnectionsCallback_t cb) {
-    debugMsg(GENERAL, "onChangedConnections():\n");
-    changedConnectionsCallback = cb;
+  Log(GENERAL, "onChangedConnections():\n");
+  changedConnectionsCallback = cb;
 }
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::onNodeTimeAdjusted(nodeTimeAdjustedCallback_t cb) {
-    debugMsg(GENERAL, "onNodeTimeAdjusted():\n");
-    nodeTimeAdjustedCallback = cb;
+  Log(GENERAL, "onNodeTimeAdjusted():\n");
+  nodeTimeAdjustedCallback = cb;
 }
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb) {
-    debugMsg(GENERAL, "onNodeDelayReceived():\n");
-    nodeDelayReceivedCallback = cb;
+  Log(GENERAL, "onNodeDelayReceived():\n");
+  nodeDelayReceivedCallback = cb;
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::eraseClosedConnections() {
-    debugMsg(CONNECTION, "eraseClosedConnections():\n");
-    _connections.remove_if( [](const std::shared_ptr<MeshConnection>& conn){
-            return !conn->connected;
-    });
+  Log(CONNECTION, "eraseClosedConnections():\n");
+  _connections.remove_if([](const std::shared_ptr<MeshConnection> &conn) {
+    return !conn->connected;
+  });
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
@@ -390,40 +400,43 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 //***********************************************************************
 // Search for a connection to a given nodeID
 std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId, uint32_t exclude) {
-    debugMsg(GENERAL, "In findConnection(nodeId)\n");
+  Log(GENERAL, "In findConnection(nodeId)\n");
 
-    for (auto &&connection : _connections) {
-        if (connection->nodeId == exclude) {
-            debugMsg(GENERAL, "findConnection(%u): Skipping excluded connection\n", nodeId);
-            continue;
-        }
-
-        if (connection->nodeId == nodeId) {  // check direct connections
-            debugMsg(GENERAL, "findConnection(%u): Found Direct Connection\n", nodeId);
-            return connection;
-        }
-
-        if (painlessmesh::stringContainsNumber(connection->subConnections,
-            String(nodeId))) { // check sub-connections
-            debugMsg(GENERAL, "findConnection(%u): Found Sub Connection through %u\n", nodeId, connection->nodeId);
-            return connection;
-        }
+  for (auto &&connection : _connections) {
+    if (connection->nodeId == exclude) {
+      Log(GENERAL, "findConnection(%u): Skipping excluded connection\n",
+          nodeId);
+      continue;
     }
-    debugMsg(CONNECTION, "findConnection(%u): did not find connection\n", nodeId);
+
+    if (connection->nodeId == nodeId) {  // check direct connections
+      Log(GENERAL, "findConnection(%u): Found Direct Connection\n", nodeId);
+      return connection;
+    }
+
+    if (painlessmesh::stringContainsNumber(
+            connection->subConnections,
+            String(nodeId))) {  // check sub-connections
+      Log(GENERAL, "findConnection(%u): Found Sub Connection through %u\n",
+          nodeId, connection->nodeId);
+      return connection;
+    }
+    }
+    Log(CONNECTION, "findConnection(%u): did not find connection\n", nodeId);
     return NULL;
 }
 
 //***********************************************************************
 std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(AsyncClient *client) {
-    debugMsg(GENERAL, "In findConnection() conn=0x%x\n", client);
+  Log(GENERAL, "In findConnection() conn=0x%x\n", client);
 
-    for (auto &&connection : _connections) {
-        if ((*connection->client) == (*client)) {
-            return connection;
-        }
+  for (auto &&connection : _connections) {
+    if ((*connection->client) == (*client)) {
+      return connection;
+    }
     }
 
-    debugMsg(CONNECTION, "findConnection(): Did not Find\n");
+    Log(CONNECTION, "findConnection(): Did not Find\n");
     return NULL;
 }
 
@@ -440,35 +453,34 @@ String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(std::shared_ptr<MeshCon
 String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
         ConnectionList &connections,
         uint32_t exclude) {
-    if (exclude != 0)
-        debugMsg(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
+  if (exclude != 0) Log(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
 
-    String ret = "[";
-    for (auto &&sub : connections) {
-        if (!sub->connected) {
-            debugMsg(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n", 
-                    sub->nodeId);
-        } else if (sub->nodeId != exclude && sub->nodeId != 0) {  //exclude connection that we are working with & anything too new.
-            if (ret.length() > 1)
-                ret += String(",");
-            ret += String("{\"nodeId\":") + String(sub->nodeId);
-            if (sub->root)
-                ret += String(",\"root\":true");
-            ret += String(",\"subs\":") + sub->subConnections + String("}");
-        }
+  String ret = "[";
+  for (auto &&sub : connections) {
+    if (!sub->connected) {
+      Log(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n",
+          sub->nodeId);
+    } else if (sub->nodeId != exclude &&
+               sub->nodeId != 0) {  // exclude connection that we are working
+                                    // with & anything too new.
+      if (ret.length() > 1) ret += String(",");
+      ret += String("{\"nodeId\":") + String(sub->nodeId);
+      if (sub->root) ret += String(",\"root\":true");
+      ret += String(",\"subs\":") + sub->subConnections + String("}");
+    }
     }
     ret += String("]");
 
-    debugMsg(GENERAL, "subConnectionJson(): ret=%s\n", ret.c_str());
+    Log(GENERAL, "subConnectionJson(): ret=%s\n", ret.c_str());
     return ret;
 }
 
 // Calculating the actual number of connected nodes is fairly expensive,
 // this calculates a cheap approximation
 size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes() {
-    debugMsg(GENERAL, "approxNoNodes()\n");
-    auto sc = subConnectionJson();
-    return approxNoNodes(sc);
+  Log(GENERAL, "approxNoNodes()\n");
+  auto sc = subConnectionJson();
+  return approxNoNodes(sc);
 }
 
 size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
@@ -521,7 +533,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
 void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, uint32_t time) {
     if (staticThis->semaphoreTake()) {
         if (arg == NULL) {
-            staticThis->debugMsg(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
+          Log(COMMUNICATION, "tcpSentCb(): no valid connection found\n");
         }
         auto conn = static_cast<MeshConnection*>(arg);
         conn->sentBufferTask.forceNextIteration();
@@ -532,11 +544,12 @@ void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, u
 void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, size_t len) {
     if (staticThis->semaphoreTake()) {
         if (arg == NULL) {
-            staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
+          Log(COMMUNICATION, "meshRecvCb(): no valid connection found\n");
         }
         auto receiveConn = static_cast<MeshConnection*>(arg);
 
-        staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): fromId=%u\n", receiveConn ? receiveConn->nodeId : 0);
+        Log(COMMUNICATION, "meshRecvCb(): fromId=%u\n",
+            receiveConn ? receiveConn->nodeId : 0);
 
         receiveConn->receiveBuffer.push(static_cast<const char*>(data), len, shared_buffer);
 
@@ -552,17 +565,16 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
                                                      uint32_t receivedAt) {
-  staticThis->debugMsg(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n",
-                       this->nodeId, buffer.c_str());
+  Log(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId,
+      buffer.c_str());
 
   auto rConn = staticThis->findConnection(this->client);
 
   auto variant = painlessmesh::protocol::Variant(buffer);
   if (variant.error) {
-    staticThis->debugMsg(ERROR,
-                         "handleMessage(): parseObject() failed. "
-                         "total_length=%d, data=%s<--\n",
-                         buffer.length(), buffer.c_str());
+    Log(ERROR,
+        "handleMessage(): parseObject() failed. total_length=%d, data=%s<--\n",
+        buffer.length(), buffer.c_str());
     return;
   }
 
@@ -607,7 +619,7 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
     return;
   }
 
-  staticThis->debugMsg(ERROR, "meshRecvCb(): unexpected json\n");
+  Log(ERROR, "meshRecvCb(): unexpected json\n");
   return;
 }
 
@@ -615,80 +627,88 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
 // WiFi event handler
 void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
 #ifdef ESP32
-    eventScanDoneHandler = WiFi.onEvent(
-        [](WiFiEvent_t event, WiFiEventInfo_t info) {
-            staticThis->debugMsg(
-                CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
+  eventScanDoneHandler =
+      WiFi.onEvent(
+          [](WiFiEvent_t event, WiFiEventInfo_t info) {
+            Log(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
             staticThis->stationScan.task.setCallback(
                 []() { staticThis->stationScan.scanComplete(); });
             staticThis->stationScan.task.forceNextIteration();
-        },
-        WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
+          },
+          WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
-    eventSTAStartHandler = WiFi.onEvent(
-        [](WiFiEvent_t event, WiFiEventInfo_t info) {
-            // staticThis->stationScan.task.forceNextIteration();
-            staticThis->debugMsg(
-                CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
-        },
-        WiFiEvent_t::SYSTEM_EVENT_STA_START);
+  eventSTAStartHandler = WiFi.onEvent(
+      [](WiFiEvent_t event, WiFiEventInfo_t info) {
+        // staticThis->stationScan.task.forceNextIteration();
+        Log(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
+      },
+      WiFiEvent_t::SYSTEM_EVENT_STA_START);
 
-    eventSTADisconnectedHandler = WiFi.onEvent(
-        [](WiFiEvent_t event, WiFiEventInfo_t info) {
-            staticThis->_station_got_ip = false;
-            staticThis->debugMsg(
-                CONNECTION,
-                "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-            // staticThis->stationScan.task.forceNextIteration();
-            WiFi.disconnect();
-            // Search for APs and connect to the best one
-            staticThis->stationScan.connectToAP();
-        },
-        WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
+  eventSTADisconnectedHandler = WiFi.onEvent(
+      [](WiFiEvent_t event, WiFiEventInfo_t info) {
+        staticThis->_station_got_ip = false;
+        Log(CONNECTION,
+            "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
+        // staticThis->stationScan.task.forceNextIteration();
+        WiFi.disconnect();
+        // Search for APs and connect to the best one
+        staticThis->stationScan.connectToAP();
+      },
+      WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
-    eventSTAGotIPHandler = WiFi.onEvent(
-        [](WiFiEvent_t event, WiFiEventInfo_t info) {
-            staticThis->_station_got_ip = true;
-            staticThis->debugMsg(
-                CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
-            staticThis->tcpConnect();  // Connect to TCP port
-        },
-        WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+  eventSTAGotIPHandler = WiFi.onEvent(
+      [](WiFiEvent_t event, WiFiEventInfo_t info) {
+        staticThis->_station_got_ip = true;
+        Log(CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
+        staticThis->tcpConnect();  // Connect to TCP port
+      },
+      WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 #elif defined(ESP8266)
-    eventSTAConnectedHandler = WiFi.onStationModeConnected([&](const WiFiEventStationModeConnected &event) {
-        //staticThis->debugMsg(CONNECTION, "Event: Station Mode Connected to \"%s\"\n", event.ssid.c_str());
-        staticThis->debugMsg(CONNECTION, "Event: Station Mode Connected\n");
-    });
+  eventSTAConnectedHandler = WiFi.onStationModeConnected(
+      [&](const WiFiEventStationModeConnected &event) {
+        // Log(CONNECTION, "Event: Station Mode Connected to \"%s\"\n",
+        // event.ssid.c_str());
+        Log(CONNECTION, "Event: Station Mode Connected\n");
+      });
 
-    eventSTADisconnectedHandler = WiFi.onStationModeDisconnected(
-        [&](const WiFiEventStationModeDisconnected &event) {
+  eventSTADisconnectedHandler =
+      WiFi.onStationModeDisconnected(
+          [&](const WiFiEventStationModeDisconnected &event) {
             staticThis->_station_got_ip = false;
-            // staticThis->debugMsg(CONNECTION, "Event: Station Mode
+            // Log(CONNECTION, "Event: Station Mode
             // Disconnected from %s\n", event.ssid.c_str());
-            staticThis->debugMsg(CONNECTION,
-                                 "Event: Station Mode Disconnected\n");
+            Log(CONNECTION, "Event: Station Mode Disconnected\n");
             WiFi.disconnect();
             staticThis->stationScan
                 .connectToAP();  // Search for APs and connect to the best one
-        });
+          });
 
-    eventSTAAuthChangeHandler = WiFi.onStationModeAuthModeChanged([&](const WiFiEventStationModeAuthModeChanged &event) {
-        staticThis->debugMsg(CONNECTION, "Event: Station Mode Auth Mode Change\n");
-    });
+  eventSTAAuthChangeHandler = WiFi.onStationModeAuthModeChanged(
+      [&](const WiFiEventStationModeAuthModeChanged &event) {
+        Log(CONNECTION, "Event: Station Mode Auth Mode Change\n");
+      });
 
-    eventSTAGotIPHandler = WiFi.onStationModeGotIP([&](const WiFiEventStationModeGotIP &event) {
+  eventSTAGotIPHandler =
+      WiFi.onStationModeGotIP([&](const WiFiEventStationModeGotIP &event) {
         staticThis->_station_got_ip = true;
-        staticThis->debugMsg(CONNECTION, "Event: Station Mode Got IP (IP: %s  Mask: %s  Gateway: %s)\n", event.ip.toString().c_str(), event.mask.toString().c_str(), event.gw.toString().c_str());
+        Log(CONNECTION,
+            "Event: Station Mode Got IP (IP: %s  Mask: %s  Gateway: %s)\n",
+            event.ip.toString().c_str(), event.mask.toString().c_str(),
+            event.gw.toString().c_str());
         staticThis->tcpConnect(); // Connect to TCP port
-    });
+      });
 
-    eventSoftAPConnectedHandler = WiFi.onSoftAPModeStationConnected([&](const WiFiEventSoftAPModeStationConnected &event) {
-        staticThis->debugMsg(CONNECTION, "Event: %lu Connected to AP Mode Station\n", staticThis->encodeNodeId(event.mac));
-    });
+  eventSoftAPConnectedHandler = WiFi.onSoftAPModeStationConnected(
+      [&](const WiFiEventSoftAPModeStationConnected &event) {
+        Log(CONNECTION, "Event: %lu Connected to AP Mode Station\n",
+            staticThis->encodeNodeId(event.mac));
+      });
 
-    eventSoftAPDisconnectedHandler = WiFi.onSoftAPModeStationDisconnected([&](const WiFiEventSoftAPModeStationDisconnected &event) {
-        staticThis->debugMsg(CONNECTION, "Event: %lu Disconnected from AP Mode Station\n", staticThis->encodeNodeId(event.mac));
-    });
+  eventSoftAPDisconnectedHandler = WiFi.onSoftAPModeStationDisconnected(
+      [&](const WiFiEventSoftAPModeStationDisconnected &event) {
+        Log(CONNECTION, "Event: %lu Disconnected from AP Mode Station\n",
+            staticThis->encodeNodeId(event.mac));
+      });
 #endif // ESP32
     return;
 }

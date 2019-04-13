@@ -27,7 +27,9 @@ using namespace std;
 
 typedef String TSTRING;
 #undef ARDUINOJSON_ENABLE_STD_STRING
+#include "painlessmesh/logger.hpp"
 #include "painlessmesh/protocol.hpp"
+using namespace painlessmesh::logger;
 
 #define NODE_TIMEOUT         10*TASK_SECOND
 #define MIN_FREE_MEMORY      4000 // Minimum free memory, besides here all packets in queue are discarded.
@@ -36,22 +38,6 @@ typedef String TSTRING;
 
 template<typename T>
 using SimpleList = std::list<T>; // backward compatibility
-
-typedef enum
-{
-    ERROR         = 1 << 0,
-    STARTUP       = 1 << 1,
-    MESH_STATUS   = 1 << 2,
-    CONNECTION    = 1 << 3,
-    SYNC          = 1 << 4,
-    S_TIME        = 1 << 5,
-    COMMUNICATION = 1 << 6,
-    GENERAL       = 1 << 7,
-    MSG_TYPES     = 1 << 8,
-    REMOTE        = 1 << 9, // not yet implemented
-    APPLICATION   = 1 << 10,
-    DEBUG         = 1 << 11
-} debugType_t;
 
 #ifdef ESP32
 #define MAX_CONN 10
@@ -103,7 +89,6 @@ public:
 
     // in painlessMeshDebug.cpp
     void                setDebugMsgTypes(uint16_t types);
-    void                debugMsg(debugType_t type, const char* format ...);
 
     // in painlessMesh.cpp
 	 					painlessMesh();
@@ -182,8 +167,8 @@ protected:
    auto variant = painlessmesh::protocol::Variant(package);
    String msg;
    variant.printTo(msg);
-   debugMsg(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
-            conn->nodeId, msg.c_str());
+   // Log(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
+   //         conn->nodeId, msg.c_str());
    return conn->addMessage(msg, priority);
     }
 
@@ -193,8 +178,8 @@ protected:
       if (conn) {
         return send<T>(conn, package, priority);
       } else {
-        debugMsg(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n",
-                 package.dest);
+        // Log(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n",
+        //         package.dest);
         return false;
       }
     }
