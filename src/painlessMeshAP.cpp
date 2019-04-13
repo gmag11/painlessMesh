@@ -10,6 +10,7 @@
 
 #include "painlessMesh.h"
 
+extern LogClass Log;
 extern painlessMesh* staticThis;
 
 // AP functions
@@ -33,22 +34,25 @@ IPAddress ICACHE_FLASH_ATTR painlessMesh::getAPIP()
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
-    debugMsg(GENERAL, "tcpServerInit():\n");
+  Log(GENERAL, "tcpServerInit():\n");
 
-    _tcpListener = new AsyncServer(_meshPort);
-    _tcpListener->setNoDelay(true);
+  _tcpListener = new AsyncServer(_meshPort);
+  _tcpListener->setNoDelay(true);
 
-    _tcpListener->onClient([](void * arg, AsyncClient *client) {
+  _tcpListener->onClient(
+      [](void* arg, AsyncClient* client) {
         if (staticThis->semaphoreTake()) {
-            staticThis->debugMsg(CONNECTION, "New AP connection incoming\n");
-            auto conn = std::make_shared<MeshConnection>(client, staticThis, false);
-            staticThis->_connections.push_back(conn);
-            staticThis->semaphoreGive();
+          Log(CONNECTION, "New AP connection incoming\n");
+          auto conn =
+              std::make_shared<MeshConnection>(client, staticThis, false);
+          staticThis->_connections.push_back(conn);
+          staticThis->semaphoreGive();
         }
-    }, NULL);
+      },
+      NULL);
 
-    _tcpListener->begin();
+  _tcpListener->begin();
 
-    debugMsg(STARTUP, "AP tcp server established on port %d\n", _meshPort);
-    return;
+  Log(STARTUP, "AP tcp server established on port %d\n", _meshPort);
+  return;
 }

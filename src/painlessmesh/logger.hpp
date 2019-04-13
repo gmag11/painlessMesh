@@ -19,11 +19,11 @@ typedef enum {
   REMOTE = 1 << 9,  // not yet implemented
   APPLICATION = 1 << 10,
   DEBUG = 1 << 11
-} Type;
+} LogLevel;
 
 class LogClass {
  public:
-  void setLevel(uint16_t newTypes) {
+  void setLogLevel(uint16_t newTypes) {
     // set the different kinds of debug messages you want to generate.
     types = newTypes;
     Serial.print(F("\nsetLogLevel:"));
@@ -66,7 +66,7 @@ class LogClass {
     Serial.println();
     return;
   }
-  void operator()(Type type, const char* format...) {
+  void operator()(LogLevel type, const char* format...) {
     if (type & types) {  // Print only the message types set for output
       va_list args;
       va_start(args, format);
