@@ -1,5 +1,4 @@
 #include "painlessMesh.h"
-#include "painlessMeshSync.h"
 #include "painlessMeshJson.h"
 
 #include "time.h"
@@ -16,66 +15,6 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
     Log(GENERAL, "getNodeTime(): time=%u\n", ret);
     return ret;
 }
-
-int ICACHE_FLASH_ATTR timeSync::processTimeStampDelay(
-    painlessmesh::protocol::TimeDelay timeDelayPkg) {
-  // REFACTOR Do we need to store these values?
-  this->timeDelay[0] = timeDelayPkg.msg.t0;
-  this->timeDelay[1] = timeDelayPkg.msg.t1;
-  this->timeDelay[2] = timeDelayPkg.msg.t2;
-  return timeDelayPkg.msg.type;
-}
-
-//***********************************************************************
-int32_t ICACHE_FLASH_ATTR timeSync::calcAdjustment(uint32_t times[NUMBER_OF_TIMESTAMPS]) {
-  Log(S_TIME,
-      "calcAdjustment(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = "
-      "%u\n",
-      times[0], times[1], times[2], times[3]);
-
-  if (times[0] == 0 || times[1] == 0 || times[2] == 0 || times[3] == 0) {
-    // if any value is 0
-    Log(ERROR, "calcAdjustment(): TimeStamp error.\n");
-    return 0x7FFFFFFF;  // return max value
-    }
-
-    // We use the SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm.
-    uint32_t offset = ((int32_t)(times[1] - times[0]) / 2) + ((int32_t)(times[2] - times[3]) / 2);
-
-
-    if (offset < TASK_SECOND && offset > 4)
-        timeAdjuster += offset/4; // Take small steps to avoid over correction 
-    else 
-        timeAdjuster += offset; // Accumulate offset
-
-    Log(S_TIME, "calcAdjustment(): Calculated offset %d us.\n", offset);
-    Log(S_TIME, "calcAdjustment(): New adjuster = %u. New time = %u\n",
-        timeAdjuster, staticThis->getNodeTime());
-
-    return offset; // return offset to decide if sync is OK
-}
-
-//***********************************************************************
-int32_t ICACHE_FLASH_ATTR timeSync::delayCalc() {
-  Log(S_TIME,
-      "delayCalc(): Start calculation. t0 = %u, t1 = %u, t2 = %u, t3 = %u\n",
-      timeDelay[0], timeDelay[1], timeDelay[2], timeDelay[3]);
-
-  if (timeDelay[0] == 0 || timeDelay[1] == 0 || timeDelay[2] == 0 ||
-      timeDelay[3] == 0) {
-    // if any value is 0
-    Log(ERROR, "delayCalc(): TimeStamp error.\n");
-    return -1;  // return max value
-    }
-
-    // We use the SNTP protocol https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm.
-    uint32_t tripDelay = ((timeDelay[3] - timeDelay[0]) - (timeDelay[2] - timeDelay[1]))/2;
-
-    Log(S_TIME, "delayCalc(): Calculated Network delay %d us\n", tripDelay);
-
-    return tripDelay;
-}
-
 
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root) {
@@ -271,11 +210,9 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(
 
     case (painlessmesh::protocol::TIME_REPLY): {
       Log(S_TIME, "handleTimeSync(): TIME RESPONSE received.\n");
-      uint32_t times[NUMBER_OF_TIMESTAMPS] = {timeSync.msg.t0, timeSync.msg.t1,
-                                              timeSync.msg.t2, receivedAt};
-
-      int32_t offset = conn->time.calcAdjustment(
-          times);  // Adjust time and get calculated offset
+      int32_t offset = painlessmesh::ntp::clockOffset(
+          timeSync.msg.t0, timeSync.msg.t1, timeSync.msg.t2, receivedAt);
+      timeAdjuster += offset;  // Accumulate offset
 
       // flag all connections for re-timeSync
       if (nodeTimeAdjustedCallback) {
@@ -320,8 +257,6 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(
     painlessmesh::protocol::TimeDelay timeDelay, uint32_t receivedAt) {
   Log(S_TIME, "handleTimeDelay(): from %u in timestamp\n", timeDelay.from);
 
-  conn->time.processTimeStampDelay(timeDelay);
-
   switch (timeDelay.msg.type) {
     case (painlessmesh::protocol::TIME_SYNC_ERROR):
       Log(ERROR,
@@ -340,11 +275,8 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(
 
     case (painlessmesh::protocol::TIME_REPLY): {
       Log(S_TIME, "handleTimeDelay(): TIME RESPONSE received.\n");
-      conn->time.timeDelay[3] =
-          receivedAt;  // Calculate fourth timestamp (response received time)
-
-      int32_t delay =
-          conn->time.delayCalc();  // Adjust time and get calculated offset
+      int32_t delay = painlessmesh::ntp::tripDelay(
+          timeDelay.msg.t0, timeDelay.msg.t1, timeDelay.msg.t2, receivedAt);
       Log(S_TIME, "handleTimeDelay(): Delay is %d\n", delay);
 
       // conn->timeSyncStatus == COMPLETE;

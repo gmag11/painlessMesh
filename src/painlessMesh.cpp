@@ -1,5 +1,4 @@
 #include "painlessMesh.h"
-#include "painlessMeshSync.h"
 
 #include "lwip/init.h"
 

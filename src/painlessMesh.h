@@ -21,7 +21,6 @@ using namespace std;
 #include <ESPAsyncTCP.h>
 #endif // ESP32
 
-#include "painlessMeshSync.h"
 #include "painlessMeshSTA.h"
 #include "painlessMeshConnection.h"
 
@@ -29,6 +28,7 @@ typedef String TSTRING;
 #undef ARDUINOJSON_ENABLE_STD_STRING
 #include "painlessmesh/buffer.hpp"
 #include "painlessmesh/logger.hpp"
+#include "painlessmesh/ntp.hpp"
 #include "painlessmesh/protocol.hpp"
 using namespace painlessmesh::logger;
 

@@ -20,7 +20,6 @@ class MeshConnection {
         painlessMesh  *mesh;
         uint32_t      nodeId = 0;
         String        subConnections = "[]";
-        timeSync      time;
         bool          newConnection = true;
         bool          connected = true;
         bool          station = true;
