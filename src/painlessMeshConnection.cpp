@@ -14,104 +14,7 @@
 extern LogClass Log;
 extern painlessMesh* staticThis;
 
-static temp_buffer_t shared_buffer;
-
-ICACHE_FLASH_ATTR ReceiveBuffer::ReceiveBuffer() {
-    buffer = String();
-}
-
-void ICACHE_FLASH_ATTR ReceiveBuffer::push(const char * cstr, 
-        size_t length, temp_buffer_t &buf) {
-    auto data_ptr = cstr;
-    do {
-        auto len = strnlen(data_ptr, length);
-        do {
-            auto read_len = min(len, buf.length);
-            memcpy(buf.buffer, data_ptr, read_len);
-            buf.buffer[read_len] = '\0';
-            auto newBuffer = String(buf.buffer);
-            buffer.concat(newBuffer);
-            len -= newBuffer.length();
-            length -= newBuffer.length();
-            data_ptr += newBuffer.length()*sizeof(char);
-        } while (len > 0);
-        if (length > 0) {
-            length -= 1;
-            data_ptr += 1*sizeof(char);
-            if (buffer.length() > 0) { // skip empty buffers
-                jsonStrings.push_back(buffer);
-                buffer = String();
-            }
-        }
-    } while (length > 0);
-    Log(COMMUNICATION, "ReceiveBuffer::push(): buffer size=%u, %u\n",
-        jsonStrings.size(), buffer.length());
-}
-
-String ICACHE_FLASH_ATTR ReceiveBuffer::front() {
-    if (!empty())
-        return (*jsonStrings.begin());
-    return String();
-}
-
-void ICACHE_FLASH_ATTR ReceiveBuffer::pop_front() {
-    jsonStrings.pop_front();
-}
-
-bool ICACHE_FLASH_ATTR ReceiveBuffer::empty() {
-    return jsonStrings.empty();
-}
-
-void ICACHE_FLASH_ATTR ReceiveBuffer::clear() {
-    jsonStrings.clear();
-    buffer = String();
-}
-
-ICACHE_FLASH_ATTR SentBuffer::SentBuffer() {};
-
-size_t ICACHE_FLASH_ATTR SentBuffer::requestLength(size_t buffer_length) {
-    if (jsonStrings.empty())
-        return 0;
-    else
-        return min(buffer_length - 1, jsonStrings.begin()->length() + 1);
-}
-
-void ICACHE_FLASH_ATTR SentBuffer::push(String &message, bool priority) {
-    if (priority) {
-        if (clean)
-            jsonStrings.push_front(message);
-        else
-            jsonStrings.insert((++jsonStrings.begin()), message);
-    }
-    else
-        jsonStrings.push_back(message);
-}
-
-void ICACHE_FLASH_ATTR SentBuffer::read(size_t length, temp_buffer_t &buf) {
-    jsonStrings.front().toCharArray(buf.buffer, length + 1);
-    last_read_size = length;
-}
-
-void ICACHE_FLASH_ATTR SentBuffer::freeRead() {
-  Log(COMMUNICATION, "SentBuffer::freeRead(): %u\n", last_read_size);
-  if (last_read_size == jsonStrings.begin()->length() + 1) {
-    jsonStrings.pop_front();
-    clean = true;
-    } else {
-        jsonStrings.begin()->remove(0, last_read_size);
-        clean = false;
-    }
-    last_read_size = 0;
-}
-
-bool ICACHE_FLASH_ATTR SentBuffer::empty() {
-    return jsonStrings.empty();
-}
-
-void ICACHE_FLASH_ATTR SentBuffer::clear() {
-    jsonStrings.clear();
-}
-
+static painlessmesh::buffer::temp_buffer_t shared_buffer;
 
 void meshRecvCb(void * arg, AsyncClient *, void * data, size_t len);
 void tcpSentCb(void * arg, AsyncClient * tpcb, size_t len, uint32_t time);
@@ -179,7 +82,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     else
         this->nodeSyncTask.enableDelayed();
 
-    receiveBuffer = ReceiveBuffer();
+    receiveBuffer = painlessmesh::buffer::ReceiveBuffer<String>();
     readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
         if (!this->receiveBuffer.empty()) {
             String frnt = this->receiveBuffer.front();
@@ -277,18 +180,18 @@ bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority
             Log(COMMUNICATION,
                 "addMessage(): Package sent to queue beginning -> %d , "
                 "FreeMem: %d\n",
-                sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
+                sentBuffer.size(), ESP.getFreeHeap());
         } else {
-            if (sentBuffer.jsonStrings.size() < MAX_MESSAGE_QUEUE) {
-                sentBuffer.push(message, priority);
-                Log(COMMUNICATION,
-                    "addMessage(): Package sent to queue end -> %d , FreeMem: "
-                    "%d\n",
-                    sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
+          if (sentBuffer.size() < MAX_MESSAGE_QUEUE) {
+            sentBuffer.push(message, priority);
+            Log(COMMUNICATION,
+                "addMessage(): Package sent to queue end -> %d , FreeMem: "
+                "%d\n",
+                sentBuffer.size(), ESP.getFreeHeap());
             } else {
               Log(ERROR,
                   "addMessage(): Message queue full -> %d , FreeMem: %d\n",
-                  sentBuffer.jsonStrings.size(), ESP.getFreeHeap());
+                  sentBuffer.size(), ESP.getFreeHeap());
               sentBufferTask.forceNextIteration();
               return false;
             }
@@ -313,15 +216,17 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     if (len > snd_len)
         len = snd_len;
     if (len > 0) {
-        sentBuffer.read(len, shared_buffer);
-        auto written = client->write(shared_buffer.buffer, len, 1);
-        if (written == len) {
-          Log(COMMUNICATION, "writeNext(): Package sent = %s\n",
-              shared_buffer.buffer);
-          client->send();  // TODO only do this for priority messages
-          sentBuffer.freeRead();
-          sentBufferTask.forceNextIteration();
-          return true;
+      // sentBuffer.read(len, shared_buffer);
+      // auto written = client->write(shared_buffer.buffer, len, 1);
+      auto data_ptr = sentBuffer.readPtr(len);
+      auto written = client->write(data_ptr, len, 1);
+      if (written == len) {
+        Log(COMMUNICATION, "writeNext(): Package sent = %s\n",
+            shared_buffer.buffer);
+        client->send();  // TODO only do this for priority messages
+        sentBuffer.freeRead();
+        sentBufferTask.forceNextIteration();
+        return true;
         } else if (written == 0) {
           Log(COMMUNICATION,
               "writeNext(): tcp_write Failed node=%u. Resending later\n",

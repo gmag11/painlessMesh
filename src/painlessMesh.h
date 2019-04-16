@@ -27,6 +27,7 @@ using namespace std;
 
 typedef String TSTRING;
 #undef ARDUINOJSON_ENABLE_STD_STRING
+#include "painlessmesh/buffer.hpp"
 #include "painlessmesh/logger.hpp"
 #include "painlessmesh/protocol.hpp"
 using namespace painlessmesh::logger;

@@ -33,6 +33,14 @@ std::string randomString(uint32_t length) {
   return str;
 }
 
+void randomCString(char* str, uint32_t length) {
+  for (uint32_t i = 0; i < length; ++i) {
+    char rnd = (char)runif(65, 90);
+    str[i] = rnd;
+  }
+  str[length] = '\0';
+}
+
 painlessmesh::protocol::Single createSingle(int length = -1) {
   auto pkg = painlessmesh::protocol::Single();
   pkg.dest = runif(0, std::numeric_limits<uint32_t>::max());
