@@ -1,3 +1,6 @@
 [submodule "test/ArduinoJson"]
 	path = test/ArduinoJson
 	url = https://github.com/bblanchon/ArduinoJson.git
+[submodule "test/TaskScheduler"]
+	path = test/TaskScheduler
+	url = https://github.com/arkhipenko/TaskScheduler
