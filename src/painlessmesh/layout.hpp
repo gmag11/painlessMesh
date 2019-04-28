@@ -38,7 +38,7 @@ int main() {
 /**
  * Whether the tree contains the given nodeId
  */
-bool contains(protocol::NodeTree nodeTree, uint32_t nodeId) {
+inline bool contains(protocol::NodeTree nodeTree, uint32_t nodeId) {
   if (nodeTree.nodeId == nodeId) {
     return true;
   }
@@ -48,11 +48,11 @@ bool contains(protocol::NodeTree nodeTree, uint32_t nodeId) {
   return false;
 }
 
-protocol::NodeTree excludeRoute(protocol::NodeTree&& tree, uint32_t exclude) {
+inline protocol::NodeTree excludeRoute(protocol::NodeTree&& tree, uint32_t exclude) {
   // Make sure to exclude any subs with nodeId == 0,
   // even if exlude is not set to zero
   tree.subs.remove_if(
-      [exclude](auto s) { return s.nodeId == 0 || s.nodeId == exclude; });
+      [exclude](protocol::NodeTree s) { return s.nodeId == 0 || s.nodeId == exclude; });
   return tree;
 }
 
@@ -121,34 +121,39 @@ class Neighbour : public protocol::NodeTree {
    */
   protocol::NodeSyncRequest request(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
-    return protocol::NodeSyncRequest(layout.nodeId, nodeId, 
-        std::list<NodeTree>({subTree}), root);
+    return protocol::NodeSyncRequest(layout.nodeId, nodeId,
+                                     std::list<NodeTree>({subTree}), root);
   }
-  
+
   /**
    * Create a reply
    */
-  protocol::NodeSyncRequest reply(NodeTree&& layout) {
+  protocol::NodeSyncReply reply(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
-    return protocol::NodeSyncReply(layout.nodeId, nodeId, 
-        std::list<NodeTree>({subTree}), root);
+    return protocol::NodeSyncReply(layout.nodeId, nodeId,
+                                   std::list<NodeTree>({subTree}), root);
   }
 };
 
 template <class T>
-std::shared_ptr<T> findRoute(Layout<T> tree, uint32_t nodeId) {
-  auto route = std::find_if(tree.subs.begin(), tree.subs.end(),
-                            [nodeId](std::shared_ptr<T> s) {
-                              return layout::contains((*s), nodeId);
-                            });
+std::shared_ptr<T> findRoute(Layout<T> tree, std::function<bool(std::shared_ptr<T>)> 
+    func) {
+  auto route = std::find_if(tree.subs.begin(), tree.subs.end(), func);
   if (route == tree.subs.end()) return NULL;
   return (*route);
+}
+
+template <class T>
+std::shared_ptr<T> findRoute(Layout<T> tree, uint32_t nodeId) {
+  return findRoute<T>(tree, [nodeId](std::shared_ptr<T> s) {
+    return layout::contains((*s), nodeId);
+  });
 }
 
 /**
  * The size of the mesh (the number of nodes)
  */
-uint32_t size(protocol::NodeTree nodeTree) {
+inline uint32_t size(protocol::NodeTree nodeTree) {
   auto no = 1;
   for (auto&& s : nodeTree.subs) {
     no += size(s);
@@ -159,7 +164,7 @@ uint32_t size(protocol::NodeTree nodeTree) {
 /**
  * Whether the top node in the tree is also the root of the mesh
  */
-bool isRoot(protocol::NodeTree nodeTree) {
+inline bool isRoot(protocol::NodeTree nodeTree) {
   if (nodeTree.root) return true;
   return false;
 }
@@ -167,7 +172,7 @@ bool isRoot(protocol::NodeTree nodeTree) {
 /**
  * Whether any node in the tree is also root of the mesh
  */
-bool isRooted(protocol::NodeTree nodeTree) {
+inline bool isRooted(protocol::NodeTree nodeTree) {
   if (isRoot(nodeTree)) return true;
   for (auto&& s : nodeTree.subs) {
     if (isRooted(s)) return true;

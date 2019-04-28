@@ -53,7 +53,7 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
     if (WiFi.softAPmacAddress(MAC) == 0) {
       Log(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
     }
-    _nodeId = encodeNodeId(MAC);
+    nodeId = encodeNodeId(MAC);
 
     _apIp = IPAddress(0, 0, 0, 0);
 
@@ -145,7 +145,7 @@ void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
   Log(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
-  auto single = painlessmesh::protocol::Single(_nodeId, destId, msg);
+  auto single = painlessmesh::protocol::Single(this->nodeId, destId, msg);
   return send<painlessmesh::protocol::Single>(single);
 }
 
@@ -153,19 +153,20 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
 bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg,
                                                    bool includeSelf) {
   Log(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
-  auto pkg = painlessmesh::protocol::Broadcast(_nodeId, 0, msg);
+  auto pkg = painlessmesh::protocol::Broadcast(this->nodeId, 0, msg);
   bool success = broadcastMessage(pkg);
   if (success && includeSelf && this->receivedCallback)
     this->receivedCallback(this->getNodeId(), pkg.msg);
   return success;
 }
 
-bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
-  Log(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
-  auto conn = findConnection(nodeId);
+bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeID) {
+  Log(S_TIME, "startDelayMeas(): NodeId %u\n", nodeID);
+  auto conn = painlessmesh::layout::findRoute<MeshConnection>((*this), nodeID);
   if (!conn) return false;
   return send<painlessmesh::protocol::TimeDelay>(
-      conn, painlessmesh::protocol::TimeDelay(_nodeId, nodeId, getNodeTime()));
+      conn,
+      painlessmesh::protocol::TimeDelay(this->nodeId, nodeID, getNodeTime()));
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::setDebugMsgTypes(uint16_t newTypes) {

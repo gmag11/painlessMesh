@@ -27,6 +27,7 @@ using namespace std;
 typedef String TSTRING;
 #undef ARDUINOJSON_ENABLE_STD_STRING
 #include "painlessmesh/buffer.hpp"
+#include "painlessmesh/layout.hpp"
 #include "painlessmesh/logger.hpp"
 #include "painlessmesh/ntp.hpp"
 #include "painlessmesh/protocol.hpp"
@@ -55,98 +56,101 @@ typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
 
-class painlessMesh {
-public:
-    //inline functions
-    uint32_t            getNodeId(void) { return _nodeId; };
+class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
+ public:
+  // inline functions
+  uint32_t getNodeId(void) { return nodeId; };
 
-    /**
-     * Set the node as an root/master node for the mesh
-     *
-     * This is an optional setting that can speed up mesh formation. 
-     * At most one node in the mesh should be a root, or you could
-     * end up with multiple subMeshes.
-     *
-     * We recommend any AP_ONLY nodes (e.g. a bridgeNode) to be set
-     * as a root node.
-     *
-     * If one node is root, then it is also recommended to call painlessMesh::setContainsRoot() on
-     * all the nodes in the mesh.
-     */
-    void setRoot(bool on = true) { root = on; };
+  /**
+   * Set the node as an root/master node for the mesh
+   *
+   * This is an optional setting that can speed up mesh formation.
+   * At most one node in the mesh should be a root, or you could
+   * end up with multiple subMeshes.
+   *
+   * We recommend any AP_ONLY nodes (e.g. a bridgeNode) to be set
+   * as a root node.
+   *
+   * If one node is root, then it is also recommended to call
+   * painlessMesh::setContainsRoot() on all the nodes in the mesh.
+   */
+  void setRoot(bool on = true) { root = on; };
 
-    /**
-     * The mesh should contains a root node
-     *
-     * This will cause the mesh to restructure more quickly around the root node. Note that this
-     * could have adverse effects if set, while there is no root node present. Also see painlessMesh::setRoot().
-     */
-    void setContainsRoot(bool on = true) { shouldContainRoot = on; };
+  /**
+   * The mesh should contains a root node
+   *
+   * This will cause the mesh to restructure more quickly around the root node.
+   * Note that this could have adverse effects if set, while there is no root
+   * node present. Also see painlessMesh::setRoot().
+   */
+  void setContainsRoot(bool on = true) { shouldContainRoot = on; };
 
-    /**
-     * Check whether this node is a root node.
-     */
-    bool isRoot() { return root; };
+  /**
+   * Check whether this node is a root node.
+   */
+  bool isRoot() { return root; };
 
-    // in painlessMeshDebug.cpp
-    void                setDebugMsgTypes(uint16_t types);
+  // in painlessMeshDebug.cpp
+  void setDebugMsgTypes(uint16_t types);
 
-    // in painlessMesh.cpp
-	 					painlessMesh();
-    void                init(String ssid, String password, Scheduler *baseScheduler, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
-    void                init(String ssid, String password, uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1, uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
-    /**
-     * Disconnect and stop this node
-     */
-    void                stop();
-    void                update(void);
-    bool                sendSingle(uint32_t &destId, String &msg);
-    bool                sendBroadcast(String &msg, bool includeSelf = false);
-    bool                startDelayMeas(uint32_t nodeId);
+  // in painlessMesh.cpp
+  painlessMesh();
+  void init(String ssid, String password, Scheduler *baseScheduler,
+            uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA,
+            uint8_t channel = 1, uint8_t hidden = 0,
+            uint8_t maxconn = MAX_CONN);
+  void init(String ssid, String password, uint16_t port = 5555,
+            WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1,
+            uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
+  /**
+   * Disconnect and stop this node
+   */
+  void stop();
+  void update(void);
+  bool sendSingle(uint32_t &destId, String &msg);
+  bool sendBroadcast(String &msg, bool includeSelf = false);
+  bool startDelayMeas(uint32_t nodeId);
 
-    // in painlessMeshConnection.cpp
-    void                onReceive(receivedCallback_t  onReceive);
-    void                onNewConnection(newConnectionCallback_t onNewConnection);
-    void                onDroppedConnection(droppedConnectionCallback_t onDroppedConnection);
-    void                onChangedConnections(changedConnectionsCallback_t onChangedConnections);
-    void                onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
-    void                onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
-    String              subConnectionJson() { return subConnectionJson(NULL); }
-    bool                isConnected(uint32_t nodeId) { return findConnection(nodeId) != NULL; }
+  // in painlessMeshConnection.cpp
+  void onReceive(receivedCallback_t onReceive);
+  void onNewConnection(newConnectionCallback_t onNewConnection);
+  void onDroppedConnection(droppedConnectionCallback_t onDroppedConnection);
+  void onChangedConnections(changedConnectionsCallback_t onChangedConnections);
+  void onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
+  void onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
+  String subConnectionJson() { return subConnectionJson(NULL); }
+  bool isConnected(uint32_t nodeId) {
+    return painlessmesh::layout::findRoute<MeshConnection>((*this), nodeId) !=
+           NULL;
+  }
 
-    std::list<uint32_t> getNodeList();
+  std::list<uint32_t> getNodeList();
 
-    /**
-     * Check whether this node is part of a mesh with a root in
-     * it.
-     */
-    bool isRooted();
+  // in painlessMeshSync.cpp
+  uint32_t getNodeTime(void);
 
-    // in painlessMeshSync.cpp
-    uint32_t            getNodeTime(void);
+  // in painlessMeshSTA.cpp
+  uint32_t encodeNodeId(const uint8_t *hwaddr);
+  /**
+   * Connect (as a station) to a specified network and ip
+   *
+   * You can pass {0,0,0,0} as IP to have it connect to the gateway
+   *
+   * This stops the node from scanning for other (non specified) nodes
+   * and you should probably also use this node as an anchor: `setAnchor(true)`
+   */
+  void stationManual(String ssid, String password, uint16_t port = 0,
+                     IPAddress remote_ip = IPAddress(0, 0, 0, 0));
+  bool setHostname(const char *hostname);
+  IPAddress getStationIP();
 
-    // in painlessMeshSTA.cpp
-    uint32_t            encodeNodeId(const uint8_t *hwaddr);
-    /**
-     * Connect (as a station) to a specified network and ip
-     *
-     * You can pass {0,0,0,0} as IP to have it connect to the gateway
-     *
-     * This stops the node from scanning for other (non specified) nodes
-     * and you should probably also use this node as an anchor: `setAnchor(true)`
-     */
-    void                stationManual(String ssid, String password, uint16_t port = 0,
-                                        IPAddress remote_ip = IPAddress(0,0,0,0));
-    bool                setHostname(const char * hostname);
-    IPAddress           getStationIP();
+  StationScan stationScan;
 
-    StationScan         stationScan;
+  // Rough estimate of the mesh stability (goes from 0-1000)
+  size_t stability = 0;
 
-    // Rough estimate of the mesh stability (goes from 0-1000)
-    size_t              stability = 0;
-
-    // in painlessMeshAP.cpp
-    IPAddress           getAPIP();
+  // in painlessMeshAP.cpp
+  IPAddress getAPIP();
 
 #if __cplusplus > 201103L
     [[deprecated("Use of the internal scheduler will be deprecated, please use an user provided scheduler instead (See the startHere example).")]]
@@ -156,12 +160,6 @@ public:
 #ifndef UNITY // Make everything public in unit test mode
 protected:
 #endif
-    // in painlessMeshComm.cpp
-    //must be accessable from callback
- bool sendNodeSync(std::shared_ptr<MeshConnection> conn, uint32_t destId,
-                   uint32_t fromId, painlessmesh::protocol::Type type,
-                   String &msg, bool priority = false);
-
  template <typename T>
  bool send(std::shared_ptr<MeshConnection> conn, T package,
            bool priority = false) {
@@ -175,7 +173,9 @@ protected:
 
     template <typename T>
     bool send(T package, bool priority = false) {
-      std::shared_ptr<MeshConnection> conn = findConnection(package.dest);
+      std::shared_ptr<MeshConnection> conn =
+          painlessmesh::layout::findRoute<MeshConnection>((*this),
+                                                          package.dest);
       if (conn) {
         return send<T>(conn, package, priority);
       } else {
@@ -188,9 +188,8 @@ protected:
     bool broadcastMessage(painlessmesh::protocol::Broadcast pkg,
                           std::shared_ptr<MeshConnection> exclude = NULL);
 
-    // in painlessMeshSync.cpp
-    //must be accessable from callback
-    void                handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root);
+    void handleNodeSync(std::shared_ptr<MeshConnection> conn,
+                        painlessmesh::protocol::NodeTree newTree);
 
     void                startTimeSync(std::shared_ptr<MeshConnection> conn);
     void handleTimeSync(std::shared_ptr<MeshConnection> conn,
@@ -217,9 +216,6 @@ protected:
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
     
-    shared_ptr<MeshConnection> findConnection(uint32_t nodeId, uint32_t exclude = 0);
-    shared_ptr<MeshConnection> findConnection(AsyncClient *conn);
-
     std::list<uint32_t> getNodeList(String &subConnections);
 
     // in painlessMeshAP.cpp
@@ -254,7 +250,7 @@ protected:
     WiFiEventHandler  eventSoftAPDisconnectedHandler;
 #endif // ESP8266
 
-    uint32_t          _nodeId;
+    uint32_t nodeId;
     String            _meshSSID;
     String            _meshPassword;
     uint16_t          _meshPort;
@@ -273,7 +269,6 @@ protected:
     bool              isExternalScheduler = false;
 
     /// Is the node a root node
-    bool root;
     bool shouldContainRoot;
 
     Scheduler         _scheduler;

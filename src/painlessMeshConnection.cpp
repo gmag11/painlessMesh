@@ -69,12 +69,9 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
         syncInterval = NODE_TIMEOUT*2;
 
     this->nodeSyncTask.set(syncInterval, TASK_FOREVER, [this]() {
-      Log(SYNC, "nodeSyncTask(): \n");
       Log(SYNC, "nodeSyncTask(): request with %u\n", this->nodeId);
-      auto saveConn = staticThis->findConnection(this->client);
-      String subs = staticThis->subConnectionJson(saveConn);
-      staticThis->sendNodeSync(saveConn, this->nodeId, staticThis->_nodeId,
-                               protocol::NODE_SYNC_REQUEST, subs, true);
+      staticThis->send<protocol::NodeSyncRequest>(
+          this->request(staticThis->asNodeTree()));
     });
     staticThis->_scheduler.addTask(this->nodeSyncTask);
     if (station)
@@ -303,49 +300,6 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 }
 
 //***********************************************************************
-// Search for a connection to a given nodeID
-std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId, uint32_t exclude) {
-  Log(GENERAL, "In findConnection(nodeId)\n");
-
-  for (auto &&connection : _connections) {
-    if (connection->nodeId == exclude) {
-      Log(GENERAL, "findConnection(%u): Skipping excluded connection\n",
-          nodeId);
-      continue;
-    }
-
-    if (connection->nodeId == nodeId) {  // check direct connections
-      Log(GENERAL, "findConnection(%u): Found Direct Connection\n", nodeId);
-      return connection;
-    }
-
-    if (painlessmesh::stringContainsNumber(
-            connection->subConnections,
-            String(nodeId))) {  // check sub-connections
-      Log(GENERAL, "findConnection(%u): Found Sub Connection through %u\n",
-          nodeId, connection->nodeId);
-      return connection;
-    }
-    }
-    Log(CONNECTION, "findConnection(%u): did not find connection\n", nodeId);
-    return NULL;
-}
-
-//***********************************************************************
-std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(AsyncClient *client) {
-  Log(GENERAL, "In findConnection() conn=0x%x\n", client);
-
-  for (auto &&connection : _connections) {
-    if ((*connection->client) == (*client)) {
-      return connection;
-    }
-    }
-
-    Log(CONNECTION, "findConnection(): Did not Find\n");
-    return NULL;
-}
-
-//***********************************************************************
 String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(std::shared_ptr<MeshConnection> exclude) {
     if (exclude == NULL) {
         return subConnectionJsonHelper(_connections);
@@ -420,20 +374,6 @@ std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConne
     return nodeList;
 }
 
-
-bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
-    if (this->isRoot()) {
-        return true;
-    }
-
-    // Direct connections first
-    for (auto && connection : _connections) {
-        if (connection->connected && (connection->root || connection->rooted))
-            return true;
-    }
-    return false;
-}
-
 //***********************************************************************
 void ICACHE_FLASH_ATTR tcpSentCb(void * arg, AsyncClient * client, size_t len, uint32_t time) {
     if (staticThis->semaphoreTake()) {
@@ -470,10 +410,11 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
                                                      uint32_t receivedAt) {
+  using namespace painlessmesh;
   Log(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId,
       buffer.c_str());
 
-  auto rConn = staticThis->findConnection(this->client);
+  auto rConn = layout::findRoute<MeshConnection>(*staticThis, this->nodeId);
 
   auto variant = painlessmesh::protocol::Variant(buffer);
   if (variant.error) {
@@ -517,10 +458,17 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
     return;
   }
 
-  if (variant.is<painlessmesh::protocol::NodeSyncReply>() ||
-      variant.is<painlessmesh::protocol::NodeSyncRequest>()) {
-    auto jsonObj = variant.to<JsonObject>();
-    staticThis->handleNodeSync(rConn, jsonObj);
+  if (variant.is<painlessmesh::protocol::NodeSyncRequest>()) {
+    auto request = variant.to<protocol::NodeSyncReply>();
+    staticThis->handleNodeSync(rConn, request);
+    staticThis->send<protocol::NodeSyncReply>(
+        rConn, rConn->reply(std::move(staticThis->asNodeTree())), true);
+    return;
+  }
+
+  if (variant.is<painlessmesh::protocol::NodeSyncReply>()) {
+    auto reply = variant.to<protocol::NodeSyncReply>();
+    staticThis->handleNodeSync(rConn, reply);
     return;
   }
 

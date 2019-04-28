@@ -17,121 +17,67 @@ uint32_t ICACHE_FLASH_ATTR painlessMesh::getNodeTime(void) {
 }
 
 //***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::handleNodeSync(std::shared_ptr<MeshConnection> conn, JsonObject& root) {
+void ICACHE_FLASH_ATTR
+painlessMesh::handleNodeSync(std::shared_ptr<MeshConnection> conn,
+                             painlessmesh::protocol::NodeTree newTree) {
   using namespace painlessmesh;
   Log(SYNC, "handleNodeSync(): with %u\n", conn->nodeId);
 
-  protocol::Type message_type = (protocol::Type)(int)root["type"];
-  uint32_t remoteNodeId = root["from"];
-
-  if (remoteNodeId == 0) {
-    Log(ERROR, "handleNodeSync(): received invalid remote nodeId\n");
+  if (!conn->validSubs(newTree)) {
+    Log(SYNC, "handleNodeSync(): invalid new connection\n");
+    conn->close();
     return;
-    }
+  }
 
-    if (conn->newConnection) {
-        // There is a small but significant probability that we get connected twice to the 
-        // same node, e.g. if scanning happened while sub connection data was incomplete.
-        auto oldConnection = findConnection(remoteNodeId);
-        if (oldConnection) {
-          Log(SYNC,
-              "handleNodeSync(): already connected to %u. Closing the new "
-              "connection \n",
-              remoteNodeId);
-          conn->close();
-          return;
-        }
-
-        //
-        Log(SYNC, "handleNodeSync(): conn->nodeId updated from %u to %u\n",
-            conn->nodeId, remoteNodeId);
-        conn->nodeId = remoteNodeId;
-        // TODO: Move this to its own function
-        newConnectionTask.set(
-            TASK_SECOND, TASK_ONCE, [remoteNodeId]() {
-              Log(CONNECTION, "newConnectionTask():\n");
-              Log(CONNECTION, "newConnectionTask(): adding %u now= %u\n",
-                  remoteNodeId, staticThis->getNodeTime());
-              if (staticThis->newConnectionCallback)
-                staticThis->newConnectionCallback(remoteNodeId); // Connection dropped. Signal user
-            });
-
-        _scheduler.addTask(newConnectionTask);
-        newConnectionTask.enable();
-
-        // Initially interval is every 10 seconds, 
-        // this will slow down to TIME_SYNC_INTERVAL
-        // after first succesfull sync
-        conn->timeSyncTask.set(10 * TASK_SECOND, TASK_FOREVER, [conn]() {
-          Log(S_TIME, "timeSyncTask(): %u\n", conn->nodeId);
-          staticThis->startTimeSync(conn);
-        });
-        _scheduler.addTask(conn->timeSyncTask);
-        if (conn->station)
-            // We are STA, request time immediately
-            conn->timeSyncTask.enable();
-        else
-            // We are the AP, give STA the change to initiate time sync 
-            conn->timeSyncTask.enableDelayed();
-        conn->newConnection = false;
-    }
-
-    if (conn->nodeId != remoteNodeId) {
-      Log(SYNC, "handleNodeSync(): Changed nodeId %u, closing connection %u.\n",
-          conn->nodeId, remoteNodeId);
+  if (conn->newConnection) {
+    auto oldConnection =
+        layout::findRoute<MeshConnection>((*this), newTree.nodeId);
+    if (oldConnection) {
+      Log(SYNC,
+          "handleNodeSync(): already connected to %u. Closing the new "
+          "connection \n",
+          conn->nodeId);
       conn->close();
       return;
     }
 
+    // TODO: Move this to its own function
+    newConnectionTask.set(
+        TASK_SECOND, TASK_ONCE, [remoteNodeId = newTree.nodeId]() {
+          Log(CONNECTION, "newConnectionTask():\n");
+          Log(CONNECTION, "newConnectionTask(): adding %u now= %u\n",
+              remoteNodeId, staticThis->getNodeTime());
+          if (staticThis->newConnectionCallback)
+            staticThis->newConnectionCallback(
+                remoteNodeId);  // Connection dropped. Signal user
+        });
 
-    // check to see if subs have changed.
-    String inComingSubs = root["subs"];
-    bool changed = !conn->subConnections.equals(inComingSubs);
-    painlessmesh::parseNodeSyncRoot(conn, root, changed);
-    if (changed) {  // change in the network
-        // Check whether we already know any of the nodes
-        // This is necessary to avoid loops.. Not sure if we need to check
-        // for both this node and master node, but better safe than sorry
-        if ( painlessmesh::stringContainsNumber(inComingSubs, String(conn->nodeId)) || 
-                painlessmesh::stringContainsNumber(inComingSubs, String(this->_nodeId))) {
-            // This node is also in the incoming subs, so we have a loop
-            // Disconnecting to break the loop
-            Log(SYNC, "handleNodeSync(): Loop detected, disconnecting %u.\n",
-                remoteNodeId);
-            conn->close();
-            return;
-        }
+    _scheduler.addTask(newConnectionTask);
+    newConnectionTask.enable();
 
-        Log(SYNC, "handleNodeSync(): Changed connections %u.\n", remoteNodeId);
-        conn->subConnections = inComingSubs;
-        if (changedConnectionsCallback)
-            changedConnectionsCallback();
+    // Initially interval is every 10 seconds,
+    // this will slow down to TIME_SYNC_INTERVAL
+    // after first succesfull sync
+    conn->timeSyncTask.set(10 * TASK_SECOND, TASK_FOREVER, [conn]() {
+      Log(S_TIME, "timeSyncTask(): %u\n", conn->nodeId);
+      staticThis->startTimeSync(conn);
+    });
+    _scheduler.addTask(conn->timeSyncTask);
+    if (conn->station)
+      // We are STA, request time immediately
+      conn->timeSyncTask.enable();
+    else
+      // We are the AP, give STA the change to initiate time sync
+      conn->timeSyncTask.enableDelayed();
+    conn->newConnection = false;
+  }
 
-        staticThis->syncSubConnections(conn->nodeId);
-    } else {
-        stability += min(1000-stability,(size_t)25);
-    }
-
-    Log(SYNC, "handleNodeSync(): json = %s\n", inComingSubs.c_str());
-
-    switch (message_type) {
-      case protocol::NODE_SYNC_REQUEST: {
-        Log(SYNC,
-            "handleNodeSync(): valid NODE_SYNC_REQUEST %u sending "
-            "NODE_SYNC_REPLY\n",
-            conn->nodeId);
-        String myOtherSubConnections = subConnectionJson(conn);
-        sendNodeSync(conn, conn->nodeId, _nodeId, protocol::NODE_SYNC_REPLY,
-                     myOtherSubConnections, true);
-        break;
-    }
-    case protocol::NODE_SYNC_REPLY:
-      Log(SYNC, "handleNodeSync(): valid NODE_SYNC_REPLY from %u\n",
-          conn->nodeId);
-      break;
-    default:
-      Log(ERROR, "handleNodeSync(): weird type? %d\n", message_type);
-    }
+  if (conn->updateSubs(newTree)) {
+    if (changedConnectionsCallback) changedConnectionsCallback();
+    staticThis->syncSubConnections(conn->nodeId);
+  } else {
+    stability += min(1000 - stability, (size_t)25);
+  }
 }
 
 void ICACHE_FLASH_ATTR
@@ -142,11 +88,11 @@ painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
   painlessmesh::protocol::TimeSync timeSync;
   if (adopt) {
     timeSync =
-        painlessmesh::protocol::TimeSync(_nodeId, conn->nodeId, getNodeTime());
+        painlessmesh::protocol::TimeSync(nodeId, conn->nodeId, getNodeTime());
     Log(S_TIME, "startTimeSync(): Requesting %u to adopt our time\n",
         conn->nodeId);
   } else {
-    timeSync = painlessmesh::protocol::TimeSync(_nodeId, conn->nodeId);
+    timeSync = painlessmesh::protocol::TimeSync(nodeId, conn->nodeId);
     Log(S_TIME, "startTimeSync(): Requesting time from %u\n", conn->nodeId);
   }
   send<painlessmesh::protocol::TimeSync>(conn, timeSync, true);
