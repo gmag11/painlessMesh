@@ -124,7 +124,7 @@ void newConnectionCallback(uint32_t nodeId) {
 }
 
 void changedConnectionCallback() {
-  Serial.printf("Changed connections %s\n", mesh.subConnectionJson().c_str());
+  Serial.printf("Changed connections\n");
   // Reset blink task
   onFlag = false;
   blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);

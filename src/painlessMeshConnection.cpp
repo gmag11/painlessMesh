@@ -300,78 +300,8 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 }
 
 //***********************************************************************
-String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(std::shared_ptr<MeshConnection> exclude) {
-    if (exclude == NULL) {
-        return subConnectionJsonHelper(_connections);
-    } else {
-        return subConnectionJsonHelper(_connections, exclude->nodeId);
-    }
-}
-
-//***********************************************************************
-String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
-        ConnectionList &connections,
-        uint32_t exclude) {
-  if (exclude != 0) Log(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
-
-  String ret = "[";
-  for (auto &&sub : connections) {
-    if (!sub->connected) {
-      Log(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n",
-          sub->nodeId);
-    } else if (sub->nodeId != exclude &&
-               sub->nodeId != 0) {  // exclude connection that we are working
-                                    // with & anything too new.
-      if (ret.length() > 1) ret += String(",");
-      ret += String("{\"nodeId\":") + String(sub->nodeId);
-      if (sub->root) ret += String(",\"root\":true");
-      ret += String(",\"subs\":") + sub->subConnections + String("}");
-    }
-    }
-    ret += String("]");
-
-    Log(GENERAL, "subConnectionJson(): ret=%s\n", ret.c_str());
-    return ret;
-}
-
-// Calculating the actual number of connected nodes is fairly expensive,
-// this calculates a cheap approximation
-size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes() {
-  Log(GENERAL, "approxNoNodes()\n");
-  auto sc = subConnectionJson();
-  return approxNoNodes(sc);
-}
-
-size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
-    return max((long int) 1,(long int)round(subConns.length()/30.0));
-}
-
-//***********************************************************************
 std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
-    std::list<uint32_t> nodeList;
-    String nodeJson = subConnectionJson();
-    return getNodeList(nodeJson);
-}
-
-// TODO: test whether arduinojson would be faster than this
-std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConnections) {
-    std::list<uint32_t> nodeList;
-    int index = 0;
-
-    auto nodeJson = subConnections.substring(index);
-    while ((uint) index < nodeJson.length()) {
-        uint comma = 0;
-        index = nodeJson.indexOf("\"nodeId\":");
-        if (index == -1)
-            break;
-        comma = nodeJson.indexOf(',', index);
-        String temp = nodeJson.substring(index + 9, comma);
-        uint32_t id = strtoul(temp.c_str(), NULL, 10);
-        nodeList.push_back(id);
-        index = comma + 1;
-        nodeJson = nodeJson.substring(index);
-    }
-    return nodeList;
+  return painlessmesh::layout::asList(this->asNodeTree());
 }
 
 //***********************************************************************

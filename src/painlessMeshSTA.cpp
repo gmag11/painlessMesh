@@ -248,10 +248,8 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
 
           int prob = mesh->stability;
           if (!mesh->shouldContainRoot)
-            prob /=
-                2 *
-                (1 +
-                 mesh->approxNoNodes());  // Slower when part of bigger network
+            // Slower when part of bigger network
+            prob /= 2 * (1 + layout::size(mesh->asNodeTree()));
           if (!layout::isRooted(mesh->asNodeTree()) && random(0, 1000) < prob) {
             Log(CONNECTION, "connectToAP(): Reconfigure network: %s\n",
                 String(prob).c_str());

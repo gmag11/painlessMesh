@@ -118,7 +118,7 @@ class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
   void onChangedConnections(changedConnectionsCallback_t onChangedConnections);
   void onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted);
   void onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
-  String subConnectionJson() { return subConnectionJson(NULL); }
+
   bool isConnected(uint32_t nodeId) {
     return painlessmesh::layout::findRoute<MeshConnection>((*this), nodeId) !=
            NULL;
@@ -210,9 +210,6 @@ protected:
 
     void                eraseClosedConnections();
 
-    String              subConnectionJson(std::shared_ptr<MeshConnection> exclude);
-    String              subConnectionJsonHelper(ConnectionList &connections, uint32_t exclude = 0);
-    
     size_t              approxNoNodes(); // estimate of numbers of node
     size_t              approxNoNodes(String &subConns); // estimate of numbers of node
     

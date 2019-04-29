@@ -180,6 +180,18 @@ inline bool isRooted(protocol::NodeTree nodeTree) {
   return false;
 }
 
+/**
+ * Return all nodes in a list container
+ */
+inline std::list<uint32_t> asList(protocol::NodeTree nodeTree) {
+  std::list<uint32_t> lst;
+  lst.push_back(nodeTree.nodeId);
+  for (auto &&s : nodeTree.subs) {
+    lst.splice(lst.end(), asList(s));
+  }
+  return lst;
+}
+
 }  // namespace layout
 }  // namespace painlessmesh
 

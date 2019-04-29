@@ -21,14 +21,14 @@ class MeshConnection : public painlessmesh::layout::Neighbour {
  public:
   AsyncClient *client;
   painlessMesh *mesh;
-  String subConnections = "[]";
+
   bool newConnection = true;
   bool connected = true;
   bool station = true;
 
-  uint32_t timeDelayLastRequested =
-      0;  // Timestamp to be compared in manageConnections() to check response
-          // for timeout
+  // Timestamp to be compared in manageConnections() to check response
+  // for timeout
+  uint32_t timeDelayLastRequested = 0;
 
   bool addMessage(String &message, bool priority = false);
   bool writeNext();

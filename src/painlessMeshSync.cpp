@@ -100,19 +100,22 @@ painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection> conn) {
-    if (conn == NULL) // Missing connection
-        return false;
-    // make the adoption calulation. Figure out how many nodes I am connected to exclusive of this connection.
+  using namespace painlessmesh;
+  if (conn == NULL)  // Missing connection
+    return false;
+  // make the adoption calulation. Figure out how many nodes I am connected to
+  // exclusive of this connection.
 
-    // We use length as an indicator for how many subconnections both nodes have
-    uint16_t mySubCount = subConnectionJson(conn).length();  //exclude this connection.
-    uint16_t remoteSubCount = conn->subConnections.length();
-    bool ap = conn->client->getLocalPort() == _meshPort;
+  // We use length as an indicator for how many subconnections both nodes have
+  uint16_t mySubCount = layout::size(layout::excludeRoute(
+      this->asNodeTree(), conn->nodeId));           // exclude this connection.
+  uint16_t remoteSubCount = layout::size((*conn));  // exclude this connection.
+  bool ap = conn->client->getLocalPort() == _meshPort;
 
-    // ToDo. Simplify this logic
-    bool ret = (mySubCount > remoteSubCount) ? false : true;
-    if (mySubCount == remoteSubCount && ap) { // in case of draw, ap wins
-        ret = false;
+  // ToDo. Simplify this logic
+  bool ret = (mySubCount > remoteSubCount) ? false : true;
+  if (mySubCount == remoteSubCount && ap) {  // in case of draw, ap wins
+    ret = false;
     }
 
     Log(S_TIME,
