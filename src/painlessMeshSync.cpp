@@ -1,5 +1,4 @@
 #include "painlessMesh.h"
-#include "painlessMeshJson.h"
 
 #include "time.h"
 
@@ -175,7 +174,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeSync(
             conn->nodeId);
 
         // Time has changed, update other nodes
-        for (auto&& connection : _connections) {
+        for (auto&& connection : this->subs) {
           if (connection->nodeId != conn->nodeId) {  // exclude this connection
             connection->timeSyncTask.forceNextIteration();
             Log(S_TIME,
@@ -245,7 +244,7 @@ void ICACHE_FLASH_ATTR painlessMesh::handleTimeDelay(
 
 void ICACHE_FLASH_ATTR painlessMesh::syncSubConnections(uint32_t changedId) {
   Log(SYNC, "syncSubConnections(): changedId = %u\n", changedId);
-  for (auto&& connection : _connections) {
+  for (auto&& connection : this->subs) {
     if (connection->connected && !connection->newConnection &&
         connection->nodeId != 0 &&
         connection->nodeId != changedId) {  // Exclude current

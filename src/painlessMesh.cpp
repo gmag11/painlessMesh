@@ -92,9 +92,9 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 #endif // ESP32
 
     // Close all connections
-    while (_connections.size() > 0) {
-        auto connection = _connections.begin();
-        (*connection)->close();
+    while (subs.size() > 0) {
+      auto connection = subs.begin();
+      (*connection)->close();
     }
 
     // Stop scanning task

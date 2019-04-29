@@ -107,10 +107,12 @@ class Neighbour : public protocol::NodeTree {
     if (nodeId == 0) {
       nodeId = tree.nodeId;
       subs = tree.subs;
+      root = tree.root;
       return true;
     }
     if (tree != (*this)) {
       subs = tree.subs;
+      root = tree.root;
       return true;
     }
     return false;
@@ -122,7 +124,7 @@ class Neighbour : public protocol::NodeTree {
   protocol::NodeSyncRequest request(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
     return protocol::NodeSyncRequest(layout.nodeId, nodeId,
-                                     std::list<NodeTree>({subTree}), root);
+                                     subTree.subs, root);
   }
 
   /**
@@ -131,7 +133,7 @@ class Neighbour : public protocol::NodeTree {
   protocol::NodeSyncReply reply(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
     return protocol::NodeSyncReply(layout.nodeId, nodeId,
-                                   std::list<NodeTree>({subTree}), root);
+                                   subTree.subs, root);
   }
 };
 

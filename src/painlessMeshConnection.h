@@ -11,6 +11,7 @@
 #include <ESP8266WiFi.h>
 #endif // ESP32
 
+#define ARDUINOJSON_USE_LONG_LONG 1
 typedef String TSTRING;
 #undef ARDUINOJSON_ENABLE_STD_STRING
 #include "painlessmesh/buffer.hpp"

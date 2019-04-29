@@ -25,9 +25,9 @@ painlessMesh::broadcastMessage(painlessmesh::protocol::Broadcast pkg,
         "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n", pkg.from,
         pkg.type, pkg.msg.c_str());
 
-  if (_connections.size() > 0)
+  if (this->subs.size() > 0)
     errCode = true;  // Assume true if at least one connections
-  for (auto &&connection : _connections) {
+  for (auto&& connection : this->subs) {
     if (!exclude || connection->nodeId != exclude->nodeId) {
       pkg.dest = connection->nodeId;
       if (!send<painlessmesh::protocol::Broadcast>(connection, pkg))

@@ -1,7 +1,6 @@
 #ifndef   _EASY_MESH_H_
 #define   _EASY_MESH_H_
 
-
 #define _TASK_PRIORITY // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
 
@@ -210,9 +209,6 @@ protected:
 
     void                eraseClosedConnections();
 
-    size_t              approxNoNodes(); // estimate of numbers of node
-    size_t              approxNoNodes(String &subConns); // estimate of numbers of node
-    
     std::list<uint32_t> getNodeList(String &subConnections);
 
     // in painlessMeshAP.cpp
@@ -246,8 +242,6 @@ protected:
     WiFiEventHandler  eventSoftAPConnectedHandler;
     WiFiEventHandler  eventSoftAPDisconnectedHandler;
 #endif // ESP8266
-
-    uint32_t nodeId;
     String            _meshSSID;
     String            _meshPassword;
     uint16_t          _meshPort;
@@ -256,8 +250,6 @@ protected:
     uint8_t           _meshMaxConn;
 
     IPAddress         _apIp;
-
-    ConnectionList    _connections;
 
     AsyncServer       *_tcpListener;
 

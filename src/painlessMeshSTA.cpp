@@ -72,7 +72,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
               Log(CONNECTION, "New STA connection incoming\n");
               auto conn =
                   std::make_shared<MeshConnection>(client, staticThis, true);
-              staticThis->_connections.push_back(conn);
+              staticThis->subs.push_back(conn);
               staticThis->semaphoreGive();
             }
         }, NULL); 

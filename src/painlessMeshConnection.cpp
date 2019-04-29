@@ -7,7 +7,6 @@
 //
 
 #include "painlessMesh.h"
-#include "painlessMeshJson.h"
 
 //#include "lwip/priv/tcpip_priv.h"
 
@@ -70,8 +69,16 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
 
     this->nodeSyncTask.set(syncInterval, TASK_FOREVER, [this]() {
       Log(SYNC, "nodeSyncTask(): request with %u\n", this->nodeId);
+      // Need to find by client, because nodeId might not be set yet
+      // TODO pass the shared_from_this route instead of finding it
+      // using saveConn
+      auto saveConn = layout::findRoute<MeshConnection>(
+          (*staticThis),
+          [client = this->client](std::shared_ptr<MeshConnection> s) {
+            return (*s->client) == (*client);
+          });
       staticThis->send<protocol::NodeSyncRequest>(
-          this->request(staticThis->asNodeTree()));
+          saveConn, this->request(staticThis->asNodeTree()));
     });
     staticThis->_scheduler.addTask(this->nodeSyncTask);
     if (station)
@@ -280,21 +287,21 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
 
 void ICACHE_FLASH_ATTR painlessMesh::eraseClosedConnections() {
   Log(CONNECTION, "eraseClosedConnections():\n");
-  _connections.remove_if([](const std::shared_ptr<MeshConnection> &conn) {
+  this->subs.remove_if([](const std::shared_ptr<MeshConnection> &conn) {
     return !conn->connected;
   });
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 {
-    auto connection = _connections.begin();
-    while (connection != _connections.end()) {
-        if ((*connection)->station) {
-            // We found the STA connection, close it
-            (*connection)->close();
-            return true;
-        }
-        ++connection;
+  auto connection = this->subs.begin();
+  while (connection != this->subs.end()) {
+    if ((*connection)->station) {
+      // We found the STA connection, close it
+      (*connection)->close();
+      return true;
+    }
+    ++connection;
     }
     return false;
 }
@@ -344,7 +351,12 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
   Log(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId,
       buffer.c_str());
 
-  auto rConn = layout::findRoute<MeshConnection>(*staticThis, this->nodeId);
+  // TODO use shared_from_this
+  auto rConn = layout::findRoute<MeshConnection>(
+      (*staticThis),
+      [client = this->client](std::shared_ptr<MeshConnection> s) {
+        return (*s->client) == (*client);
+      });
 
   auto variant = painlessmesh::protocol::Variant(buffer);
   if (variant.error) {
