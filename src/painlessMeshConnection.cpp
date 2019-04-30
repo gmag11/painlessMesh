@@ -41,6 +41,9 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
 
     client->onError([](void * arg, AsyncClient *client, int8_t err) {
         if (staticThis->semaphoreTake()) {
+          // When AsyncTCP gets an error it will call both
+          // onError and onDisconnect
+          // so we handle this in the onDisconnect callback
           Log(CONNECTION, "tcp_err(): MeshConnection %s\n",
               client->errorToString(err));
           staticThis->semaphoreGive();
@@ -63,9 +66,8 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
         }
     }, arg);
 
-    auto syncInterval = NODE_TIMEOUT/2;
-    if (!station)
-        syncInterval = NODE_TIMEOUT*2;
+    auto syncInterval = NODE_TIMEOUT * 0.75;
+    if (!station) syncInterval = syncInterval * 4;
 
     this->nodeSyncTask.set(syncInterval, TASK_FOREVER, [this]() {
       Log(SYNC, "nodeSyncTask(): request with %u\n", this->nodeId);
@@ -307,8 +309,9 @@ bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 }
 
 //***********************************************************************
-std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
-  return painlessmesh::layout::asList(this->asNodeTree());
+std::list<uint32_t> ICACHE_FLASH_ATTR
+painlessMesh::getNodeList(bool includeSelf) {
+  return painlessmesh::layout::asList(this->asNodeTree(), includeSelf);
 }
 
 //***********************************************************************

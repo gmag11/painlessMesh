@@ -48,11 +48,13 @@ inline bool contains(protocol::NodeTree nodeTree, uint32_t nodeId) {
   return false;
 }
 
-inline protocol::NodeTree excludeRoute(protocol::NodeTree&& tree, uint32_t exclude) {
+inline protocol::NodeTree excludeRoute(protocol::NodeTree&& tree,
+                                       uint32_t exclude) {
   // Make sure to exclude any subs with nodeId == 0,
   // even if exlude is not set to zero
-  tree.subs.remove_if(
-      [exclude](protocol::NodeTree s) { return s.nodeId == 0 || s.nodeId == exclude; });
+  tree.subs.remove_if([exclude](protocol::NodeTree s) {
+    return s.nodeId == 0 || s.nodeId == exclude;
+  });
   return tree;
 }
 
@@ -104,13 +106,8 @@ class Neighbour : public protocol::NodeTree {
    * \return Whether we adopted the new tree
    */
   bool updateSubs(protocol::NodeTree tree) {
-    if (nodeId == 0) {
+    if (nodeId == 0 || tree != (*this)) {
       nodeId = tree.nodeId;
-      subs = tree.subs;
-      root = tree.root;
-      return true;
-    }
-    if (tree != (*this)) {
       subs = tree.subs;
       root = tree.root;
       return true;
@@ -123,8 +120,7 @@ class Neighbour : public protocol::NodeTree {
    */
   protocol::NodeSyncRequest request(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
-    return protocol::NodeSyncRequest(layout.nodeId, nodeId,
-                                     subTree.subs, root);
+    return protocol::NodeSyncRequest(layout.nodeId, nodeId, subTree.subs, root);
   }
 
   /**
@@ -132,14 +128,13 @@ class Neighbour : public protocol::NodeTree {
    */
   protocol::NodeSyncReply reply(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
-    return protocol::NodeSyncReply(layout.nodeId, nodeId,
-                                   subTree.subs, root);
+    return protocol::NodeSyncReply(layout.nodeId, nodeId, subTree.subs, root);
   }
 };
 
 template <class T>
-std::shared_ptr<T> findRoute(Layout<T> tree, std::function<bool(std::shared_ptr<T>)> 
-    func) {
+std::shared_ptr<T> findRoute(Layout<T> tree,
+                             std::function<bool(std::shared_ptr<T>)> func) {
   auto route = std::find_if(tree.subs.begin(), tree.subs.end(), func);
   if (route == tree.subs.end()) return NULL;
   return (*route);
@@ -185,10 +180,11 @@ inline bool isRooted(protocol::NodeTree nodeTree) {
 /**
  * Return all nodes in a list container
  */
-inline std::list<uint32_t> asList(protocol::NodeTree nodeTree) {
+inline std::list<uint32_t> asList(protocol::NodeTree nodeTree,
+                                  bool includeSelf = true) {
   std::list<uint32_t> lst;
-  lst.push_back(nodeTree.nodeId);
-  for (auto &&s : nodeTree.subs) {
+  if (includeSelf) lst.push_back(nodeTree.nodeId);
+  for (auto&& s : nodeTree.subs) {
     lst.splice(lst.end(), asList(s));
   }
   return lst;

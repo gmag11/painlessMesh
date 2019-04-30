@@ -123,7 +123,7 @@ class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
            NULL;
   }
 
-  std::list<uint32_t> getNodeList();
+  std::list<uint32_t> getNodeList(bool includeSelf = false);
 
   // in painlessMeshSync.cpp
   uint32_t getNodeTime(void);

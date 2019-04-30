@@ -88,7 +88,7 @@ class Broadcast : public Single {
 
 class NodeTree {
  public:
-  uint32_t nodeId;
+  uint32_t nodeId = 0;
   bool root = false;
   std::list<NodeTree> subs;
 

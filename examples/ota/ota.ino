@@ -206,7 +206,7 @@ void newConnectionCallback(uint32_t nodeId) {
 }
 
 void changedConnectionCallback() {
-    Serial.printf("Changed connections %s\n", mesh.subConnectionJson().c_str());
+  Serial.printf("Changed connections\n");
 }
 
 void setup() {

@@ -47,7 +47,7 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
-  //mesh.setDebugMsgTypes(ERROR | CONNECTION | SYNC | COMMUNICATION | GENERAL | DEBUG);  // set before init() so that you can see error messages
+  mesh.setDebugMsgTypes(ERROR | DEBUG);  // set before init() so that you can see error messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
   mesh.onReceive(&receivedCallback);

@@ -2,8 +2,8 @@
 
 #include "time.h"
 
-extern LogClass Log;
 extern painlessMesh* staticThis;
+extern LogClass Log;
 uint32_t timeAdjuster = 0;
 
 // timeSync Functions
@@ -75,6 +75,7 @@ painlessMesh::handleNodeSync(std::shared_ptr<MeshConnection> conn,
     if (changedConnectionsCallback) changedConnectionsCallback();
     staticThis->syncSubConnections(conn->nodeId);
   } else {
+    conn->nodeSyncTask.delay();
     stability += min(1000 - stability, (size_t)25);
   }
 }

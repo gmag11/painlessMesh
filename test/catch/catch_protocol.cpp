@@ -360,6 +360,8 @@ SCENARIO("NodeSyncReply supports the == operator", "[Variant][protocol]") {
     THEN("They are not equal") {
       REQUIRE(pkg1 != pkg2);
       REQUIRE(pkg2 == pkg2);
+      REQUIRE(!(pkg2 != pkg2));
+      REQUIRE(!(pkg1 != pkg1));
 
       REQUIRE(pkg3 != pkg4);
       REQUIRE(pkg3.subs == pkg4.subs);

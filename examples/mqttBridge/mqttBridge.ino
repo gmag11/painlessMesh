@@ -83,7 +83,11 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   {
     if(msg == "getNodes")
     {
-      mqttClient.publish("painlessMesh/from/gateway", mesh.subConnectionJson().c_str());
+      auto nodes = mesh.getNodeList(true);
+      String str;
+      for (auto &&id : nodes)
+        str += String(id) + String(" ");
+      mqttClient.publish("painlessMesh/from/gateway", str.c_str());
     }
   }
   else if(targetStr == "broadcast") 
