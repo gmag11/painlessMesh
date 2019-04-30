@@ -10,12 +10,12 @@ platformio:
     - platformio ci --lib="." --board=nodemcuv2 examples/mqttBridge/mqttBridge.ino
     - platformio ci --lib="." --board=nodemcuv2 examples/basic/basic.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/startHere/startHere.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror"
-    - platformio ci --lib="." --board=esp32dev examples/startHere/startHere.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror -std=c++14"
+    - platformio ci --lib="." --board=esp32dev examples/startHere/startHere.ino -O "build_flags = -std=c++14"
     - platformio ci --lib="." --board=nodemcuv2 examples/bridge/bridge.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/logServer/logServer.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino -O "build_flags = -Werror"
-    - platformio ci --lib="." --lib="./examples/namedMesh/" --board=esp32dev examples/namedMesh/namedMesh.ino -O "build_flags = -Werror"
-    - platformio ci --lib="." --board=esp32dev test/debugNode/debugNode.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror -std=c++14"
+    - platformio ci --lib="." --lib="./examples/namedMesh/" --board=esp32dev examples/namedMesh/namedMesh.ino -O ""
+    - platformio ci --lib="." --board=esp32dev test/debugNode/debugNode.ino -O "build_flags = -std=c++14"
     - platformio ci --lib="." --board=nodemcuv2 test/debugNode/debugNode.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror"
 
 catch_testing:

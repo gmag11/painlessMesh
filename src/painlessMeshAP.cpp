@@ -16,15 +16,15 @@ extern painlessMesh* staticThis;
 // AP functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::apInit(void) {
+  _apIp = IPAddress(10, (nodeId & 0xFF00) >> 8, (nodeId & 0xFF), 1);
+  IPAddress netmask(255, 255, 255, 0);
 
-    _apIp = IPAddress(10, (_nodeId & 0xFF00) >> 8, (_nodeId & 0xFF), 1);
-    IPAddress netmask(255,255,255,0);
+  WiFi.softAPConfig(_apIp, _apIp, netmask);
+  WiFi.softAP(_meshSSID.c_str(), _meshPassword.c_str(), _meshChannel,
+              _meshHidden, _meshMaxConn);
 
-    WiFi.softAPConfig(_apIp, _apIp, netmask);
-    WiFi.softAP(_meshSSID.c_str(), _meshPassword.c_str(), _meshChannel, _meshHidden, _meshMaxConn);
-
-    // establish AP tcpServers
-    tcpServerInit();
+  // establish AP tcpServers
+  tcpServerInit();
 }
 
 IPAddress ICACHE_FLASH_ATTR painlessMesh::getAPIP()
@@ -45,7 +45,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
           Log(CONNECTION, "New AP connection incoming\n");
           auto conn =
               std::make_shared<MeshConnection>(client, staticThis, false);
-          staticThis->_connections.push_back(conn);
+          staticThis->subs.push_back(conn);
           staticThis->semaphoreGive();
         }
       },

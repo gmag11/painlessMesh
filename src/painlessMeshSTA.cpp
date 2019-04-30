@@ -72,7 +72,7 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
               Log(CONNECTION, "New STA connection incoming\n");
               auto conn =
                   std::make_shared<MeshConnection>(client, staticThis, true);
-              staticThis->_connections.push_back(conn);
+              staticThis->subs.push_back(conn);
               staticThis->semaphoreGive();
             }
         }, NULL); 
@@ -181,9 +181,10 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
     auto ap = aps.begin();
     while (ap != aps.end()) {
         auto apNodeId = staticThis->encodeNodeId(ap->bssid);
-        if (staticThis->findConnection(apNodeId) != NULL) {
-            ap = aps.erase(ap);
-            //                Log( GENERAL, "<--already connected\n");
+        if (painlessmesh::layout::findRoute<MeshConnection>((*staticThis),
+                                                            apNodeId) != NULL) {
+          ap = aps.erase(ap);
+          //                Log( GENERAL, "<--already connected\n");
         } else {
             ap++;
             //              Log( GENERAL, "\n");
@@ -199,40 +200,38 @@ void ICACHE_FLASH_ATTR StationScan::requestIP(WiFi_AP_Record_t &ap) {
 }
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {
-    // Next task will be to rescan
-    task.setCallback([this]() {
-        stationScan();
-    });
+  using namespace painlessmesh;
+  // Next task will be to rescan
+  task.setCallback([this]() { stationScan(); });
 
-    if (manual) {
-
-        if((WiFi.SSID() == ssid) && mesh->_station_got_ip) {
-          Log(CONNECTION,
-              "connectToAP(): Already connected using manual connection. "
-              "Disabling scanning.\n");
-          task.disable();
-          return;
-        } else {
-            if (mesh->_station_got_ip) {
-                mesh->closeConnectionSTA();
-                task.enableDelayed(1000 * SCAN_INTERVAL);
-                return;
-            } else if (aps.empty() ||
-                     !ssid.equals((char *)aps.begin()->ssid)) {
-                task.enableDelayed(SCAN_INTERVAL);
-                return;
-            }
-        }
+  if (manual) {
+    if ((WiFi.SSID() == ssid) && mesh->_station_got_ip) {
+      Log(CONNECTION,
+          "connectToAP(): Already connected using manual connection. "
+          "Disabling scanning.\n");
+      task.disable();
+      return;
+    } else {
+      if (mesh->_station_got_ip) {
+        mesh->closeConnectionSTA();
+        task.enableDelayed(1000 * SCAN_INTERVAL);
+        return;
+      } else if (aps.empty() || !ssid.equals((char *)aps.begin()->ssid)) {
+        task.enableDelayed(SCAN_INTERVAL);
+        return;
+      }
+    }
     }
 
     if (aps.empty()) {
         // No unknown nodes found
-        if (mesh->_station_got_ip && !(mesh->shouldContainRoot && !mesh->isRooted())) {
-            // if already connected -> scan slow
-            Log(CONNECTION,
-                "connectToAP(): Already connected, and no unknown nodes found: "
-                "scan rate set to slow\n");
-            task.delay(random(25,36)*SCAN_INTERVAL);
+        if (mesh->_station_got_ip && !(mesh->shouldContainRoot &&
+                                       !layout::isRooted(mesh->asNodeTree()))) {
+          // if already connected -> scan slow
+          Log(CONNECTION,
+              "connectToAP(): Already connected, and no unknown nodes found: "
+              "scan rate set to slow\n");
+          task.delay(random(25, 36) * SCAN_INTERVAL);
         } else {
             // else scan fast (SCAN_INTERVAL)
             Log(CONNECTION,
@@ -249,11 +248,9 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
 
           int prob = mesh->stability;
           if (!mesh->shouldContainRoot)
-            prob /=
-                2 *
-                (1 +
-                 mesh->approxNoNodes());  // Slower when part of bigger network
-          if (!mesh->isRooted() && random(0, 1000) < prob) {
+            // Slower when part of bigger network
+            prob /= 2 * (1 + layout::size(mesh->asNodeTree()));
+          if (!layout::isRooted(mesh->asNodeTree()) && random(0, 1000) < prob) {
             Log(CONNECTION, "connectToAP(): Reconfigure network: %s\n",
                 String(prob).c_str());
             // close STA connection, this will trigger station disconnect which

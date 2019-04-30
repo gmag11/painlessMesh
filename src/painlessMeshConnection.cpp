@@ -7,7 +7,6 @@
 //
 
 #include "painlessMesh.h"
-#include "painlessMeshJson.h"
 
 //#include "lwip/priv/tcpip_priv.h"
 
@@ -42,6 +41,9 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
 
     client->onError([](void * arg, AsyncClient *client, int8_t err) {
         if (staticThis->semaphoreTake()) {
+          // When AsyncTCP gets an error it will call both
+          // onError and onDisconnect
+          // so we handle this in the onDisconnect callback
           Log(CONNECTION, "tcp_err(): MeshConnection %s\n",
               client->errorToString(err));
           staticThis->semaphoreGive();
@@ -64,17 +66,21 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
         }
     }, arg);
 
-    auto syncInterval = NODE_TIMEOUT/2;
-    if (!station)
-        syncInterval = NODE_TIMEOUT*2;
+    auto syncInterval = NODE_TIMEOUT * 0.75;
+    if (!station) syncInterval = syncInterval * 4;
 
     this->nodeSyncTask.set(syncInterval, TASK_FOREVER, [this]() {
-      Log(SYNC, "nodeSyncTask(): \n");
       Log(SYNC, "nodeSyncTask(): request with %u\n", this->nodeId);
-      auto saveConn = staticThis->findConnection(this->client);
-      String subs = staticThis->subConnectionJson(saveConn);
-      staticThis->sendNodeSync(saveConn, this->nodeId, staticThis->_nodeId,
-                               protocol::NODE_SYNC_REQUEST, subs, true);
+      // Need to find by client, because nodeId might not be set yet
+      // TODO pass the shared_from_this route instead of finding it
+      // using saveConn
+      auto saveConn = layout::findRoute<MeshConnection>(
+          (*staticThis),
+          [client = this->client](std::shared_ptr<MeshConnection> s) {
+            return (*s->client) == (*client);
+          });
+      staticThis->send<protocol::NodeSyncRequest>(
+          saveConn, this->request(staticThis->asNodeTree()));
     });
     staticThis->_scheduler.addTask(this->nodeSyncTask);
     if (station)
@@ -283,155 +289,29 @@ void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb)
 
 void ICACHE_FLASH_ATTR painlessMesh::eraseClosedConnections() {
   Log(CONNECTION, "eraseClosedConnections():\n");
-  _connections.remove_if([](const std::shared_ptr<MeshConnection> &conn) {
+  this->subs.remove_if([](const std::shared_ptr<MeshConnection> &conn) {
     return !conn->connected;
   });
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
 {
-    auto connection = _connections.begin();
-    while (connection != _connections.end()) {
-        if ((*connection)->station) {
-            // We found the STA connection, close it
-            (*connection)->close();
-            return true;
-        }
-        ++connection;
+  auto connection = this->subs.begin();
+  while (connection != this->subs.end()) {
+    if ((*connection)->station) {
+      // We found the STA connection, close it
+      (*connection)->close();
+      return true;
+    }
+    ++connection;
     }
     return false;
 }
 
 //***********************************************************************
-// Search for a connection to a given nodeID
-std::shared_ptr<MeshConnection> ICACHE_FLASH_ATTR painlessMesh::findConnection(uint32_t nodeId, uint32_t exclude) {
-  Log(GENERAL, "In findConnection(nodeId)\n");
-
-  for (auto &&connection : _connections) {
-    if (connection->nodeId == exclude) {
-      Log(GENERAL, "findConnection(%u): Skipping excluded connection\n",
-          nodeId);
-      continue;
-    }
-
-    if (connection->nodeId == nodeId) {  // check direct connections
-      Log(GENERAL, "findConnection(%u): Found Direct Connection\n", nodeId);
-      return connection;
-    }
-
-    if (painlessmesh::stringContainsNumber(
-            connection->subConnections,
-            String(nodeId))) {  // check sub-connections
-      Log(GENERAL, "findConnection(%u): Found Sub Connection through %u\n",
-          nodeId, connection->nodeId);
-      return connection;
-    }
-    }
-    Log(CONNECTION, "findConnection(%u): did not find connection\n", nodeId);
-    return NULL;
-}
-
-//***********************************************************************
-std::shared_ptr<MeshConnection>  ICACHE_FLASH_ATTR painlessMesh::findConnection(AsyncClient *client) {
-  Log(GENERAL, "In findConnection() conn=0x%x\n", client);
-
-  for (auto &&connection : _connections) {
-    if ((*connection->client) == (*client)) {
-      return connection;
-    }
-    }
-
-    Log(CONNECTION, "findConnection(): Did not Find\n");
-    return NULL;
-}
-
-//***********************************************************************
-String ICACHE_FLASH_ATTR painlessMesh::subConnectionJson(std::shared_ptr<MeshConnection> exclude) {
-    if (exclude == NULL) {
-        return subConnectionJsonHelper(_connections);
-    } else {
-        return subConnectionJsonHelper(_connections, exclude->nodeId);
-    }
-}
-
-//***********************************************************************
-String ICACHE_FLASH_ATTR painlessMesh::subConnectionJsonHelper(
-        ConnectionList &connections,
-        uint32_t exclude) {
-  if (exclude != 0) Log(GENERAL, "subConnectionJson(), exclude=%u\n", exclude);
-
-  String ret = "[";
-  for (auto &&sub : connections) {
-    if (!sub->connected) {
-      Log(ERROR, "subConnectionJsonHelper(): Found closed connection %u\n",
-          sub->nodeId);
-    } else if (sub->nodeId != exclude &&
-               sub->nodeId != 0) {  // exclude connection that we are working
-                                    // with & anything too new.
-      if (ret.length() > 1) ret += String(",");
-      ret += String("{\"nodeId\":") + String(sub->nodeId);
-      if (sub->root) ret += String(",\"root\":true");
-      ret += String(",\"subs\":") + sub->subConnections + String("}");
-    }
-    }
-    ret += String("]");
-
-    Log(GENERAL, "subConnectionJson(): ret=%s\n", ret.c_str());
-    return ret;
-}
-
-// Calculating the actual number of connected nodes is fairly expensive,
-// this calculates a cheap approximation
-size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes() {
-  Log(GENERAL, "approxNoNodes()\n");
-  auto sc = subConnectionJson();
-  return approxNoNodes(sc);
-}
-
-size_t ICACHE_FLASH_ATTR painlessMesh::approxNoNodes(String &subConns) {
-    return max((long int) 1,(long int)round(subConns.length()/30.0));
-}
-
-//***********************************************************************
-std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList() {
-    std::list<uint32_t> nodeList;
-    String nodeJson = subConnectionJson();
-    return getNodeList(nodeJson);
-}
-
-// TODO: test whether arduinojson would be faster than this
-std::list<uint32_t> ICACHE_FLASH_ATTR painlessMesh::getNodeList(String &subConnections) {
-    std::list<uint32_t> nodeList;
-    int index = 0;
-
-    auto nodeJson = subConnections.substring(index);
-    while ((uint) index < nodeJson.length()) {
-        uint comma = 0;
-        index = nodeJson.indexOf("\"nodeId\":");
-        if (index == -1)
-            break;
-        comma = nodeJson.indexOf(',', index);
-        String temp = nodeJson.substring(index + 9, comma);
-        uint32_t id = strtoul(temp.c_str(), NULL, 10);
-        nodeList.push_back(id);
-        index = comma + 1;
-        nodeJson = nodeJson.substring(index);
-    }
-    return nodeList;
-}
-
-
-bool ICACHE_FLASH_ATTR painlessMesh::isRooted() {
-    if (this->isRoot()) {
-        return true;
-    }
-
-    // Direct connections first
-    for (auto && connection : _connections) {
-        if (connection->connected && (connection->root || connection->rooted))
-            return true;
-    }
-    return false;
+std::list<uint32_t> ICACHE_FLASH_ATTR
+painlessMesh::getNodeList(bool includeSelf) {
+  return painlessmesh::layout::asList(this->asNodeTree(), includeSelf);
 }
 
 //***********************************************************************
@@ -470,10 +350,16 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
 
 void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
                                                      uint32_t receivedAt) {
+  using namespace painlessmesh;
   Log(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId,
       buffer.c_str());
 
-  auto rConn = staticThis->findConnection(this->client);
+  // TODO use shared_from_this
+  auto rConn = layout::findRoute<MeshConnection>(
+      (*staticThis),
+      [client = this->client](std::shared_ptr<MeshConnection> s) {
+        return (*s->client) == (*client);
+      });
 
   auto variant = painlessmesh::protocol::Variant(buffer);
   if (variant.error) {
@@ -517,10 +403,17 @@ void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
     return;
   }
 
-  if (variant.is<painlessmesh::protocol::NodeSyncReply>() ||
-      variant.is<painlessmesh::protocol::NodeSyncRequest>()) {
-    auto jsonObj = variant.to<JsonObject>();
-    staticThis->handleNodeSync(rConn, jsonObj);
+  if (variant.is<painlessmesh::protocol::NodeSyncRequest>()) {
+    auto request = variant.to<protocol::NodeSyncReply>();
+    staticThis->handleNodeSync(rConn, request);
+    staticThis->send<protocol::NodeSyncReply>(
+        rConn, rConn->reply(std::move(staticThis->asNodeTree())), true);
+    return;
+  }
+
+  if (variant.is<painlessmesh::protocol::NodeSyncReply>()) {
+    auto reply = variant.to<protocol::NodeSyncReply>();
+    staticThis->handleNodeSync(rConn, reply);
     return;
   }
 

@@ -10,39 +10,6 @@
 extern LogClass Log;
 extern painlessMesh* staticThis;
 
-bool ICACHE_FLASH_ATTR painlessMesh::sendNodeSync(
-    std::shared_ptr<MeshConnection> conn, uint32_t destId, uint32_t fromId,
-    painlessmesh::protocol::Type type, String &msg, bool priority) {
-  using namespace painlessmesh;
-  Log(COMMUNICATION,
-      "sendNodeSync(conn): conn-nodeId=%u destId=%u type=%d msg=%s\n",
-      conn->nodeId, destId, (uint8_t)type, msg.c_str());
-
-  String package;
-  DynamicJsonDocument jsonBuffer(1024 + 2 * msg.length());
-  JsonObject jsonObj = jsonBuffer.to<JsonObject>();
-
-  jsonObj["dest"] = destId;
-  jsonObj["from"] = fromId;
-  jsonObj["type"] = (uint8_t)type;
-
-  switch (type) {
-    case protocol::NODE_SYNC_REQUEST:
-    case protocol::NODE_SYNC_REPLY: {
-      jsonObj["subs"] = serialized(msg);
-      if (this->isRoot()) jsonObj["root"] = true;
-      break;
-    }
-    default:
-      Log(ERROR, "sendNodeSync(conn): unsupported type=%d\n", conn->nodeId,
-          (uint8_t)type);
-  }
-
-  serializeJson(jsonObj, package);
-
-  return conn->addMessage(package, priority);
-}
-
 bool ICACHE_FLASH_ATTR
 painlessMesh::broadcastMessage(painlessmesh::protocol::Broadcast pkg,
                                std::shared_ptr<MeshConnection> exclude) {
@@ -58,9 +25,9 @@ painlessMesh::broadcastMessage(painlessmesh::protocol::Broadcast pkg,
         "broadcastMessage(): from=%u type=%d, msg=%s exclude=NULL\n", pkg.from,
         pkg.type, pkg.msg.c_str());
 
-  if (_connections.size() > 0)
+  if (this->subs.size() > 0)
     errCode = true;  // Assume true if at least one connections
-  for (auto &&connection : _connections) {
+  for (auto&& connection : this->subs) {
     if (!exclude || connection->nodeId != exclude->nodeId) {
       pkg.dest = connection->nodeId;
       if (!send<painlessmesh::protocol::Broadcast>(connection, pkg))

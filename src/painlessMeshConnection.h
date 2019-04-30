@@ -11,35 +11,35 @@
 #include <ESP8266WiFi.h>
 #endif // ESP32
 
+#define ARDUINOJSON_USE_LONG_LONG 1
+typedef String TSTRING;
+#undef ARDUINOJSON_ENABLE_STD_STRING
 #include "painlessmesh/buffer.hpp"
+#include "painlessmesh/layout.hpp"
 
 #include <string>
-class MeshConnection {
-    public:
-        AsyncClient   *client;
-        painlessMesh  *mesh;
-        uint32_t      nodeId = 0;
-        String        subConnections = "[]";
-        timeSync      time;
-        bool          newConnection = true;
-        bool          connected = true;
-        bool          station = true;
+class MeshConnection : public painlessmesh::layout::Neighbour {
+ public:
+  AsyncClient *client;
+  painlessMesh *mesh;
 
-        uint32_t      timeDelayLastRequested = 0;   //Timestamp to be compared in manageConnections() to check response for timeout
+  bool newConnection = true;
+  bool connected = true;
+  bool station = true;
 
-        bool          addMessage(String &message, bool priority = false);
-        bool          writeNext();
-        painlessmesh::buffer::ReceiveBuffer<String> receiveBuffer;
-        painlessmesh::buffer::SentBuffer<String> sentBuffer;
+  // Timestamp to be compared in manageConnections() to check response
+  // for timeout
+  uint32_t timeDelayLastRequested = 0;
 
-        Task          nodeSyncTask;
-        Task          timeSyncTask;
-        Task          readBufferTask;
-        Task          sentBufferTask;
+  bool addMessage(String &message, bool priority = false);
+  bool writeNext();
+  painlessmesh::buffer::ReceiveBuffer<String> receiveBuffer;
+  painlessmesh::buffer::SentBuffer<String> sentBuffer;
 
-        // Is this connection a root or rooted
-        bool root = false;
-        bool rooted = false;
+  Task nodeSyncTask;
+  Task timeSyncTask;
+  Task readBufferTask;
+  Task sentBufferTask;
 
 #ifdef UNITY // Facilitate testing
         MeshConnection() {};

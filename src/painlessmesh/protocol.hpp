@@ -88,11 +88,16 @@ class Broadcast : public Single {
 
 class NodeTree {
  public:
-  uint32_t nodeId;
+  uint32_t nodeId = 0;
   bool root = false;
   std::list<NodeTree> subs;
 
   NodeTree() {}
+
+  NodeTree(uint32_t nodeID, bool iAmRoot) {
+    nodeId = nodeID;
+    root = iAmRoot;
+  }
 
   NodeTree(JsonObject jsonObj) {
     if (jsonObj.containsKey("root")) root = jsonObj["root"].as<bool>();
@@ -412,6 +417,17 @@ class Variant {
   Variant(Broadcast broadcast) : jsonBuffer(broadcast.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
     jsonObj = broadcast.addTo(std::move(jsonObj));
+  }
+
+  /**
+   * Create Variant object from a NodeTree
+   *
+   * @param nodeTree The NodeTree 
+   */
+  Variant(NodeTree nodeTree)
+      : jsonBuffer(nodeTree.jsonObjectSize()) {
+    jsonObj = jsonBuffer.to<JsonObject>();
+    jsonObj = nodeTree.addTo(std::move(jsonObj));
   }
 
   /**

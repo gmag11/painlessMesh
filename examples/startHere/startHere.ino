@@ -47,7 +47,7 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
-  mesh.setDebugMsgTypes(ERROR);  // set before init() so that you can see error messages
+  mesh.setDebugMsgTypes(ERROR | DEBUG);  // set before init() so that you can see error messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
   mesh.onReceive(&receivedCallback);
@@ -124,7 +124,7 @@ void newConnectionCallback(uint32_t nodeId) {
 }
 
 void changedConnectionCallback() {
-  Serial.printf("Changed connections %s\n", mesh.subConnectionJson().c_str());
+  Serial.printf("Changed connections\n");
   // Reset blink task
   onFlag = false;
   blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);
