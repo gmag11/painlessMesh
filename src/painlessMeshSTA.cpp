@@ -136,11 +136,11 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 
   for (auto i = 0; i < num; ++i) {
     WiFi_AP_Record_t record;
-    String _ssid = WiFi.SSID(i);
-    if (_ssid != ssid) {
-      if (_ssid == "" && mesh->_meshHidden) {
+    record.ssid = WiFi.SSID(i);
+    if (record.ssid != ssid) {
+      if (record.ssid.equals("") && mesh->_meshHidden) {
         // Hidden mesh
-        _ssid = ssid;
+        record.ssid = ssid;
       } else {
         continue;
       }
@@ -148,13 +148,10 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 
     record.rssi = WiFi.RSSI(i);
     if (record.rssi == 0) continue;
-    uint8_t *_bssid = WiFi.BSSID(i);
 
-    _ssid.toCharArray((char *)record.ssid, 32);
-    memcpy((void *)&record.bssid, (void *)_bssid, sizeof(record.bssid));
-
+    memcpy((void *)&record.bssid, (void *)WiFi.BSSID(i), sizeof(record.bssid));
     aps.push_back(record);
-    Log(CONNECTION, "\tfound : %s, %ddBm\n", (char *)record.ssid,
+    Log(CONNECTION, "\tfound : %s, %ddBm\n", record.ssid.c_str(),
         (int16_t)record.rssi);
     }
 
@@ -178,24 +175,22 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 }
 
 void ICACHE_FLASH_ATTR StationScan::filterAPs() {
-    auto ap = aps.begin();
-    while (ap != aps.end()) {
-        auto apNodeId = staticThis->encodeNodeId(ap->bssid);
-        if (painlessmesh::layout::findRoute<MeshConnection>((*staticThis),
-                                                            apNodeId) != NULL) {
-          ap = aps.erase(ap);
-          //                Log( GENERAL, "<--already connected\n");
-        } else {
-            ap++;
-            //              Log( GENERAL, "\n");
-        }
+  auto ap = aps.begin();
+  while (ap != aps.end()) {
+    auto apNodeId = staticThis->encodeNodeId(ap->bssid);
+    if (painlessmesh::layout::findRoute<MeshConnection>((*staticThis),
+                                                        apNodeId) != NULL) {
+      ap = aps.erase(ap);
+    } else {
+      ap++;
     }
+  }
 }
 
 void ICACHE_FLASH_ATTR StationScan::requestIP(WiFi_AP_Record_t &ap) {
   Log(CONNECTION, "connectToAP(): Best AP is %u<---\n",
       mesh->encodeNodeId(ap.bssid));
-  WiFi.begin((char *)ap.ssid, password.c_str(), mesh->_meshChannel, ap.bssid);
+  WiFi.begin(ap.ssid.c_str(), password.c_str(), mesh->_meshChannel, ap.bssid);
   return;
 }
 
@@ -216,7 +211,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         mesh->closeConnectionSTA();
         task.enableDelayed(1000 * SCAN_INTERVAL);
         return;
-      } else if (aps.empty() || !ssid.equals((char *)aps.begin()->ssid)) {
+      } else if (aps.empty() || !ssid.equals(aps.begin()->ssid)) {
         task.enableDelayed(SCAN_INTERVAL);
         return;
       }
