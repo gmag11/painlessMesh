@@ -121,6 +121,7 @@ void newConnectionCallback(uint32_t nodeId) {
   blinkNoNodes.enableDelayed(BLINK_PERIOD - (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
  
   Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
+  Serial.printf("--> startHere: New Connection, %s\n", mesh.subConnectionJson(true).c_str());
 }
 
 void changedConnectionCallback() {

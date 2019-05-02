@@ -125,6 +125,13 @@ class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
 
   std::list<uint32_t> getNodeList(bool includeSelf = false);
 
+  /**
+   * Return a json representation of the current mesh layout
+   */
+  inline TSTRING subConnectionJson(bool pretty = false) {
+    return this->asNodeTree().toString(pretty);
+  }
+
   // in painlessMeshSync.cpp
   uint32_t getNodeTime(void);
 

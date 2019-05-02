@@ -145,6 +145,8 @@ class NodeTree {
 
   bool operator!=(const NodeTree& b) const { return !this->operator==(b); }
 
+  TSTRING toString(bool pretty = false);
+
   size_t jsonObjectSize() {
     size_t base = 1;
     if (root) ++base;
@@ -422,10 +424,9 @@ class Variant {
   /**
    * Create Variant object from a NodeTree
    *
-   * @param nodeTree The NodeTree 
+   * @param nodeTree The NodeTree
    */
-  Variant(NodeTree nodeTree)
-      : jsonBuffer(nodeTree.jsonObjectSize()) {
+  Variant(NodeTree nodeTree) : jsonBuffer(nodeTree.jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
     jsonObj = nodeTree.addTo(std::move(jsonObj));
   }
@@ -494,7 +495,12 @@ class Variant {
    *
    * @return A json representation of the string
    */
-  void printTo(std::string& str) { serializeJson(jsonObj, str); }
+  void printTo(std::string& str, bool pretty = false) {
+    if (pretty)
+      serializeJsonPretty(jsonObj, str);
+    else
+      serializeJson(jsonObj, str);
+  }
 #endif
 
 #ifdef ARDUINOJSON_ENABLE_ARDUINO_STRING
@@ -503,7 +509,12 @@ class Variant {
    *
    * @return A json representation of the string
    */
-  void printTo(String& str) { serializeJson(jsonObj, str); }
+  void printTo(String& str, bool pretty = false) {
+    if (pretty)
+      serializeJsonPretty(jsonObj, str);
+    else
+      serializeJson(jsonObj, str);
+  }
 #endif
 
   DeserializationError error = DeserializationError::Ok;
@@ -547,6 +558,14 @@ template <>
 inline JsonObject Variant::to<JsonObject>() {
   return jsonObj;
 }
+
+inline TSTRING NodeTree::toString(bool pretty) {
+  TSTRING str;
+  auto variant = Variant(*this);
+  variant.printTo(str, pretty);
+  return str;
+}
+
 }  // namespace protocol
 }  // namespace painlessmesh
 #endif
