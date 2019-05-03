@@ -137,8 +137,7 @@ void receivedCallback(uint32_t from, String &msg) {
                     }
                     if (!Update.begin(
                             maxSketchSpace)) {  // start with max available size
-                        mesh.debugMsg(ERROR,
-                                      "handleOTA(): OTA start failed!\n");
+                        Serial.println("handleOTA(): OTA start failed!");
                         Update.printError(Serial);
                         Update.end();
                     } else {
@@ -151,7 +150,7 @@ void receivedCallback(uint32_t from, String &msg) {
 
                 if (Update.write((uint8_t *)b64Data.c_str(),
                                  b64Data.length()) != b64Data.length()) {
-                    mesh.debugMsg(ERROR, "handleOTA(): OTA write failed!\n");
+                    Serial.println("handleOTA(): OTA write failed!");
                     Update.printError(Serial);
                     Update.end();
                     return;
@@ -181,11 +180,10 @@ void receivedCallback(uint32_t from, String &msg) {
                         file.print(msg);
                         file.close();
 
-                        mesh.debugMsg(APPLICATION,
-                                      "handleOTA(): OTA Success!\n");
+                        Serial.println("handleOTA(): OTA Success!");
                         ESP.restart();
                     } else {
-                        mesh.debugMsg(ERROR, "handleOTA(): OTA failed!\n");
+                        Serial.println("handleOTA(): OTA failed!");
                         Update.printError(Serial);
                     }
                     otaDataRequestTask.disable();
