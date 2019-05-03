@@ -13,7 +13,7 @@
 #define   STATION_SSID     "mySSID"
 #define   STATION_PASSWORD "myPASSWORD"
 #define   STATION_PORT     5555
-uint8_t   station_ip[4] =  {10,10,10,1}; // IP of the server
+uint8_t   station_ip[4] =  {192,168,1,128}; // IP of the server
 
 // prototypes
 void receivedCallback( uint32_t from, String &msg );

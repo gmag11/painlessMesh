@@ -47,11 +47,7 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
-  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-  //mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | COMMUNICATION);  // set before init() so that you can see startup messages
-  //mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | GENERAL);  // set before init() so that you can see startup messages
-  //mesh.setDebugMsgTypes(ERROR | CONNECTION | SYNC);  // set before init() so that you can see startup messages
-  mesh.setDebugMsgTypes(ERROR);  // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes(ERROR | DEBUG);  // set before init() so that you can see error messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
   mesh.onReceive(&receivedCallback);
@@ -125,10 +121,11 @@ void newConnectionCallback(uint32_t nodeId) {
   blinkNoNodes.enableDelayed(BLINK_PERIOD - (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
  
   Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
+  Serial.printf("--> startHere: New Connection, %s\n", mesh.subConnectionJson(true).c_str());
 }
 
 void changedConnectionCallback() {
-  Serial.printf("Changed connections %s\n", mesh.subConnectionJson().c_str());
+  Serial.printf("Changed connections\n");
   // Reset blink task
   onFlag = false;
   blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);

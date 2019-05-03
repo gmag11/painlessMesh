@@ -56,37 +56,19 @@ void collectData() {
 #endif
 
     stateObj["isRoot"] = mesh.isRoot();
-    stateObj["isRooted"] = mesh.isRooted();
+    stateObj["isRooted"] = painlessmesh::layout::isRooted(mesh.asNodeTree());
 
-    String subs = mesh.subConnectionJson();
-#if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument subsBuffer(256);
-    DeserializationError error = deserializeJson(subsBuffer, subs, 
-        DeserializationOption::NestingLimit(255));
-    if (error) {
-        return;
-    }
-    JsonArray subsArr = subsBuffer.as<JsonArray>();
-#else
-    DynamicJsonBuffer subsBuffer;
-    JsonArray& subsArr = subsBuffer.parseArray(subs, 255);
-    if (!subsArr.success())
-        return;
-#endif
-    stateObj["subs"] = subsArr;
-    stateObj["subsOrig"] = subs;
-    stateObj["csize"] = mesh._connections.size();
+    stateObj["csize"] = mesh.subs.size();
 #if ARDUINOJSON_VERSION_MAJOR==6
 #else
     JsonArray& connections = stateObj.createNestedArray("connections");
-    for(auto && conn : mesh._connections) {
+    for(auto && conn : mesh.subs) {
         JsonObject& connection = connections.createNestedObject();
         connection["nodeId"] = conn->nodeId;
         connection["connected"] = conn->connected;
         connection["station"] = conn->station;
         connection["root"] = conn->root;
         connection["rooted"] = conn->rooted;
-        connection["subs"] = conn->subConnections;
     }
 #endif
 #if ARDUINOJSON_VERSION_MAJOR==6

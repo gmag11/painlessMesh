@@ -15,11 +15,10 @@
 
 #define SCAN_INTERVAL       10*TASK_SECOND // AP scan period in ms
 
-typedef struct
-{
+typedef struct {
   uint8_t bssid[6];
-  uint8_t ssid[33];
-  int8_t  rssi;
+  String ssid;
+  int8_t rssi;
 } WiFi_AP_Record_t;
 
 class painlessMesh;

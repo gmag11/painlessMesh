@@ -11,85 +11,35 @@
 #include <ESP8266WiFi.h>
 #endif // ESP32
 
-#include<string>
+#define ARDUINOJSON_USE_LONG_LONG 1
+typedef String TSTRING;
+#undef ARDUINOJSON_ENABLE_STD_STRING
+#include "painlessmesh/buffer.hpp"
+#include "painlessmesh/layout.hpp"
 
-// Temporary buffer used by ReceiveBuffer and SentBuffer
-struct temp_buffer_t {
-    size_t length = TCP_MSS;
-    char buffer[TCP_MSS];
-};
+#include <string>
+class MeshConnection : public painlessmesh::layout::Neighbour {
+ public:
+  AsyncClient *client;
+  painlessMesh *mesh;
 
-/** 
- * \brief ReceivedBuffer handles pbuf pointers.
- *
- * Behaviour:
- * When a split is encountered, it will store all the preceding text into the jsonObjects. 
- * The pbuffer is copied.
- */
-class ReceiveBuffer {
-    public:
-        String buffer;
-        std::list<String> jsonStrings;
+  bool newConnection = true;
+  bool connected = true;
+  bool station = true;
 
-        ReceiveBuffer();
-        
-        void   push(const char * cstr, size_t length, temp_buffer_t &buf);
+  // Timestamp to be compared in manageConnections() to check response
+  // for timeout
+  uint32_t timeDelayLastRequested = 0;
 
-        String front();
-        void   pop_front();
+  bool addMessage(String &message, bool priority = false);
+  bool writeNext();
+  painlessmesh::buffer::ReceiveBuffer<String> receiveBuffer;
+  painlessmesh::buffer::SentBuffer<String> sentBuffer;
 
-        bool   empty();
-        void   clear();
-};
-
-class SentBuffer {
-    public:
-        size_t last_read_size = 0;
-
-        std::list<String> jsonStrings;
-
-        SentBuffer();
-        
-        void   push(String &message, bool priority = false);
-
-        size_t requestLength(size_t buffer_size);
-
-        void   read(size_t length, temp_buffer_t &buf);
-
-        void   freeRead();
-
-        bool   empty();
-        void   clear();
-
-        bool   clean = true;
-};
-
-class MeshConnection {
-    public:
-        AsyncClient   *client;
-        painlessMesh  *mesh;
-        uint32_t      nodeId = 0;
-        String        subConnections = "[]";
-        timeSync      time;
-        bool          newConnection = true;
-        bool          connected = true;
-        bool          station = true;
-
-        uint32_t      timeDelayLastRequested = 0;   //Timestamp to be compared in manageConnections() to check response for timeout
-
-        bool          addMessage(String &message, bool priority = false);
-        bool          writeNext();
-        ReceiveBuffer receiveBuffer;
-        SentBuffer    sentBuffer;
-
-        Task          nodeSyncTask;
-        Task          timeSyncTask;
-        Task          readBufferTask;
-        Task          sentBufferTask;
-
-        // Is this connection a root or rooted
-        bool root = false;
-        bool rooted = false;
+  Task nodeSyncTask;
+  Task timeSyncTask;
+  Task readBufferTask;
+  Task sentBufferTask;
 
 #ifdef UNITY // Facilitate testing
         MeshConnection() {};

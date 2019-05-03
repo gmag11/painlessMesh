@@ -13,6 +13,7 @@
 #include "painlessMeshSTA.h"
 #include "painlessMesh.h"
 
+extern LogClass Log;
 extern painlessMesh* staticThis;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
@@ -44,7 +45,7 @@ IPAddress ICACHE_FLASH_ATTR painlessMesh::getStationIP(){
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     // TODO: move to Connection or StationConnection?
-    debugMsg(GENERAL, "tcpConnect():\n");
+    Log(GENERAL, "tcpConnect():\n");
     if (stationScan.manual && stationScan.port == 0) return; // We have been configured not to connect to the mesh 
 
     // TODO: We could pass this to tcpConnect instead of loading it here
@@ -54,11 +55,10 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
         pConn->onError([](void *, AsyncClient * client, int8_t err) {
             if (staticThis->semaphoreTake()) {
-                staticThis->debugMsg(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
-                if (client->connected())
-                    client->close();
-                WiFi.disconnect();
-                staticThis->semaphoreGive();
+              Log(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
+              if (client->connected()) client->close();
+              WiFi.disconnect();
+              staticThis->semaphoreGive();
             }
         });
 
@@ -69,30 +69,31 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
         pConn->onConnect([](void *, AsyncClient *client) {
             if (staticThis->semaphoreTake()) {
-                staticThis->debugMsg(CONNECTION, "New STA connection incoming\n");
-                auto conn = std::make_shared<MeshConnection>(client, staticThis, true);
-                staticThis->_connections.push_back(conn);
-                staticThis->semaphoreGive();
+              Log(CONNECTION, "New STA connection incoming\n");
+              auto conn =
+                  std::make_shared<MeshConnection>(client, staticThis, true);
+              staticThis->subs.push_back(conn);
+              staticThis->semaphoreGive();
             }
         }, NULL); 
 
         pConn->connect(ip, stationScan.port);
      } else {
-        debugMsg(ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");
+       Log(ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");
     }
 }
 
 //***********************************************************************
 // Calculate NodeID from a hardware MAC address
 uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(const uint8_t *hwaddr) {
-    debugMsg(GENERAL, "encodeNodeId():\n");
-    uint32_t value = 0;
+  Log(GENERAL, "encodeNodeId():\n");
+  uint32_t value = 0;
 
-    value |= hwaddr[2] << 24; //Big endian (aka "network order"):
-    value |= hwaddr[3] << 16;
-    value |= hwaddr[4] << 8;
-    value |= hwaddr[5];
-    return value;
+  value |= hwaddr[2] << 24;  // Big endian (aka "network order"):
+  value |= hwaddr[3] << 16;
+  value |= hwaddr[4] << 8;
+  value |= hwaddr[5];
+  return value;
 }
 
 void ICACHE_FLASH_ATTR StationScan::init(painlessMesh *pMesh, String &pssid, 
@@ -109,7 +110,7 @@ void ICACHE_FLASH_ATTR StationScan::init(painlessMesh *pMesh, String &pssid,
 
 // Starts scan for APs whose name is Mesh SSID
 void ICACHE_FLASH_ATTR StationScan::stationScan() {
-    staticThis->debugMsg(CONNECTION, "stationScan(): %s\n", ssid.c_str());
+  Log(CONNECTION, "stationScan(): %s\n", ssid.c_str());
 
 #ifdef ESP32
     WiFi.scanNetworks(true, true);
@@ -122,41 +123,39 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
 }
 
 void ICACHE_FLASH_ATTR StationScan::scanComplete() {
-    staticThis->debugMsg(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n", staticThis->getNodeTime());
+  Log(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n",
+      staticThis->getNodeTime());
 
-    aps.clear();
-    staticThis->debugMsg(CONNECTION, "scanComplete():-- > Cleared old APs.\n");
+  aps.clear();
+  Log(CONNECTION, "scanComplete():-- > Cleared old APs.\n");
 
-    auto num = WiFi.scanComplete();
-    if(num == WIFI_SCAN_RUNNING || num == WIFI_SCAN_FAILED) return;
+  auto num = WiFi.scanComplete();
+  if (num == WIFI_SCAN_RUNNING || num == WIFI_SCAN_FAILED) return;
 
-    staticThis->debugMsg(CONNECTION, "scanComplete(): num = %d\n", num);
-    
-    for (auto i = 0; i < num; ++i) {
-        WiFi_AP_Record_t record;
-        String  _ssid     = WiFi.SSID(i);
-        if(_ssid != ssid) {
-            if (_ssid == "" && mesh->_meshHidden) {
-                // Hidden mesh
-                _ssid = ssid;
-            } else {
-                continue;
-            }
-        }
+  Log(CONNECTION, "scanComplete(): num = %d\n", num);
 
-        record.rssi       = WiFi.RSSI(i);
-        if(record.rssi == 0) continue;
-        uint8_t* _bssid   = WiFi.BSSID(i);
-
-
-        _ssid.toCharArray((char*)record.ssid, 32);
-        memcpy((void *)&record.bssid, (void *)_bssid, sizeof(record.bssid));
-
-        aps.push_back(record);
-        staticThis->debugMsg(CONNECTION, "\tfound : %s, %ddBm\n", (char*) record.ssid, (int16_t) record.rssi);
+  for (auto i = 0; i < num; ++i) {
+    WiFi_AP_Record_t record;
+    record.ssid = WiFi.SSID(i);
+    if (record.ssid != ssid) {
+      if (record.ssid.equals("") && mesh->_meshHidden) {
+        // Hidden mesh
+        record.ssid = ssid;
+      } else {
+        continue;
+      }
     }
 
-    staticThis->debugMsg(CONNECTION, "\tFound %d nodes\n", aps.size());
+    record.rssi = WiFi.RSSI(i);
+    if (record.rssi == 0) continue;
+
+    memcpy((void *)&record.bssid, (void *)WiFi.BSSID(i), sizeof(record.bssid));
+    aps.push_back(record);
+    Log(CONNECTION, "\tfound : %s, %ddBm\n", record.ssid.c_str(),
+        (int16_t)record.rssi);
+    }
+
+    Log(CONNECTION, "\tFound %d nodes\n", aps.size());
 
     task.yield([this]() {
         // Task filter all unknown
@@ -176,79 +175,86 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 }
 
 void ICACHE_FLASH_ATTR StationScan::filterAPs() {
-    auto ap = aps.begin();
-    while (ap != aps.end()) {
-        auto apNodeId = staticThis->encodeNodeId(ap->bssid);
-        if (staticThis->findConnection(apNodeId) != NULL) {
-            ap = aps.erase(ap);
-            //                debugMsg( GENERAL, "<--already connected\n");
-        } else {
-            ap++;
-            //              debugMsg( GENERAL, "\n");
-        }
+  auto ap = aps.begin();
+  while (ap != aps.end()) {
+    auto apNodeId = staticThis->encodeNodeId(ap->bssid);
+    if (painlessmesh::layout::findRoute<MeshConnection>((*staticThis),
+                                                        apNodeId) != NULL) {
+      ap = aps.erase(ap);
+    } else {
+      ap++;
     }
+  }
 }
 
 void ICACHE_FLASH_ATTR StationScan::requestIP(WiFi_AP_Record_t &ap) {
-    mesh->debugMsg(CONNECTION, "connectToAP(): Best AP is %u<---\n", 
-            mesh->encodeNodeId(ap.bssid));
-    WiFi.begin((char*)ap.ssid, password.c_str(), mesh->_meshChannel, ap.bssid);
-    return;
+  Log(CONNECTION, "connectToAP(): Best AP is %u<---\n",
+      mesh->encodeNodeId(ap.bssid));
+  WiFi.begin(ap.ssid.c_str(), password.c_str(), mesh->_meshChannel, ap.bssid);
+  return;
 }
 
 void ICACHE_FLASH_ATTR StationScan::connectToAP() {
-    // Next task will be to rescan
-    task.setCallback([this]() {
-        stationScan();
-    });
+  using namespace painlessmesh;
+  // Next task will be to rescan
+  task.setCallback([this]() { stationScan(); });
 
-    if (manual) {
-
-        if((WiFi.SSID() == ssid) && mesh->_station_got_ip) {
-            mesh->debugMsg(CONNECTION, "connectToAP(): Already connected using manual connection. Disabling scanning.\n");
-            task.disable();
-            return;
-        } else {
-            if (mesh->_station_got_ip) {
-                mesh->closeConnectionSTA();
-                task.enableDelayed(1000 * SCAN_INTERVAL);
-                return;
-            } else if (aps.empty() ||
-                     !ssid.equals((char *)aps.begin()->ssid)) {
-                task.enableDelayed(SCAN_INTERVAL);
-                return;
-            }
-        }
+  if (manual) {
+    if ((WiFi.SSID() == ssid) && mesh->_station_got_ip) {
+      Log(CONNECTION,
+          "connectToAP(): Already connected using manual connection. "
+          "Disabling scanning.\n");
+      task.disable();
+      return;
+    } else {
+      if (mesh->_station_got_ip) {
+        mesh->closeConnectionSTA();
+        task.enableDelayed(1000 * SCAN_INTERVAL);
+        return;
+      } else if (aps.empty() || !ssid.equals(aps.begin()->ssid)) {
+        task.enableDelayed(SCAN_INTERVAL);
+        return;
+      }
+    }
     }
 
     if (aps.empty()) {
         // No unknown nodes found
-        if (mesh->_station_got_ip && !(mesh->shouldContainRoot && !mesh->isRooted())) {
-            // if already connected -> scan slow
-            mesh->debugMsg(CONNECTION, "connectToAP(): Already connected, and no unknown nodes found: scan rate set to slow\n");
-            task.delay(random(25,36)*SCAN_INTERVAL);
+        if (mesh->_station_got_ip && !(mesh->shouldContainRoot &&
+                                       !layout::isRooted(mesh->asNodeTree()))) {
+          // if already connected -> scan slow
+          Log(CONNECTION,
+              "connectToAP(): Already connected, and no unknown nodes found: "
+              "scan rate set to slow\n");
+          task.delay(random(25, 36) * SCAN_INTERVAL);
         } else {
             // else scan fast (SCAN_INTERVAL)
-            mesh->debugMsg(CONNECTION, "connectToAP(): No unknown nodes found scan rate set to normal\n");
+            Log(CONNECTION,
+                "connectToAP(): No unknown nodes found scan rate set to "
+                "normal\n");
             task.setInterval(SCAN_INTERVAL); 
         }
         mesh->stability += min(1000-mesh->stability,(size_t)25);
     } else {
         if (mesh->_station_got_ip) {
-            mesh->debugMsg(CONNECTION, "connectToAP(): Unknown nodes found. Current stability: %s\n", String(mesh->stability).c_str());
+          Log(CONNECTION,
+              "connectToAP(): Unknown nodes found. Current stability: %s\n",
+              String(mesh->stability).c_str());
 
-            int prob = mesh->stability;
-            if (!mesh->shouldContainRoot)
-                prob /= 2*(1+mesh->approxNoNodes()); // Slower when part of bigger network
-            if (!mesh->isRooted() && random(0, 1000) < prob) {
-                mesh->debugMsg(CONNECTION, "connectToAP(): Reconfigure network: %s\n", String(prob).c_str());
-                // close STA connection, this will trigger station disconnect which will trigger
-                // connectToAP()
-                mesh->closeConnectionSTA();
-                mesh->stability = 0; // Discourage switching again
-                // wifiEventCB should be triggered before this delay runs out
-                // and reset the connecting
-                task.delay(1000*SCAN_INTERVAL);
+          int prob = mesh->stability;
+          if (!mesh->shouldContainRoot)
+            // Slower when part of bigger network
+            prob /= 2 * (1 + layout::size(mesh->asNodeTree()));
+          if (!layout::isRooted(mesh->asNodeTree()) && random(0, 1000) < prob) {
+            Log(CONNECTION, "connectToAP(): Reconfigure network: %s\n",
+                String(prob).c_str());
+            // close STA connection, this will trigger station disconnect which
+            // will trigger connectToAP()
+            mesh->closeConnectionSTA();
+            mesh->stability = 0;  // Discourage switching again
+            // wifiEventCB should be triggered before this delay runs out
+            // and reset the connecting
+            task.delay(1000 * SCAN_INTERVAL);
             } else {
                 task.delay(random(4,7)*SCAN_INTERVAL);
             }
@@ -258,7 +264,9 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
             aps.pop_front();  // drop bestAP from mesh list, so if doesn't work out, we can try the next one
             requestIP(ap);
             // Trying to connect, if that fails we will reconnect later
-            mesh->debugMsg(CONNECTION, "connectToAP(): Trying to connect, scan rate set to 4*normal\n");
+            Log(CONNECTION,
+                "connectToAP(): Trying to connect, scan rate set to "
+                "4*normal\n");
             task.delay(4*SCAN_INTERVAL); 
         }
     }

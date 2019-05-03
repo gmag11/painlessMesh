@@ -1,9 +1,9 @@
 #include "painlessMesh.h"
-#include "painlessMeshSync.h"
 
 #include "lwip/init.h"
 
 painlessMesh* staticThis;
+LogClass Log;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
@@ -25,21 +25,21 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, Schedule
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t port, WiFiMode_t connectMode, uint8_t channel, uint8_t hidden, uint8_t maxconn) {
-    // shut everything down, start with a blank slate.
+    // Init random generator seed to generate delay variance
+    randomSeed(millis());
 
-    randomSeed(analogRead(A0)); // Init random generator seed to generate delay variance
+    // Shut Wifi down and start with a blank slage
+    if (WiFi.status() != WL_DISCONNECTED) WiFi.disconnect();
 
-    if (WiFi.status() != WL_DISCONNECTED)
-        WiFi.disconnect();
-
-    debugMsg(STARTUP, "init(): %d\n", WiFi.setAutoConnect(false)); // Disable autoconnect
+    Log(STARTUP, "init(): %d\n",
+        WiFi.setAutoConnect(false));  // Disable autoconnect
     WiFi.persistent(false);
 
     staticThis = this;  // provides a way for static callback methods to access "this" object;
 
     // start configuration
     if(!WiFi.mode(connectMode)) {
-        debugMsg(GENERAL, "WiFi.mode() false");
+      Log(GENERAL, "WiFi.mode() false");
     }
 
     _meshSSID     = ssid;
@@ -51,9 +51,9 @@ void ICACHE_FLASH_ATTR painlessMesh::init(String ssid, String password, uint16_t
 
     uint8_t MAC[] = {0, 0, 0, 0, 0, 0};
     if (WiFi.softAPmacAddress(MAC) == 0) {
-        debugMsg(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
+      Log(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
     }
-    _nodeId = encodeNodeId(MAC);
+    nodeId = encodeNodeId(MAC);
 
     _apIp = IPAddress(0, 0, 0, 0);
 
@@ -92,9 +92,9 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 #endif // ESP32
 
     // Close all connections
-    while (_connections.size() > 0) {
-        auto connection = _connections.begin();
-        (*connection)->close();
+    while (subs.size() > 0) {
+      auto connection = subs.begin();
+      (*connection)->close();
     }
 
     // Stop scanning task
@@ -144,32 +144,31 @@ void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
 
 //***********************************************************************
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
-    debugMsg(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
-    return sendMessage(destId, _nodeId, SINGLE, msg);
+  Log(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
+  auto single = painlessmesh::protocol::Single(this->nodeId, destId, msg);
+  return send<painlessmesh::protocol::Single>(single);
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg, bool includeSelf) {
-    debugMsg(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
-    bool success = broadcastMessage(_nodeId, BROADCAST, msg);
-    if (success && includeSelf && this->receivedCallback)
-        this->receivedCallback(this->getNodeId(), msg);
-    return success; 
+bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg,
+                                                   bool includeSelf) {
+  Log(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
+  auto pkg = painlessmesh::protocol::Broadcast(this->nodeId, 0, msg);
+  bool success = broadcastMessage(pkg);
+  if (success && includeSelf && this->receivedCallback)
+    this->receivedCallback(this->getNodeId(), pkg.msg);
+  return success;
 }
 
-bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeId) {
-    String timeStamp;
-    debugMsg(S_TIME, "startDelayMeas(): NodeId %u\n", nodeId);
+bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeID) {
+  Log(S_TIME, "startDelayMeas(): NodeId %u\n", nodeID);
+  auto conn = painlessmesh::layout::findRoute<MeshConnection>((*this), nodeID);
+  if (!conn) return false;
+  return send<painlessmesh::protocol::TimeDelay>(
+      conn,
+      painlessmesh::protocol::TimeDelay(this->nodeId, nodeID, getNodeTime()));
+}
 
-    auto conn = findConnection(nodeId);
-
-    if (conn) {
-        timeStamp = conn->time.buildTimeStamp(TIME_REQUEST, getNodeTime());
-        //conn->timeDelayStatus = IN_PROGRESS;
-    } else {
-        return false;
-    }
-    debugMsg(S_TIME, "startDelayMeas(): Sent delay calc request -> %s\n", timeStamp.c_str());
-    sendMessage(conn, nodeId, _nodeId, TIME_DELAY, timeStamp);
-    return true;
+void ICACHE_FLASH_ATTR painlessMesh::setDebugMsgTypes(uint16_t newTypes) {
+  Log.setLogLevel(newTypes);
 }
