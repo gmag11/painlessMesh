@@ -65,6 +65,8 @@ class Layout {
   uint32_t nodeId;
   bool root;
 
+  uint32_t getNodeId() { return nodeId; }
+
   protocol::NodeTree asNodeTree() {
     auto nt = protocol::NodeTree(nodeId, root);
     for (auto&& s : subs) {
@@ -131,21 +133,6 @@ class Neighbour : public protocol::NodeTree {
     return protocol::NodeSyncReply(layout.nodeId, nodeId, subTree.subs, root);
   }
 };
-
-template <class T>
-std::shared_ptr<T> findRoute(Layout<T> tree,
-                             std::function<bool(std::shared_ptr<T>)> func) {
-  auto route = std::find_if(tree.subs.begin(), tree.subs.end(), func);
-  if (route == tree.subs.end()) return NULL;
-  return (*route);
-}
-
-template <class T>
-std::shared_ptr<T> findRoute(Layout<T> tree, uint32_t nodeId) {
-  return findRoute<T>(tree, [nodeId](std::shared_ptr<T> s) {
-    return layout::contains((*s), nodeId);
-  });
-}
 
 /**
  * The size of the mesh (the number of nodes)

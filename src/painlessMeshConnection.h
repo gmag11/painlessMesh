@@ -49,7 +49,7 @@ class MeshConnection : public painlessmesh::layout::Neighbour {
         ~MeshConnection();
 #endif
 
-        void handleMessage(String &msg, uint32_t receivedAt);
+        void handleMessage(String msg, uint32_t receivedAt);
 
         void close();
         

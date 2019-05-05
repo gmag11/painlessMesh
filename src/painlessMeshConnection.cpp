@@ -74,7 +74,7 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
       // Need to find by client, because nodeId might not be set yet
       // TODO pass the shared_from_this route instead of finding it
       // using saveConn
-      auto saveConn = layout::findRoute<MeshConnection>(
+      auto saveConn = router::findRoute<MeshConnection>(
           (*staticThis),
           [client = this->client](std::shared_ptr<MeshConnection> s) {
             return (*s->client) == (*client);
@@ -254,8 +254,21 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
 // connection managment functions
 //***********************************************************************
 void ICACHE_FLASH_ATTR painlessMesh::onReceive(receivedCallback_t  cb) {
-  Log(GENERAL, "onReceive():\n");
-  receivedCallback = cb;
+  using namespace painlessmesh;
+  callbackList.onPackage(protocol::SINGLE,
+                         [cb](protocol::Variant variant,
+                              std::shared_ptr<MeshConnection>, uint32_t) {
+                           auto pkg = variant.to<protocol::Single>();
+                           cb(pkg.from, pkg.msg);
+                           return false;
+                         });
+  callbackList.onPackage(protocol::BROADCAST,
+                         [cb](protocol::Variant variant,
+                              std::shared_ptr<MeshConnection>, uint32_t) {
+                           auto pkg = variant.to<protocol::Broadcast>();
+                           cb(pkg.from, pkg.msg);
+                           return false;
+                         });
 }
 
 //***********************************************************************
@@ -348,76 +361,21 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
     }
 }
 
-void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String &buffer,
+void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String buffer,
                                                      uint32_t receivedAt) {
   using namespace painlessmesh;
   Log(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId,
       buffer.c_str());
 
   // TODO use shared_from_this
-  auto rConn = layout::findRoute<MeshConnection>(
+  auto rConn = router::findRoute<MeshConnection>(
       (*staticThis),
       [client = this->client](std::shared_ptr<MeshConnection> s) {
         return (*s->client) == (*client);
       });
 
-  auto variant = painlessmesh::protocol::Variant(buffer);
-  if (variant.error) {
-    Log(ERROR,
-        "handleMessage(): parseObject() failed. total_length=%d, data=%s<--\n",
-        buffer.length(), buffer.c_str());
-    return;
-  }
-
-  if (variant.is<painlessmesh::protocol::Broadcast>()) {
-    auto pkg = variant.to<painlessmesh::protocol::Broadcast>();
-    staticThis->broadcastMessage(pkg, rConn);
-    if (staticThis->receivedCallback)
-      staticThis->receivedCallback(pkg.from, pkg.msg);
-    return;
-  }
-
-  if (variant.is<painlessmesh::protocol::TimeSync>()) {
-    auto pkg = variant.to<painlessmesh::protocol::TimeSync>();
-    staticThis->handleTimeSync(rConn, pkg, receivedAt);
-    return;
-  }
-
-  if (variant.is<painlessmesh::protocol::Single>()) {
-    auto pkg = variant.to<painlessmesh::protocol::Single>();
-    if (pkg.dest == staticThis->getNodeId()) {
-      if (staticThis->receivedCallback)
-        staticThis->receivedCallback(pkg.from, pkg.msg);
-    } else {
-      staticThis->send<painlessmesh::protocol::Single>(pkg);
-    }
-    return;
-  }
-
-  if (variant.is<painlessmesh::protocol::TimeDelay>()) {
-    auto pkg = variant.to<painlessmesh::protocol::TimeDelay>();
-    if (pkg.dest == staticThis->getNodeId())
-      staticThis->handleTimeDelay(rConn, pkg, receivedAt);
-    else
-      staticThis->send<painlessmesh::protocol::TimeDelay>(pkg);
-    return;
-  }
-
-  if (variant.is<painlessmesh::protocol::NodeSyncRequest>()) {
-    auto request = variant.to<protocol::NodeSyncReply>();
-    staticThis->handleNodeSync(rConn, request);
-    staticThis->send<protocol::NodeSyncReply>(
-        rConn, rConn->reply(std::move(staticThis->asNodeTree())), true);
-    return;
-  }
-
-  if (variant.is<painlessmesh::protocol::NodeSyncReply>()) {
-    auto reply = variant.to<protocol::NodeSyncReply>();
-    staticThis->handleNodeSync(rConn, reply);
-    return;
-  }
-
-  Log(ERROR, "meshRecvCb(): unexpected json\n");
+  router::routePackage<MeshConnection>((*staticThis), rConn, buffer,
+                                       staticThis->callbackList, receivedAt);
   return;
 }
 

@@ -4,6 +4,11 @@
 #include <list>
 
 namespace painlessmesh {
+
+namespace router {
+enum Type { ROUTING_ERROR = -1, NEIGHBOUR, SINGLE, BROADCAST };
+}
+
 namespace protocol {
 
 #ifndef ARDUINOJSON_VERSION_MAJOR
@@ -487,6 +492,36 @@ class Variant {
   template <typename T>
   inline T to() {
     return T(jsonObj);
+  }
+
+  /**
+   * Return package type
+   */
+  int type() { return jsonObj["type"].as<int>(); }
+
+  /**
+   * Package routing method
+   */
+  router::Type routing() {
+    if (jsonObj.containsKey("routing"))
+      return (router::Type)jsonObj["routing"].as<int>();
+
+    auto type = this->type();
+    if (type == SINGLE || type == TIME_DELAY) return router::SINGLE;
+    if (type == BROADCAST) return router::BROADCAST;
+    if (type == NODE_SYNC_REQUEST || type == NODE_SYNC_REPLY ||
+        type == TIME_SYNC)
+      return router::NEIGHBOUR;
+    return router::ROUTING_ERROR;
+  }
+
+  /**
+   * Destination node of the package 
+   */
+  uint32_t dest() {
+    if (jsonObj.containsKey("dest"))
+      return jsonObj["dest"].as<uint32_t>();
+    return 0;
   }
 
 #ifdef ARDUINOJSON_ENABLE_STD_STRING
