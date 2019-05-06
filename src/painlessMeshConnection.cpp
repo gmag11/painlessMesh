@@ -79,8 +79,8 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
           [client = this->client](std::shared_ptr<MeshConnection> s) {
             return (*s->client) == (*client);
           });
-      staticThis->send<protocol::NodeSyncRequest>(
-          saveConn, this->request(staticThis->asNodeTree()));
+      router::send<protocol::NodeSyncRequest, MeshConnection>(
+          this->request(staticThis->asNodeTree()), saveConn);
     });
     staticThis->_scheduler.addTask(this->nodeSyncTask);
     if (station)

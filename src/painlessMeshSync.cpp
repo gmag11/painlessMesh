@@ -7,6 +7,7 @@ extern LogClass Log;
 
 void ICACHE_FLASH_ATTR
 painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
+  using namespace painlessmesh;
   Log(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId,
       conn->client->getLocalPort());
   auto adopt = adoptionCalc(conn);
@@ -20,7 +21,7 @@ painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
     timeSync = painlessmesh::protocol::TimeSync(nodeId, conn->nodeId);
     Log(S_TIME, "startTimeSync(): Requesting time from %u\n", conn->nodeId);
   }
-  send<painlessmesh::protocol::TimeSync>(conn, timeSync, true);
+  router::send<protocol::TimeSync, MeshConnection>(timeSync, conn, true);
 }
 
 //***********************************************************************

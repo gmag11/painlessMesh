@@ -163,35 +163,6 @@ class painlessMesh : public painlessmesh::layout::Layout<MeshConnection>,
 protected:
 #endif
  painlessmesh::router::MeshCallbackList<MeshConnection> callbackList;
-
- template <typename T>
- bool send(std::shared_ptr<MeshConnection> conn, T package,
-           bool priority = false) {
-   auto variant = painlessmesh::protocol::Variant(package);
-   String msg;
-   variant.printTo(msg);
-   // Log(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
-   //         conn->nodeId, msg.c_str());
-   return conn->addMessage(msg, priority);
-    }
-
-    template <typename T>
-    bool send(T package, bool priority = false) {
-      std::shared_ptr<MeshConnection> conn =
-          painlessmesh::router::findRoute<MeshConnection>((*this),
-                                                          package.dest);
-      if (conn) {
-        return send<T>(conn, package, priority);
-      } else {
-        // Log(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n",
-        //         package.dest);
-        return false;
-      }
-    }
-
-    bool broadcastMessage(painlessmesh::protocol::Broadcast pkg,
-                          std::shared_ptr<MeshConnection> exclude = NULL);
-
     void                startTimeSync(std::shared_ptr<MeshConnection> conn);
 
     bool                adoptionCalc(std::shared_ptr<MeshConnection> conn);

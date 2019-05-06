@@ -152,7 +152,7 @@ void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
 bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId, String &msg) {
   Log(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
   auto single = painlessmesh::protocol::Single(this->nodeId, destId, msg);
-  return send<painlessmesh::protocol::Single>(single);
+  return painlessmesh::router::send<MeshConnection>(single, (*this));
 }
 
 //***********************************************************************
@@ -161,21 +161,23 @@ bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(String &msg,
   using namespace painlessmesh;
   Log(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
   auto pkg = painlessmesh::protocol::Broadcast(this->nodeId, 0, msg);
-  bool success = broadcastMessage(pkg);
+  auto success =
+      router::broadcast<protocol::Broadcast, MeshConnection>(pkg, (*this), 0);
   if (success && includeSelf) {
     auto variant = protocol::Variant(pkg);
     callbackList.execute(pkg.type, pkg, NULL, 0);
   }
-  return success;
+  if (success > 0) return true;
+  return false;
 }
 
 bool ICACHE_FLASH_ATTR painlessMesh::startDelayMeas(uint32_t nodeID) {
+  using namespace painlessmesh;
   Log(S_TIME, "startDelayMeas(): NodeId %u\n", nodeID);
   auto conn = painlessmesh::router::findRoute<MeshConnection>((*this), nodeID);
   if (!conn) return false;
-  return send<painlessmesh::protocol::TimeDelay>(
-      conn,
-      painlessmesh::protocol::TimeDelay(this->nodeId, nodeID, getNodeTime()));
+  return router::send<protocol::TimeDelay, MeshConnection>(
+      protocol::TimeDelay(this->nodeId, nodeID, getNodeTime()), conn);
 }
 
 void ICACHE_FLASH_ATTR painlessMesh::setDebugMsgTypes(uint16_t newTypes) {
