@@ -94,6 +94,30 @@ SCENARIO("A variant knows its type", "[Variant][protocol]") {
     }
   }
 }
+SCENARIO("A variant can take a packageinterface", "[Variant][protocol]") {
+  GIVEN("A Single package") {
+    auto pkg = createSingle();
+    WHEN("Passed to a Variant") {
+      auto variant = Variant(&pkg);
+      THEN("The variant is a Single type") {
+        REQUIRE(variant.is<Single>());
+        REQUIRE(!variant.is<Broadcast>());
+        REQUIRE(!variant.is<NodeSyncReply>());
+        REQUIRE(!variant.is<NodeSyncRequest>());
+        REQUIRE(!variant.is<TimeSync>());
+        REQUIRE(!variant.is<TimeDelay>());
+      }
+
+      THEN("The variant can be converted to a Single") {
+        auto newPkg = variant.to<Single>();
+        REQUIRE(newPkg.dest == pkg.dest);
+        REQUIRE(newPkg.from == pkg.from);
+        REQUIRE(newPkg.msg == pkg.msg);
+        REQUIRE(newPkg.type == pkg.type);
+      }
+    }
+  }
+}
 
 SCENARIO("A variant can take any package", "[Variant][protocol]") {
   GIVEN("A Single package") {

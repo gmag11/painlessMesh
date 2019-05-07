@@ -4,6 +4,11 @@
 #include <list>
 
 namespace painlessmesh {
+
+namespace router {
+enum Type { ROUTING_ERROR = -1, NEIGHBOUR, SINGLE, BROADCAST };
+}
+
 namespace protocol {
 
 #ifndef ARDUINOJSON_VERSION_MAJOR
@@ -28,12 +33,18 @@ enum TimeType {
   TIME_REPLY
 };
 
+class PackageInterface {
+ public:
+  virtual JsonObject addTo(JsonObject&& jsonObj) = 0;
+  virtual size_t jsonObjectSize() = 0;
+};
+
 /**
  * Single package
  *
  * Message send to a specific node
  */
-class Single {
+class Single : public PackageInterface {
  public:
   int type = SINGLE;
   uint32_t from;
@@ -86,7 +97,7 @@ class Broadcast : public Single {
   }
 };
 
-class NodeTree {
+class NodeTree : public PackageInterface {
  public:
   uint32_t nodeId = 0;
   bool root = false;
@@ -236,7 +247,7 @@ struct time_sync_msg_t {
 /**
  * TimeSync package
  */
-class TimeSync {
+class TimeSync : public PackageInterface {
  public:
   int type = TIME_SYNC;
   uint32_t dest;
@@ -400,6 +411,13 @@ class Variant {
     if (!error) jsonObj = jsonBuffer.as<JsonObject>();
   }
 #endif
+  /**
+   * Create Variant object from any package implementing PackageInterface
+   */
+  Variant(PackageInterface *pkg) : jsonBuffer(pkg->jsonObjectSize()) {
+    jsonObj = jsonBuffer.to<JsonObject>();
+    jsonObj = pkg->addTo(std::move(jsonObj));
+  }
 
   /**
    * Create Variant object from a Single package
@@ -487,6 +505,36 @@ class Variant {
   template <typename T>
   inline T to() {
     return T(jsonObj);
+  }
+
+  /**
+   * Return package type
+   */
+  int type() { return jsonObj["type"].as<int>(); }
+
+  /**
+   * Package routing method
+   */
+  router::Type routing() {
+    if (jsonObj.containsKey("routing"))
+      return (router::Type)jsonObj["routing"].as<int>();
+
+    auto type = this->type();
+    if (type == SINGLE || type == TIME_DELAY) return router::SINGLE;
+    if (type == BROADCAST) return router::BROADCAST;
+    if (type == NODE_SYNC_REQUEST || type == NODE_SYNC_REPLY ||
+        type == TIME_SYNC)
+      return router::NEIGHBOUR;
+    return router::ROUTING_ERROR;
+  }
+
+  /**
+   * Destination node of the package 
+   */
+  uint32_t dest() {
+    if (jsonObj.containsKey("dest"))
+      return jsonObj["dest"].as<uint32_t>();
+    return 0;
   }
 
 #ifdef ARDUINOJSON_ENABLE_STD_STRING
