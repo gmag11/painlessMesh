@@ -33,12 +33,18 @@ enum TimeType {
   TIME_REPLY
 };
 
+class PackageInterface {
+ public:
+  virtual JsonObject addTo(JsonObject&& jsonObj) = 0;
+  virtual size_t jsonObjectSize() = 0;
+};
+
 /**
  * Single package
  *
  * Message send to a specific node
  */
-class Single {
+class Single : public PackageInterface {
  public:
   int type = SINGLE;
   uint32_t from;
@@ -91,7 +97,7 @@ class Broadcast : public Single {
   }
 };
 
-class NodeTree {
+class NodeTree : public PackageInterface {
  public:
   uint32_t nodeId = 0;
   bool root = false;
@@ -241,7 +247,7 @@ struct time_sync_msg_t {
 /**
  * TimeSync package
  */
-class TimeSync {
+class TimeSync : public PackageInterface {
  public:
   int type = TIME_SYNC;
   uint32_t dest;
@@ -405,6 +411,13 @@ class Variant {
     if (!error) jsonObj = jsonBuffer.as<JsonObject>();
   }
 #endif
+  /**
+   * Create Variant object from any package implementing PackageInterface
+   */
+  Variant(PackageInterface *pkg) : jsonBuffer(pkg->jsonObjectSize()) {
+    jsonObj = jsonBuffer.to<JsonObject>();
+    jsonObj = pkg->addTo(std::move(jsonObj));
+  }
 
   /**
    * Create Variant object from a Single package
