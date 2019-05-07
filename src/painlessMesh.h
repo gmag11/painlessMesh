@@ -30,6 +30,7 @@ typedef String TSTRING;
 #include "painlessmesh/logger.hpp"
 #include "painlessmesh/ntp.hpp"
 #include "painlessmesh/protocol.hpp"
+#include "painlessmesh/router.hpp"
 using namespace painlessmesh::logger;
 
 #define NODE_TIMEOUT         10*TASK_SECOND
@@ -55,11 +56,9 @@ typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
 
-class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
+class painlessMesh : public painlessmesh::layout::Layout<MeshConnection>,
+                     public painlessmesh::ntp::MeshTime {
  public:
-  // inline functions
-  uint32_t getNodeId(void) { return nodeId; };
-
   /**
    * Set the node as an root/master node for the mesh
    *
@@ -119,7 +118,7 @@ class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
   void onNodeDelayReceived(nodeDelayCallback_t onDelayReceived);
 
   bool isConnected(uint32_t nodeId) {
-    return painlessmesh::layout::findRoute<MeshConnection>((*this), nodeId) !=
+    return painlessmesh::router::findRoute<MeshConnection>((*this), nodeId) !=
            NULL;
   }
 
@@ -131,9 +130,6 @@ class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
   inline TSTRING subConnectionJson(bool pretty = false) {
     return this->asNodeTree().toString(pretty);
   }
-
-  // in painlessMeshSync.cpp
-  uint32_t getNodeTime(void);
 
   // in painlessMeshSTA.cpp
   uint32_t encodeNodeId(const uint8_t *hwaddr);
@@ -166,43 +162,8 @@ class painlessMesh : public painlessmesh::layout::Layout<MeshConnection> {
 #ifndef UNITY // Make everything public in unit test mode
 protected:
 #endif
- template <typename T>
- bool send(std::shared_ptr<MeshConnection> conn, T package,
-           bool priority = false) {
-   auto variant = painlessmesh::protocol::Variant(package);
-   String msg;
-   variant.printTo(msg);
-   // Log(COMMUNICATION, "send<>(conn): conn-nodeId=%u pkg=%s\n",
-   //         conn->nodeId, msg.c_str());
-   return conn->addMessage(msg, priority);
-    }
-
-    template <typename T>
-    bool send(T package, bool priority = false) {
-      std::shared_ptr<MeshConnection> conn =
-          painlessmesh::layout::findRoute<MeshConnection>((*this),
-                                                          package.dest);
-      if (conn) {
-        return send<T>(conn, package, priority);
-      } else {
-        // Log(ERROR, "In sendMessage(destId): findConnection( %u ) failed\n",
-        //         package.dest);
-        return false;
-      }
-    }
-
-    bool broadcastMessage(painlessmesh::protocol::Broadcast pkg,
-                          std::shared_ptr<MeshConnection> exclude = NULL);
-
-    void handleNodeSync(std::shared_ptr<MeshConnection> conn,
-                        painlessmesh::protocol::NodeTree newTree);
-
+ painlessmesh::router::MeshCallbackList<MeshConnection> callbackList;
     void                startTimeSync(std::shared_ptr<MeshConnection> conn);
-    void handleTimeSync(std::shared_ptr<MeshConnection> conn,
-                        painlessmesh::protocol::TimeSync, uint32_t receivedAt);
-    void handleTimeDelay(std::shared_ptr<MeshConnection> conn,
-                         painlessmesh::protocol::TimeDelay timeDelay,
-                         uint32_t receivedAt);
 
     bool                adoptionCalc(std::shared_ptr<MeshConnection> conn);
 
@@ -230,7 +191,6 @@ protected:
     // Callback functions
     newConnectionCallback_t         newConnectionCallback;
     droppedConnectionCallback_t     droppedConnectionCallback;
-    receivedCallback_t              receivedCallback;
     changedConnectionsCallback_t    changedConnectionsCallback;
     nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
     nodeDelayCallback_t             nodeDelayReceivedCallback;
@@ -288,9 +248,19 @@ protected:
 
     friend class StationScan;
     friend class MeshConnection;
-    friend void onDataCb(void * arg, AsyncClient *client, void *data, size_t len);
-    friend void tcpSentCb(void * arg, AsyncClient * tpcb, size_t len, uint32_t time);
-    friend void meshRecvCb(void * arg, AsyncClient *, void * data, size_t len);
+    friend void onDataCb(void *, AsyncClient *, void *, size_t);
+    friend void tcpSentCb(void *, AsyncClient *, size_t, uint32_t);
+    friend void meshRecvCb(void *, AsyncClient *, void *, size_t);
+    friend void painlessmesh::ntp::handleTimeSync<painlessMesh, MeshConnection>(
+        painlessMesh &, painlessmesh::protocol::TimeSync,
+        std::shared_ptr<MeshConnection>, uint32_t);
+    friend void
+    painlessmesh::ntp::handleTimeDelay<painlessMesh, MeshConnection>(
+        painlessMesh &, painlessmesh::protocol::TimeDelay,
+        std::shared_ptr<MeshConnection>, uint32_t);
+    friend void painlessmesh::router::handleNodeSync<
+        painlessMesh, MeshConnection>(painlessMesh &, protocol::NodeTree,
+                                      std::shared_ptr<MeshConnection> conn);
 };
 
 #endif //   _EASY_MESH_H_

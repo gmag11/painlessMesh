@@ -7,42 +7,44 @@ typedef std::function<void(String &from, String &msg)> namedReceivedCallback_t;
 class namedMesh : public painlessMesh {
     public:
         namedMesh() {
-            receivedCallback = [this](uint32_t from, String &msg) {
-                // Try to parse it.. Need to test it with non json function
+          auto cb = [this](uint32_t from, String &msg) {
+          // Try to parse it.. Need to test it with non json function
 #if ARDUINOJSON_VERSION_MAJOR==6
-                DynamicJsonDocument jsonBuffer(1024 + msg.length());
-                DeserializationError error = deserializeJson(jsonBuffer, msg);
-                JsonObject root = jsonBuffer.as<JsonObject>();
+            DynamicJsonDocument jsonBuffer(1024 + msg.length());
+            deserializeJson(jsonBuffer, msg);
+            JsonObject root = jsonBuffer.as<JsonObject>();
 #else
-                DynamicJsonBuffer jsonBuffer;
-                JsonObject& root = jsonBuffer.parseObject(msg);
+            DynamicJsonBuffer jsonBuffer;
+            JsonObject &root = jsonBuffer.parseObject(msg);
 #endif
-                if (root.containsKey("topic") &&
-                        String("nameBroadCast").equals(root["topic"].as<String>())) {
-                    nameMap[from] = root["name"].as<String>();
+            if (root.containsKey("topic") &&
+                String("nameBroadCast").equals(root["topic"].as<String>())) {
+              nameMap[from] = root["name"].as<String>();
+            } else {
+              if (userReceivedCallback)
+                // If needed send it on to userReceivedCallback
+                userReceivedCallback(from, msg);
+              if (userNamedReceivedCallback) {
+                String name;
+                // If needed look up name and send it on to
+                // userNamedReceivedCallback
+                if (nameMap.count(from) > 0) {
+                  name = nameMap[from];
                 } else {
-                    if (userReceivedCallback)
-                        // If needed send it on to userReceivedCallback
-                        userReceivedCallback(from, msg);
-                    if (userNamedReceivedCallback) {
-                        String name;
-                        // If needed look up name and send it on to userNamedReceivedCallback
-                        if (nameMap.count(from) > 0) {
-                            name = nameMap[from];
-                        } else {
-                            name = String(from);
-                        }
-                        userNamedReceivedCallback(name, msg);
-                    }
+                  name = String(from);
                 }
-            };
-            changedConnectionsCallback = [this]() {
-                if (nameBroadCastTask.isEnabled()) {
-                    nameBroadCastTask.forceNextIteration();
-                }
-                if (userChangedConnectionsCallback)
-                    userChangedConnectionsCallback();
-            };
+                userNamedReceivedCallback(name, msg);
+              }
+            }
+          };
+          painlessMesh::onReceive(cb);
+          changedConnectionsCallback = [this]() {
+            if (nameBroadCastTask.isEnabled()) {
+              nameBroadCastTask.forceNextIteration();
+            }
+            if (userChangedConnectionsCallback)
+              userChangedConnectionsCallback();
+          };
         }
 
         String getName() {
