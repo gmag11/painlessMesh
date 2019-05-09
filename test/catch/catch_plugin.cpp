@@ -8,11 +8,96 @@
 typedef std::string TSTRING;
 
 #include "catch_utils.hpp"
+
+#include "fake_serial.h"
+
+#define TASK_FOREVER 0
+#define TASK_ONCE 0
+#define TASK_MILLISECOND 1
+#define TASK_SECOND 1000 * TASK_MILLISECOND
+#define TASK_MINUTE 60 * TASK_SECOND
+
 #include "painlessmesh/plugin.hpp"
 
 using namespace painlessmesh;
 
-class NamePackage : public plugin::Package {};
+class CustomPackage : public plugin::SinglePackage {
+ public:
+  double sensor = 1.0;
+
+  CustomPackage() : SinglePackage(20) {}
+
+  CustomPackage(JsonObject jsonObj) : SinglePackage(jsonObj) {
+    sensor = jsonObj["sensor"];
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = SinglePackage::addTo(std::move(jsonObj));
+    jsonObj["sensor"] = sensor;
+    return jsonObj;
+  }
+
+  size_t jsonObjectSize() { return JSON_OBJECT_SIZE(noJsonFields + 1); }
+};
+
+class BCustomPackage : public plugin::BroadcastPackage {
+ public:
+  double sensor = 1.0;
+
+  BCustomPackage() : BroadcastPackage(21) {}
+
+  BCustomPackage(JsonObject jsonObj) : BroadcastPackage(jsonObj) {
+    sensor = jsonObj["sensor"];
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = BroadcastPackage::addTo(std::move(jsonObj));
+    jsonObj["sensor"] = sensor;
+    return jsonObj;
+  }
+
+  size_t jsonObjectSize() { return JSON_OBJECT_SIZE(noJsonFields + 1); }
+};
+
+SCENARIO("We can send a custom package") {
+  GIVEN("A package") {
+    auto pkg = CustomPackage();
+    pkg.from = 1;
+    pkg.dest = 2;
+    pkg.sensor = 0.5;
+    REQUIRE(pkg.routing == router::SINGLE);
+    REQUIRE(pkg.type == 20);
+    WHEN("Converting it to and from Variant") {
+      auto var = protocol::Variant(&pkg);
+      auto pkg2 = var.to<CustomPackage>();
+      THEN("Should result in the same values") {
+        REQUIRE(pkg2.sensor == pkg.sensor);
+        REQUIRE(pkg2.from == pkg.from);
+        REQUIRE(pkg2.dest == pkg.dest);
+        REQUIRE(pkg2.routing == pkg.routing);
+        REQUIRE(pkg2.type == pkg.type);
+      }
+    }
+  }
+
+  GIVEN("A broadcast package") {
+    auto pkg = BCustomPackage();
+    pkg.from = 1;
+    pkg.sensor = 0.5;
+    REQUIRE(pkg.routing == router::BROADCAST);
+    REQUIRE(pkg.type == 21);
+    WHEN("Converting it to and from Variant") {
+      auto var = protocol::Variant(&pkg);
+      auto pkg2 = var.to<CustomPackage>();
+      THEN("Should result in the same values") {
+        REQUIRE(pkg2.sensor == pkg.sensor);
+        REQUIRE(pkg2.from == pkg.from);
+        REQUIRE(pkg2.routing == pkg.routing);
+        REQUIRE(pkg2.type == pkg.type);
+      }
+    }
+  }
+}
 
 // We will test this by implementing the named mesh as a plugin
 SCENARIO("We want to implement a named mesh as a custom type") {

@@ -29,6 +29,7 @@ typedef String TSTRING;
 #include "painlessmesh/layout.hpp"
 #include "painlessmesh/logger.hpp"
 #include "painlessmesh/ntp.hpp"
+#include "painlessmesh/plugin.hpp"
 #include "painlessmesh/protocol.hpp"
 #include "painlessmesh/router.hpp"
 using namespace painlessmesh::logger;
@@ -56,8 +57,9 @@ typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
 
-class painlessMesh : public painlessmesh::layout::Layout<MeshConnection>,
-                     public painlessmesh::ntp::MeshTime {
+class painlessMesh
+    : public painlessmesh::ntp::MeshTime,
+      public painlessmesh::plugin::PluginHandler<MeshConnection> {
  public:
   /**
    * Set the node as an root/master node for the mesh
