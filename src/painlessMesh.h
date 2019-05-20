@@ -59,7 +59,7 @@ typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
 
 class painlessMesh
     : public painlessmesh::ntp::MeshTime,
-      public painlessmesh::plugin::PluginHandler<MeshConnection> {
+      public painlessmesh::plugin::PackageHandler<MeshConnection> {
  public:
   /**
    * Set the node as an root/master node for the mesh
@@ -178,8 +178,6 @@ protected:
     bool                closeConnectionSTA(); 
 
     void                eraseClosedConnections();
-
-    std::list<uint32_t> getNodeList(String &subConnections);
 
     // in painlessMeshAP.cpp
     void                apInit(void);
