@@ -124,9 +124,8 @@ class PackageHandler : public layout::Layout<T> {
     auto it = taskList.insert(taskList.end(), task);
     // auto disableFunc = [it, this]() {};
     // disableFunc();
-    task->set(aInterval, aIterations, aCallback, NULL, [it, this]() {
-      this->taskList.erase(it);
-    });
+    task->set(aInterval, aIterations, aCallback, NULL,
+              [it, this]() { this->taskList.erase(it); });
     scheduler.addTask((*task));
     task->enable();
     return task;

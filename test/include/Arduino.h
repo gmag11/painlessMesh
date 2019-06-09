@@ -34,4 +34,6 @@ inline void delay(int i) { usleep(i); }
 
 inline void yield() {}
 
+struct IPAddress {};
+
 #endif

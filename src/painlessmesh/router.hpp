@@ -133,31 +133,27 @@ size_t broadcast(protocol::Variant variant, layout::Layout<T> layout,
 template <class T>
 void routePackage(layout::Layout<T> layout, std::shared_ptr<T> connection,
                   TSTRING pkg, MeshCallbackList<T> cbl, uint32_t receivedAt) {
+  using namespace logger;
+  Log(COMMUNICATION, "routePackage(): Recvd from %u: %s\n", connection->nodeId,
+      pkg.c_str());
   auto variant = protocol::Variant(pkg);
   if (variant.error) {
-    Log(logger::ERROR,
+    Log(ERROR,
         "routePackage(): variant parsing failed. total_length=%d, data=%s<--\n",
         pkg.length(), pkg.c_str());
     return;
   }
 
-  if (variant.routing() == NEIGHBOUR) {
-    cbl.execute(variant.type(), variant, connection, receivedAt);
+  if (variant.routing() == SINGLE && variant.dest() != layout.nodeId) {
+    // Send on without further processing
+    send<T>(variant, layout);
     return;
-  }
-  if (variant.routing() == SINGLE) {
-    if (variant.dest() == layout.nodeId) {
-      cbl.execute(variant.type(), variant, connection, receivedAt);
-    } else {
-      send<T>(variant, layout);
-    }
-    return;
-  }
-  if (variant.routing() == BROADCAST) {
-    cbl.execute(variant.type(), variant, connection, receivedAt);
+  } else if (variant.routing() == BROADCAST) {
     broadcast<T>(variant, layout, connection->nodeId);
-    return;
   }
+  auto calls = cbl.execute(variant.type(), variant, connection, receivedAt);
+  if (calls == 0)
+    Log(DEBUG, "routePackage(): No callbacks executed; %s\n", pkg.c_str());
 }
 
 template <class T, class U>
