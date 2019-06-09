@@ -2,17 +2,9 @@
 
 #include "catch2/catch.hpp"
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-#include "ArduinoJson.h"
-#undef ARDUINOJSON_ENABLE_ARDUINO_STRING
-#undef PAINLESSMESH_ENABLE_ARDUINO_STRING
-#define PAINLESSMESH_ENABLE_STD_STRING
-typedef std::string TSTRING;
+#include "Arduino.h"
 
 #include "catch_utils.hpp"
-
-#include "fake_asynctcp.hpp"
-#include "fake_serial.h"
 
 WiFiClass WiFi;
 ESPClass ESP;

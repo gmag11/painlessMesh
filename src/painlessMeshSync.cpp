@@ -8,8 +8,7 @@ extern LogClass Log;
 void ICACHE_FLASH_ATTR
 painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
   using namespace painlessmesh;
-  Log(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId,
-      conn->client->getLocalPort());
+  Log(S_TIME, "startTimeSync(): with %u\n", conn->nodeId);
   auto adopt = adoptionCalc(conn);
   painlessmesh::protocol::TimeSync timeSync;
   if (adopt) {
@@ -36,7 +35,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection
   uint16_t mySubCount = layout::size(layout::excludeRoute(
       this->asNodeTree(), conn->nodeId));           // exclude this connection.
   uint16_t remoteSubCount = layout::size((*conn));  // exclude this connection.
-  bool ap = conn->client->getLocalPort() == _meshPort;
+  bool ap = !conn->station;
 
   // ToDo. Simplify this logic
   bool ret = (mySubCount > remoteSubCount) ? false : true;

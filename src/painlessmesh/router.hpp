@@ -2,6 +2,7 @@
 #define _PAINLESS_MESH_ROUTER_HPP_
 
 #include <map>
+#include <algorithm>
 
 #include "painlessmesh/layout.hpp"
 #include "painlessmesh/logger.hpp"
@@ -18,6 +19,10 @@ namespace router {
 
 /**
  * Manage callbacks for receiving packages
+ *
+ * TODO: Implement a CallbackQueue, which has a list store and an execute
+ * function. The map can then be changed to std::map<int, CallbackQueue> and
+ * this queue can be used for mesh events etc
  */
 template <typename... Args>
 class CallbackList {

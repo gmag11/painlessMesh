@@ -2,6 +2,10 @@
 #define _PAINLESS_MESH_PROTOCOL_HPP_
 
 #include <list>
+#include <cmath>
+
+#include "Arduino.h"
+#include "painlessmesh/configuration.hpp"
 
 namespace painlessmesh {
 
@@ -10,11 +14,6 @@ enum Type { ROUTING_ERROR = -1, NEIGHBOUR, SINGLE, BROADCAST };
 }
 
 namespace protocol {
-
-#ifndef ARDUINOJSON_VERSION_MAJOR
-#include "ArduinoJson.h"
-typedef std::string TSTRING;
-#endif
 
 enum Type {
   TIME_DELAY = 3,

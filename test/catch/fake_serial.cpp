@@ -18,7 +18,7 @@
 #include <iomanip>
 #include <iostream>
 
-#include "fake_serial.h"
+#include "fake_serial.hpp"
 
 void FakeSerial::begin(unsigned long speed) { return; }
 

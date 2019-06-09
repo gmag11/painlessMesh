@@ -2,14 +2,9 @@
 
 #include "catch2/catch.hpp"
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-#include "ArduinoJson.h"
-#undef ARDUINOJSON_ENABLE_ARDUINO_STRING
-typedef std::string TSTRING;
+#include "Arduino.h"
 
 #include "catch_utils.hpp"
-
-#include "fake_serial.h"
 
 #include "painlessmesh/plugin.hpp"
 

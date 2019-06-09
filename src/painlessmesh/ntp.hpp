@@ -52,7 +52,7 @@ inline int32_t tripDelay(uint32_t time0, uint32_t time1, uint32_t time2,
   return ((time3 - time0) - (time2 - time1)) / 2;
 }
 
-bool adopt(protocol::NodeTree mesh, protocol::NodeTree connection) {
+inline bool adopt(protocol::NodeTree mesh, protocol::NodeTree connection) {
   auto mySubCount = layout::size(layout::excludeRoute(std::move(mesh), connection.nodeId));
   auto remoteSubCount = layout::size(connection);
   if (mySubCount > remoteSubCount)

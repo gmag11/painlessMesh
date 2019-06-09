@@ -1,13 +1,9 @@
 #ifndef _PAINLESS_MESH_PLUGIN_HPP_
 #define _PAINLESS_MESH_PLUGIN_HPP_
 
-#define _TASK_STD_FUNCTION
-#include "TaskSchedulerDeclarations.h"
+#include "Arduino.h"
+#include "painlessmesh/configuration.hpp"
 
-#ifndef ARDUINOJSON_VERSION_MAJOR
-#include "ArduinoJson.h"
-typedef std::string TSTRING;
-#endif
 #include "painlessmesh/router.hpp"
 
 namespace painlessmesh {

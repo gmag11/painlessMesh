@@ -85,7 +85,8 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
 
 //***********************************************************************
 // Calculate NodeID from a hardware MAC address
-uint32_t ICACHE_FLASH_ATTR painlessMesh::encodeNodeId(const uint8_t *hwaddr) {
+uint32_t ICACHE_FLASH_ATTR
+painlessmesh::wifi::Mesh::encodeNodeId(const uint8_t *hwaddr) {
   Log(GENERAL, "encodeNodeId():\n");
   uint32_t value = 0;
 

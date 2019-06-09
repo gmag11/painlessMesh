@@ -11,13 +11,13 @@
 #include <ESP8266WiFi.h>
 #endif // ESP32
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-typedef String TSTRING;
-#undef ARDUINOJSON_ENABLE_STD_STRING
 #include "painlessmesh/buffer.hpp"
+#include "painlessmesh/configuration.hpp"
 #include "painlessmesh/layout.hpp"
 
 #include <string>
+class painlessMesh;
+
 class MeshConnection : public painlessmesh::layout::Neighbour {
  public:
   AsyncClient *client;
@@ -31,10 +31,10 @@ class MeshConnection : public painlessmesh::layout::Neighbour {
   // for timeout
   uint32_t timeDelayLastRequested = 0;
 
-  bool addMessage(String &message, bool priority = false);
+  bool addMessage(TSTRING &message, bool priority = false);
   bool writeNext();
-  painlessmesh::buffer::ReceiveBuffer<String> receiveBuffer;
-  painlessmesh::buffer::SentBuffer<String> sentBuffer;
+  painlessmesh::buffer::ReceiveBuffer<TSTRING> receiveBuffer;
+  painlessmesh::buffer::SentBuffer<TSTRING> sentBuffer;
 
   Task nodeSyncTask;
   Task timeSyncTask;
@@ -49,7 +49,7 @@ class MeshConnection : public painlessmesh::layout::Neighbour {
         ~MeshConnection();
 #endif
 
-        void handleMessage(String msg, uint32_t receivedAt);
+        void handleMessage(TSTRING msg, uint32_t receivedAt);
 
         void close();
         

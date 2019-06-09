@@ -2,7 +2,7 @@
 
 #include "catch2/catch.hpp"
 
-#include "fake_serial.h"
+#include <Arduino.h>
 
 #include "painlessmesh/logger.hpp"
 using namespace painlessmesh::logger;

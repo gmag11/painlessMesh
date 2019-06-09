@@ -88,16 +88,16 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painle
     else
         this->nodeSyncTask.enableDelayed();
 
-    receiveBuffer = painlessmesh::buffer::ReceiveBuffer<String>();
+    receiveBuffer = painlessmesh::buffer::ReceiveBuffer<TSTRING>();
     readBufferTask.set(100*TASK_MILLISECOND, TASK_FOREVER, [this]() {
         if (!this->receiveBuffer.empty()) {
-            String frnt = this->receiveBuffer.front();
-            this->receiveBuffer.pop_front();
-            if (!this->receiveBuffer.empty())
-                this->readBufferTask.forceNextIteration();
-            // handleMessage can invalidate this, (when closing connection)
-            // so this should be the final action in this function
-            this->handleMessage(frnt, staticThis->getNodeTime());
+          TSTRING frnt = this->receiveBuffer.front();
+          this->receiveBuffer.pop_front();
+          if (!this->receiveBuffer.empty())
+            this->readBufferTask.forceNextIteration();
+          // handleMessage can invalidate this, (when closing connection)
+          // so this should be the final action in this function
+          this->handleMessage(frnt, staticThis->getNodeTime());
         }
     });
     staticThis->_scheduler.addTask(readBufferTask);
@@ -162,6 +162,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
       client->close();
     }
 
+    // TODO: This should be handled by the mesh.onDisconnect callback/event
     if (station && WiFi.status() == WL_CONNECTED) {
       Log(CONNECTION, "close(): call WiFi.disconnect().\n");
       WiFi.disconnect();
@@ -178,38 +179,39 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     Log(CONNECTION, "MeshConnection::close() Done.\n");
 }
 
-
-bool ICACHE_FLASH_ATTR MeshConnection::addMessage(String &message, bool priority) {
-    if (ESP.getFreeHeap() - message.length() >= MIN_FREE_MEMORY) { // If memory heap is enough, queue the message
-        if (priority) {
-            sentBuffer.push(message, priority);
-            Log(COMMUNICATION,
-                "addMessage(): Package sent to queue beginning -> %d , "
-                "FreeMem: %d\n",
-                sentBuffer.size(), ESP.getFreeHeap());
-        } else {
-          if (sentBuffer.size() < MAX_MESSAGE_QUEUE) {
-            sentBuffer.push(message, priority);
-            Log(COMMUNICATION,
-                "addMessage(): Package sent to queue end -> %d , FreeMem: "
-                "%d\n",
-                sentBuffer.size(), ESP.getFreeHeap());
-            } else {
-              Log(ERROR,
-                  "addMessage(): Message queue full -> %d , FreeMem: %d\n",
-                  sentBuffer.size(), ESP.getFreeHeap());
-              sentBufferTask.forceNextIteration();
-              return false;
-            }
-        }
-        sentBufferTask.forceNextIteration();
-        return true;
+bool ICACHE_FLASH_ATTR MeshConnection::addMessage(TSTRING &message,
+                                                  bool priority) {
+  if (ESP.getFreeHeap() - message.length() >=
+      MIN_FREE_MEMORY) {  // If memory heap is enough, queue the message
+    if (priority) {
+      sentBuffer.push(message, priority);
+      Log(COMMUNICATION,
+          "addMessage(): Package sent to queue beginning -> %d , "
+          "FreeMem: %d\n",
+          sentBuffer.size(), ESP.getFreeHeap());
     } else {
-        //connection->sendQueue.clear(); // Discard all messages if free memory is low
-        Log(DEBUG, "addMessage(): Memory low, message was discarded\n");
+      if (sentBuffer.size() < MAX_MESSAGE_QUEUE) {
+        sentBuffer.push(message, priority);
+        Log(COMMUNICATION,
+            "addMessage(): Package sent to queue end -> %d , FreeMem: "
+            "%d\n",
+            sentBuffer.size(), ESP.getFreeHeap());
+      } else {
+        Log(ERROR, "addMessage(): Message queue full -> %d , FreeMem: %d\n",
+            sentBuffer.size(), ESP.getFreeHeap());
         sentBufferTask.forceNextIteration();
         return false;
+      }
     }
+    sentBufferTask.forceNextIteration();
+    return true;
+  } else {
+    // connection->sendQueue.clear(); // Discard all messages if free memory is
+    // low
+    Log(DEBUG, "addMessage(): Memory low, message was discarded\n");
+    sentBufferTask.forceNextIteration();
+    return false;
+  }
 }
 
 bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
@@ -361,7 +363,7 @@ void ICACHE_FLASH_ATTR meshRecvCb(void * arg, AsyncClient *client, void * data, 
     }
 }
 
-void ICACHE_FLASH_ATTR MeshConnection::handleMessage(String buffer,
+void ICACHE_FLASH_ATTR MeshConnection::handleMessage(TSTRING buffer,
                                                      uint32_t receivedAt) {
   using namespace painlessmesh;
   Log(COMMUNICATION, "meshRecvCb(): Recvd from %u-->%s<--\n", this->nodeId,

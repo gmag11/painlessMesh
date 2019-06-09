@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <cstring>
 #include "Arduino.h"
 
 #define ASYNC_WRITE_FLAG_COPY \
@@ -67,6 +68,10 @@ class AsyncClient {
   int8_t abort() { return 0; }
   bool free() { return true; }
 
+  bool operator==(const AsyncClient &other) {
+    return mOther == other.mOther;
+  }
+
  protected:
   AsyncServer* mServer = NULL;
   AsyncClient* mOther = NULL;
@@ -78,11 +83,21 @@ class AsyncClient {
 class AsyncServer : public AsyncClient {
  public:
   AsyncServer() {}
+  AsyncServer(uint16_t port) {}
   void onClient(AcConnectHandler cb, void* arg = 0) { _connect_cb = cb; }
   void begin() {}
 };
 
-#define WL_CONNECTED 1
+typedef enum {
+    WL_NO_SHIELD        = 255,   // for compatibility with WiFi Shield library
+    WL_IDLE_STATUS      = 0,
+    WL_NO_SSID_AVAIL    = 1,
+    WL_SCAN_COMPLETED   = 2,
+    WL_CONNECTED        = 3,
+    WL_CONNECT_FAILED   = 4,
+    WL_CONNECTION_LOST  = 5,
+    WL_DISCONNECTED     = 6
+} wl_status_t;
 
 class WiFiClass {
  public:
@@ -97,7 +112,7 @@ class ESPClass {
   size_t getFreeHeap() { return 1e6; }
 };
 
-bool AsyncClient::connect(IPAddress ip, uint16_t port) {
+inline bool AsyncClient::connect(IPAddress ip, uint16_t port) {
   this->mOther = new AsyncClient();
   this->mOther->mOther = this;
   void * arg  = NULL;
