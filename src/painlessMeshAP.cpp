@@ -11,7 +11,6 @@
 #include "painlessMesh.h"
 
 extern LogClass Log;
-extern painlessMesh* staticThis;
 
 // AP functions
 //***********************************************************************

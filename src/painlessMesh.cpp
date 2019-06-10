@@ -5,7 +5,6 @@
 #include "lwip/init.h"
 #endif
 
-painlessMesh *staticThis;
 LogClass Log;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -13,9 +12,6 @@ ICACHE_FLASH_ATTR painlessMesh::painlessMesh() {}
 #pragma GCC diagnostic pop
 
 void painlessMesh::init(uint32_t id, uint16_t port) {
-  // access "this" object;
-  staticThis = this;
-
   nodeId = id;
 
   _meshPort = port;
@@ -159,13 +155,14 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
   _tcpListener->setNoDelay(true);
 
   _tcpListener->onClient(
-      [](void *arg, AsyncClient *client) {
-        if (staticThis->semaphoreTake()) {
+      [this](void *arg, AsyncClient *client) {
+        if (this->semaphoreTake()) {
           Log(CONNECTION, "New AP connection incoming\n");
-          auto conn =
-              std::make_shared<MeshConnection>(client, staticThis, false);
-          staticThis->subs.push_back(conn);
-          staticThis->semaphoreGive();
+          auto conn = std::make_shared<MeshConnection>(client, this, false);
+          conn->initTCPCallbacks();
+          conn->initTasks();
+          this->subs.push_back(conn);
+          this->semaphoreGive();
         }
       },
       NULL);

@@ -2,7 +2,6 @@
 
 #include "time.h"
 
-extern painlessMesh* staticThis;
 extern LogClass Log;
 
 void ICACHE_FLASH_ATTR
@@ -48,16 +47,4 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection
         mySubCount, remoteSubCount, ap ? "AP" : "STA", ret ? "true" : "false");
 
     return ret;
-}
-
-void ICACHE_FLASH_ATTR painlessMesh::syncSubConnections(uint32_t changedId) {
-  Log(SYNC, "syncSubConnections(): changedId = %u\n", changedId);
-  for (auto&& connection : this->subs) {
-    if (connection->connected && !connection->newConnection &&
-        connection->nodeId != 0 &&
-        connection->nodeId != changedId) {  // Exclude current
-      connection->nodeSyncTask.forceNextIteration();
-    }
-    }
-    staticThis->stability /= 2;
 }

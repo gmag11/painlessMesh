@@ -14,7 +14,6 @@
 #include "painlessMesh.h"
 
 extern LogClass Log;
-extern painlessMesh* staticThis;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
         String ssid, String password, uint16_t port,
@@ -53,13 +52,13 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     if (_station_got_ip && WiFi.localIP()) {
         AsyncClient *pConn = new AsyncClient();
 
-        pConn->onError([](void *, AsyncClient * client, int8_t err) {
-            if (staticThis->semaphoreTake()) {
-              Log(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
-              if (client->connected()) client->close();
-              WiFi.disconnect();
-              staticThis->semaphoreGive();
-            }
+        pConn->onError([this](void *, AsyncClient *client, int8_t err) {
+          if (this->semaphoreTake()) {
+            Log(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
+            if (client->connected()) client->close();
+            WiFi.disconnect();
+            this->semaphoreGive();
+          }
         });
 
         IPAddress ip = WiFi.gatewayIP();
@@ -67,15 +66,19 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
             ip = stationScan.manualIP;
         }
 
-        pConn->onConnect([](void *, AsyncClient *client) {
-            if (staticThis->semaphoreTake()) {
-              Log(CONNECTION, "New STA connection incoming\n");
-              auto conn =
-                  std::make_shared<MeshConnection>(client, staticThis, true);
-              staticThis->subs.push_back(conn);
-              staticThis->semaphoreGive();
-            }
-        }, NULL); 
+        pConn->onConnect(
+            [this](void *, AsyncClient *client) {
+              if (this->semaphoreTake()) {
+                Log(CONNECTION, "New STA connection incoming\n");
+                auto conn =
+                    std::make_shared<MeshConnection>(client, this, true);
+                conn->initTCPCallbacks();
+                conn->initTasks();
+                this->subs.push_back(conn);
+                this->semaphoreGive();
+              }
+            },
+            NULL);
 
         pConn->connect(ip, stationScan.port);
      } else {
@@ -124,8 +127,7 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
 }
 
 void ICACHE_FLASH_ATTR StationScan::scanComplete() {
-  Log(CONNECTION, "scanComplete():-- > scan finished @ %u < --\n",
-      staticThis->getNodeTime());
+  Log(CONNECTION, "scanComplete(): Scan finished\n");
 
   aps.clear();
   Log(CONNECTION, "scanComplete():-- > Cleared old APs.\n");
@@ -178,9 +180,9 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 void ICACHE_FLASH_ATTR StationScan::filterAPs() {
   auto ap = aps.begin();
   while (ap != aps.end()) {
-    auto apNodeId = staticThis->encodeNodeId(ap->bssid);
-    if (painlessmesh::router::findRoute<MeshConnection>((*staticThis),
-                                                        apNodeId) != NULL) {
+    auto apNodeId = mesh->encodeNodeId(ap->bssid);
+    if (painlessmesh::router::findRoute<MeshConnection>((*mesh), apNodeId) !=
+        NULL) {
       ap = aps.erase(ap);
     } else {
       ap++;

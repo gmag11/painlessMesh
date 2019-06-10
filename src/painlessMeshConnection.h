@@ -1,7 +1,7 @@
-#ifndef   _PAINLESS_MESH_CONNECTION_H_
-#define   _PAINLESS_MESH_CONNECTION_H_
+#ifndef _PAINLESS_MESH_CONNECTION_H_
+#define _PAINLESS_MESH_CONNECTION_H_
 
-#define _TASK_PRIORITY // Support for layered scheduling priority
+#define _TASK_PRIORITY  // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
 #include <TaskSchedulerDeclarations.h>
 
@@ -9,7 +9,7 @@
 #include <WiFi.h>
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
-#endif // ESP32
+#endif  // ESP32
 
 #include "painlessmesh/buffer.hpp"
 #include "painlessmesh/configuration.hpp"
@@ -18,7 +18,8 @@
 #include <string>
 class painlessMesh;
 
-class MeshConnection : public painlessmesh::layout::Neighbour {
+class MeshConnection : public painlessmesh::layout::Neighbour,
+                       public std::enable_shared_from_this<MeshConnection> {
  public:
   AsyncClient *client;
   painlessMesh *mesh;
@@ -41,18 +42,21 @@ class MeshConnection : public painlessmesh::layout::Neighbour {
   Task readBufferTask;
   Task sentBufferTask;
 
-#ifdef UNITY // Facilitate testing
-        MeshConnection() {};
+#ifdef UNITY  // Facilitate testing
+  MeshConnection(){};
 #endif
-        MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
+  MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
 #ifndef UNITY
-        ~MeshConnection();
+  ~MeshConnection();
 #endif
 
-        void handleMessage(TSTRING msg, uint32_t receivedAt);
+  void initTCPCallbacks();
+  void initTasks();
 
-        void close();
-        
-        friend class painlessMesh;
+  void handleMessage(TSTRING msg, uint32_t receivedAt);
+
+  void close();
+
+  friend class painlessMesh;
 };
 #endif

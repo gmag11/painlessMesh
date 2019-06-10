@@ -1,6 +1,7 @@
 #ifndef   _PAINLESS_MESH_STA_H_
 #define   _PAINLESS_MESH_STA_H_
 
+#include "Arduino.h"
 #include "painlessmesh/configuration.hpp"
 
 #include <list>

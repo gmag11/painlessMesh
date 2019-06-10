@@ -216,7 +216,7 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
 
   if (conn->updateSubs(newTree)) {
     if (mesh.changedConnectionsCallback) mesh.changedConnectionsCallback();
-    mesh.syncSubConnections(conn->nodeId);
+    layout::syncLayout(mesh, conn->nodeId);
   } else {
     conn->nodeSyncTask.delay();
     mesh.stability += min(1000 - mesh.stability, (size_t)25);
