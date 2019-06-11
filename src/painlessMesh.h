@@ -30,6 +30,7 @@ using namespace std;
 #include "painlessmesh/plugin.hpp"
 #include "painlessmesh/protocol.hpp"
 #include "painlessmesh/router.hpp"
+#include "painlessmesh/tcp.hpp"
 using namespace painlessmesh::logger;
 
 #define NODE_TIMEOUT 10 * TASK_SECOND
@@ -177,13 +178,8 @@ class painlessMesh
  protected:
 #endif
   void setScheduler(Scheduler *baseScheduler) {
-#ifdef ESP8266
-    // Due to ESP32 multithreaded we need to protect the internal scheduler
-    // so currently we use a separate scheduler for internal and external for
-    // ESP32
     baseScheduler->setHighPriorityScheduler(&this->_scheduler);
     isExternalScheduler = true;
-#endif
   }
 
   painlessmesh::router::MeshCallbackList<MeshConnection> callbackList;
@@ -271,6 +267,10 @@ class painlessMesh
   friend void
   painlessmesh::router::handleNodeSync<painlessMesh, MeshConnection>(
       painlessMesh &, protocol::NodeTree, std::shared_ptr<MeshConnection> conn);
+  friend void painlessmesh::tcp::initServer<MeshConnection, painlessMesh>(
+      AsyncServer &, painlessMesh &);
+  friend void painlessmesh::tcp::connect<MeshConnection, painlessMesh>(
+      AsyncClient &, IPAddress, uint16_t, painlessMesh &);
 };
 
 #endif  //   _EASY_MESH_H_

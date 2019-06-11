@@ -13,6 +13,8 @@
 #include "painlessMeshSTA.h"
 #include "painlessMesh.h"
 
+#include "painlessmesh/tcp.hpp"
+
 extern LogClass Log;
 
 void ICACHE_FLASH_ATTR painlessMesh::stationManual(
@@ -52,35 +54,13 @@ void ICACHE_FLASH_ATTR painlessMesh::tcpConnect(void) {
     if (_station_got_ip && WiFi.localIP()) {
         AsyncClient *pConn = new AsyncClient();
 
-        pConn->onError([this](void *, AsyncClient *client, int8_t err) {
-          if (this->semaphoreTake()) {
-            Log(CONNECTION, "tcp_err(): tcpStationConnection %d\n", err);
-            if (client->connected()) client->close();
-            WiFi.disconnect();
-            this->semaphoreGive();
-          }
-        });
-
         IPAddress ip = WiFi.gatewayIP();
         if (stationScan.manualIP) {
             ip = stationScan.manualIP;
         }
 
-        pConn->onConnect(
-            [this](void *, AsyncClient *client) {
-              if (this->semaphoreTake()) {
-                Log(CONNECTION, "New STA connection incoming\n");
-                auto conn =
-                    std::make_shared<MeshConnection>(client, this, true);
-                conn->initTCPCallbacks();
-                conn->initTasks();
-                this->subs.push_back(conn);
-                this->semaphoreGive();
-              }
-            },
-            NULL);
-
-        pConn->connect(ip, stationScan.port);
+        painlessmesh::tcp::connect<MeshConnection, painlessMesh>(
+            (*pConn), ip, stationScan.port, (*this));
      } else {
        Log(ERROR, "tcpConnect(): err Something un expected in tcpConnect()\n");
     }

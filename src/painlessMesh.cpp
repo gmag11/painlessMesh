@@ -35,6 +35,7 @@ void painlessMesh::init(uint32_t id, uint16_t port) {
 
 void painlessMesh::init(Scheduler *scheduler, uint32_t id, uint16_t port) {
   this->setScheduler(scheduler);
+  this->init(id, port);
 }
 
 #ifdef PAINLESSMESH_ENABLE_ARDUINO_WIFI
@@ -88,11 +89,9 @@ void ICACHE_FLASH_ATTR painlessMesh::stop() {
 // do nothing if user have other Scheduler, they have to run their scheduler in
 // loop not this library
 void ICACHE_FLASH_ATTR painlessMesh::update(void) {
-  if (isExternalScheduler == false) {
-    if (semaphoreTake()) {
-      _scheduler.execute();
-      semaphoreGive();
-    }
+  if (semaphoreTake()) {
+    _scheduler.execute();
+    semaphoreGive();
   }
   return;
 }
@@ -150,25 +149,9 @@ void ICACHE_FLASH_ATTR painlessMesh::setDebugMsgTypes(uint16_t newTypes) {
 
 void ICACHE_FLASH_ATTR painlessMesh::tcpServerInit() {
   Log(GENERAL, "tcpServerInit():\n");
-
   _tcpListener = new AsyncServer(_meshPort);
-  _tcpListener->setNoDelay(true);
-
-  _tcpListener->onClient(
-      [this](void *arg, AsyncClient *client) {
-        if (this->semaphoreTake()) {
-          Log(CONNECTION, "New AP connection incoming\n");
-          auto conn = std::make_shared<MeshConnection>(client, this, false);
-          conn->initTCPCallbacks();
-          conn->initTasks();
-          this->subs.push_back(conn);
-          this->semaphoreGive();
-        }
-      },
-      NULL);
-
-  _tcpListener->begin();
-
+  painlessmesh::tcp::initServer<MeshConnection, painlessMesh>((*_tcpListener),
+                                                              (*this));
   Log(STARTUP, "AP tcp server established on port %d\n", _meshPort);
   return;
 }
