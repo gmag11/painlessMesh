@@ -139,12 +139,21 @@ template <class T>
 void routePackage(layout::Layout<T> layout, std::shared_ptr<T> connection,
                   TSTRING pkg, MeshCallbackList<T> cbl, uint32_t receivedAt) {
   using namespace logger;
+  static size_t baseCapacity = 512;
   Log(COMMUNICATION, "routePackage(): Recvd from %u: %s\n", connection->nodeId,
       pkg.c_str());
-  auto variant = protocol::Variant(pkg);
+  auto variant = protocol::Variant(pkg, pkg.length() + baseCapacity);
+  while (variant.error == 3 && baseCapacity <= 10240) {
+    // Not enough memory, adapt scaling (variant::capacityScaling) and log the
+    // new value
+    Log(DEBUG, "routePackage(): parsing failed. err=%u, increasing capacity: %f\n",
+        variant.error, baseCapacity);
+    baseCapacity += 256;
+    variant = protocol::Variant(pkg, pkg.length() + baseCapacity);
+  }
   if (variant.error) {
     Log(ERROR,
-        "routePackage(): variant parsing failed. total_length=%d, data=%s<--\n",
+        "routePackage(): parsing failed. err=%u, total_length=%d, data=%s<--\n", variant.error,
         pkg.length(), pkg.c_str());
     return;
   }
@@ -200,6 +209,7 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
     // Initially interval is every 10 seconds,
     // this will slow down to TIME_SYNC_INTERVAL
     // after first succesfull sync
+    // TODO move it to a new connection callback and use initTimeSync from ntp.hpp
     conn->timeSyncTask.set(10 * TASK_SECOND, TASK_FOREVER, [conn, &mesh]() {
       Log(logger::S_TIME, "timeSyncTask(): %u\n", conn->nodeId);
       mesh.startTimeSync(conn);

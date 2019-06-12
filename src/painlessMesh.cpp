@@ -111,15 +111,14 @@ void ICACHE_FLASH_ATTR painlessMesh::semaphoreGive(void) {
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t &destId,
-                                                TSTRING &msg) {
+bool ICACHE_FLASH_ATTR painlessMesh::sendSingle(uint32_t destId, TSTRING msg) {
   Log(COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
   auto single = painlessmesh::protocol::Single(this->nodeId, destId, msg);
   return painlessmesh::router::send<MeshConnection>(single, (*this));
 }
 
 //***********************************************************************
-bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(TSTRING &msg,
+bool ICACHE_FLASH_ATTR painlessMesh::sendBroadcast(TSTRING msg,
                                                    bool includeSelf) {
   using namespace painlessmesh;
   Log(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());

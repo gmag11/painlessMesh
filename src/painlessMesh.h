@@ -121,8 +121,8 @@ class painlessMesh
    */
   void stop();
   void update(void);
-  bool sendSingle(uint32_t &destId, TSTRING &msg);
-  bool sendBroadcast(TSTRING &msg, bool includeSelf = false);
+  bool sendSingle(uint32_t destId, TSTRING msg);
+  bool sendBroadcast(TSTRING msg, bool includeSelf = false);
   bool startDelayMeas(uint32_t nodeId);
 
   // in painlessMeshConnection.cpp
