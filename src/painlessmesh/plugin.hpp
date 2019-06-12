@@ -1,13 +1,9 @@
 #ifndef _PAINLESS_MESH_PLUGIN_HPP_
 #define _PAINLESS_MESH_PLUGIN_HPP_
 
-#define _TASK_STD_FUNCTION
-#include "TaskSchedulerDeclarations.h"
+#include "Arduino.h"
+#include "painlessmesh/configuration.hpp"
 
-#ifndef ARDUINOJSON_VERSION_MAJOR
-#include "ArduinoJson.h"
-typedef std::string TSTRING;
-#endif
 #include "painlessmesh/router.hpp"
 
 namespace painlessmesh {
@@ -124,9 +120,8 @@ class PackageHandler : public layout::Layout<T> {
     auto it = taskList.insert(taskList.end(), task);
     // auto disableFunc = [it, this]() {};
     // disableFunc();
-    task->set(aInterval, aIterations, aCallback, NULL, [it, this]() {
-      this->taskList.erase(it);
-    });
+    task->set(aInterval, aIterations, aCallback, NULL,
+              [it, this]() { this->taskList.erase(it); });
     scheduler.addTask((*task));
     task->enable();
     return task;

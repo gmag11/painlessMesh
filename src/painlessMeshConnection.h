@@ -1,7 +1,7 @@
-#ifndef   _PAINLESS_MESH_CONNECTION_H_
-#define   _PAINLESS_MESH_CONNECTION_H_
+#ifndef _PAINLESS_MESH_CONNECTION_H_
+#define _PAINLESS_MESH_CONNECTION_H_
 
-#define _TASK_PRIORITY // Support for layered scheduling priority
+#define _TASK_PRIORITY  // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
 #include <TaskSchedulerDeclarations.h>
 
@@ -9,16 +9,17 @@
 #include <WiFi.h>
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
-#endif // ESP32
+#endif  // ESP32
 
-#define ARDUINOJSON_USE_LONG_LONG 1
-typedef String TSTRING;
-#undef ARDUINOJSON_ENABLE_STD_STRING
 #include "painlessmesh/buffer.hpp"
+#include "painlessmesh/configuration.hpp"
 #include "painlessmesh/layout.hpp"
 
 #include <string>
-class MeshConnection : public painlessmesh::layout::Neighbour {
+class painlessMesh;
+
+class MeshConnection : public painlessmesh::layout::Neighbour,
+                       public std::enable_shared_from_this<MeshConnection> {
  public:
   AsyncClient *client;
   painlessMesh *mesh;
@@ -31,28 +32,31 @@ class MeshConnection : public painlessmesh::layout::Neighbour {
   // for timeout
   uint32_t timeDelayLastRequested = 0;
 
-  bool addMessage(String &message, bool priority = false);
+  bool addMessage(TSTRING &message, bool priority = false);
   bool writeNext();
-  painlessmesh::buffer::ReceiveBuffer<String> receiveBuffer;
-  painlessmesh::buffer::SentBuffer<String> sentBuffer;
+  painlessmesh::buffer::ReceiveBuffer<TSTRING> receiveBuffer;
+  painlessmesh::buffer::SentBuffer<TSTRING> sentBuffer;
 
   Task nodeSyncTask;
   Task timeSyncTask;
   Task readBufferTask;
   Task sentBufferTask;
 
-#ifdef UNITY // Facilitate testing
-        MeshConnection() {};
+#ifdef UNITY  // Facilitate testing
+  MeshConnection(){};
 #endif
-        MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
+  MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
 #ifndef UNITY
-        ~MeshConnection();
+  ~MeshConnection();
 #endif
 
-        void handleMessage(String msg, uint32_t receivedAt);
+  void initTCPCallbacks();
+  void initTasks();
 
-        void close();
-        
-        friend class painlessMesh;
+  void handleMessage(TSTRING msg, uint32_t receivedAt);
+
+  void close();
+
+  friend class painlessMesh;
 };
 #endif

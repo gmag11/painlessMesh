@@ -11,3 +11,9 @@ foreach(TESTFILE ${TESTFILES})
     add_executable(${NAME} ${TESTFILE} test/catch/fake_serial.cpp src/scheduler.cpp)
     target_include_directories(${NAME} PUBLIC test/include/ test/ArduinoJson/src/ src/ test/TaskScheduler/src)
 endforeach()
+
+add_executable(catch_integration test/catch/integration.cpp test/catch/fake_serial.cpp src/painlessMesh.cpp src/painlessMeshConnection.cpp src/painlessMeshSync.cpp src/scheduler.cpp)
+target_include_directories(catch_integration PUBLIC test/include/ test/boostMesh/ test/ArduinoJson/src/ test/TaskScheduler/src/ src/)
+
+add_executable(boostMesh test/boostMesh/main.cpp test/catch/fake_serial.cpp src/painlessMesh.cpp src/painlessMeshConnection.cpp src/painlessMeshSync.cpp src/scheduler.cpp)
+target_include_directories(boostMesh PUBLIC test/include/ test/boostMesh/ test/ArduinoJson/src/ test/TaskScheduler/src/ src/)

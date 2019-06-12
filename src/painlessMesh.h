@@ -1,30 +1,28 @@
-#ifndef   _EASY_MESH_H_
-#define   _EASY_MESH_H_
+#ifndef _EASY_MESH_H_
+#define _EASY_MESH_H_
 
-#define _TASK_PRIORITY // Support for layered scheduling priority
+#define _TASK_PRIORITY  // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
 
-#include <TaskSchedulerDeclarations.h>
 #include <Arduino.h>
-#include <list>
-#define ARDUINOJSON_USE_LONG_LONG 1
-#include <ArduinoJson.h>
 #include <functional>
+#include <list>
 #include <memory>
+#include "painlessmesh/configuration.hpp"
 using namespace std;
 #ifdef ESP32
-#include <WiFi.h>
 #include <AsyncTCP.h>
+#include <WiFi.h>
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
-#endif // ESP32
+#endif  // ESP32
 
-#include "painlessMeshSTA.h"
+#include "arduino/wifi.hpp"
+
 #include "painlessMeshConnection.h"
+#include "painlessMeshSTA.h"
 
-typedef String TSTRING;
-#undef ARDUINOJSON_ENABLE_STD_STRING
 #include "painlessmesh/buffer.hpp"
 #include "painlessmesh/layout.hpp"
 #include "painlessmesh/logger.hpp"
@@ -32,35 +30,58 @@ typedef String TSTRING;
 #include "painlessmesh/plugin.hpp"
 #include "painlessmesh/protocol.hpp"
 #include "painlessmesh/router.hpp"
+#include "painlessmesh/tcp.hpp"
 using namespace painlessmesh::logger;
 
-#define NODE_TIMEOUT         10*TASK_SECOND
-#define MIN_FREE_MEMORY      4000 // Minimum free memory, besides here all packets in queue are discarded.
-#define MAX_MESSAGE_QUEUE    50 // MAX number of unsent messages in queue. Newer messages are discarded
-#define MAX_CONSECUTIVE_SEND 5 // Max message burst
+#define NODE_TIMEOUT 10 * TASK_SECOND
+#define MIN_FREE_MEMORY \
+  4000  // Minimum free memory, besides here all packets in queue are discarded.
+#define MAX_MESSAGE_QUEUE \
+  50  // MAX number of unsent messages in queue. Newer messages are discarded
+#define MAX_CONSECUTIVE_SEND 5  // Max message burst
 
-template<typename T>
-using SimpleList = std::list<T>; // backward compatibility
-
-#ifdef ESP32
-#define MAX_CONN 10
-#else
-#define MAX_CONN 4
-#endif // DEBUG
+template <typename T>
+using SimpleList = std::list<T>;  // backward compatibility
 
 using ConnectionList = std::list<std::shared_ptr<MeshConnection>>;
 
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
 typedef std::function<void(uint32_t nodeId)> droppedConnectionCallback_t;
-typedef std::function<void(uint32_t from, String &msg)> receivedCallback_t;
+typedef std::function<void(uint32_t from, TSTRING &msg)> receivedCallback_t;
 typedef std::function<void()> changedConnectionsCallback_t;
 typedef std::function<void(int32_t offset)> nodeTimeAdjustedCallback_t;
 typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
 
 class painlessMesh
     : public painlessmesh::ntp::MeshTime,
+#ifdef PAINLESSMESH_ENABLE_ARDUINO_WIFI
+      public painlessmesh::wifi::Mesh,
+#endif
       public painlessmesh::plugin::PackageHandler<MeshConnection> {
  public:
+  void init(uint32_t nodeId, uint16_t port);
+  void init(Scheduler *scheduler, uint32_t nodeId, uint16_t port);
+  // TODO: move these to wifi::Mesh
+#ifdef PAINLESSMESH_ENABLE_ARDUINO_WIFI
+  void initStation();
+  // These should be removable when things compile correctly?
+  void init(TSTRING ssid, TSTRING password, Scheduler *baseScheduler,
+            uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA,
+            uint8_t channel = 1, uint8_t hidden = 0,
+            uint8_t maxconn = MAX_CONN) {
+    using namespace painlessmesh;
+    wifi::Mesh::init(ssid, password, baseScheduler, port, connectMode, channel,
+                     hidden, maxconn);
+  }
+
+  void init(TSTRING ssid, TSTRING password, uint16_t port = 5555,
+            WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1,
+            uint8_t hidden = 0, uint8_t maxconn = MAX_CONN) {
+    using namespace painlessmesh;
+    wifi::Mesh::init(ssid, password, port, connectMode, channel, hidden,
+                     maxconn);
+  }
+#endif
   /**
    * Set the node as an root/master node for the mesh
    *
@@ -95,20 +116,13 @@ class painlessMesh
 
   // in painlessMesh.cpp
   painlessMesh();
-  void init(String ssid, String password, Scheduler *baseScheduler,
-            uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA,
-            uint8_t channel = 1, uint8_t hidden = 0,
-            uint8_t maxconn = MAX_CONN);
-  void init(String ssid, String password, uint16_t port = 5555,
-            WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1,
-            uint8_t hidden = 0, uint8_t maxconn = MAX_CONN);
   /**
    * Disconnect and stop this node
    */
   void stop();
   void update(void);
-  bool sendSingle(uint32_t &destId, String &msg);
-  bool sendBroadcast(String &msg, bool includeSelf = false);
+  bool sendSingle(uint32_t destId, TSTRING msg);
+  bool sendBroadcast(TSTRING msg, bool includeSelf = false);
   bool startDelayMeas(uint32_t nodeId);
 
   // in painlessMeshConnection.cpp
@@ -134,7 +148,6 @@ class painlessMesh
   }
 
   // in painlessMeshSTA.cpp
-  uint32_t encodeNodeId(const uint8_t *hwaddr);
   /**
    * Connect (as a station) to a specified network and ip
    *
@@ -143,12 +156,10 @@ class painlessMesh
    * This stops the node from scanning for other (non specified) nodes
    * and you should probably also use this node as an anchor: `setAnchor(true)`
    */
-  void stationManual(String ssid, String password, uint16_t port = 0,
+  void stationManual(TSTRING ssid, TSTRING password, uint16_t port = 0,
                      IPAddress remote_ip = IPAddress(0, 0, 0, 0));
   bool setHostname(const char *hostname);
   IPAddress getStationIP();
-
-  StationScan stationScan;
 
   // Rough estimate of the mesh stability (goes from 0-1000)
   size_t stability = 0;
@@ -157,110 +168,109 @@ class painlessMesh
   IPAddress getAPIP();
 
 #if __cplusplus > 201103L
-    [[deprecated("Use of the internal scheduler will be deprecated, please use an user provided scheduler instead (See the startHere example).")]]
+  [[deprecated(
+      "Use of the internal scheduler will be deprecated, please use an user "
+      "provided scheduler instead (See the startHere example).")]]
 #endif
-    Scheduler &scheduler = _scheduler;
+  Scheduler &scheduler = _scheduler;
 
-#ifndef UNITY // Make everything public in unit test mode
-protected:
+#ifndef UNITY  // Make everything public in unit test mode
+ protected:
 #endif
- painlessmesh::router::MeshCallbackList<MeshConnection> callbackList;
-    void                startTimeSync(std::shared_ptr<MeshConnection> conn);
+  void setScheduler(Scheduler *baseScheduler) {
+    baseScheduler->setHighPriorityScheduler(&this->_scheduler);
+    isExternalScheduler = true;
+  }
 
-    bool                adoptionCalc(std::shared_ptr<MeshConnection> conn);
+  painlessmesh::router::MeshCallbackList<MeshConnection> callbackList;
+  void startTimeSync(std::shared_ptr<MeshConnection> conn);
 
-    // Update other connections of a change
-    void                syncSubConnections(uint32_t changedId);
+  bool adoptionCalc(std::shared_ptr<MeshConnection> conn);
 
-    // in painlessMeshConnection.cpp
-    //void                cleanDeadConnections(void); // Not implemented. Needed?
-    void                tcpConnect(void);
-    bool                closeConnectionSTA(); 
+  // in painlessMeshConnection.cpp
+  // void                cleanDeadConnections(void); // Not implemented. Needed?
+  void tcpConnect(void);
+  bool closeConnectionSTA();
 
-    void                eraseClosedConnections();
+  void eraseClosedConnections();
 
-    // in painlessMeshAP.cpp
-    void                apInit(void);
+  // in painlessMeshAP.cpp
 
-    void                tcpServerInit();
+  void tcpServerInit();
 
-    // callbacks
-    // in painlessMeshConnection.cpp
-    void                eventHandleInit();
+  // callbacks
+  // in painlessMeshConnection.cpp
+  void eventHandleInit();
 
-    // Callback functions
-    newConnectionCallback_t         newConnectionCallback;
-    droppedConnectionCallback_t     droppedConnectionCallback;
-    changedConnectionsCallback_t    changedConnectionsCallback;
-    nodeTimeAdjustedCallback_t      nodeTimeAdjustedCallback;
-    nodeDelayCallback_t             nodeDelayReceivedCallback;
+  // Callback functions
+  newConnectionCallback_t newConnectionCallback;
+  droppedConnectionCallback_t droppedConnectionCallback;
+  changedConnectionsCallback_t changedConnectionsCallback;
+  nodeTimeAdjustedCallback_t nodeTimeAdjustedCallback;
+  nodeDelayCallback_t nodeDelayReceivedCallback;
 #ifdef ESP32
-    SemaphoreHandle_t xSemaphore = NULL;
+  SemaphoreHandle_t xSemaphore = NULL;
 
-    WiFiEventId_t eventScanDoneHandler;
-    WiFiEventId_t eventSTAStartHandler;
-    WiFiEventId_t eventSTADisconnectedHandler;
-    WiFiEventId_t eventSTAGotIPHandler;
+  WiFiEventId_t eventScanDoneHandler;
+  WiFiEventId_t eventSTAStartHandler;
+  WiFiEventId_t eventSTADisconnectedHandler;
+  WiFiEventId_t eventSTAGotIPHandler;
 #elif defined(ESP8266)
-    WiFiEventHandler  eventSTAConnectedHandler;
-    WiFiEventHandler  eventSTADisconnectedHandler;
-    WiFiEventHandler  eventSTAAuthChangeHandler;
-    WiFiEventHandler  eventSTAGotIPHandler;
-    WiFiEventHandler  eventSoftAPConnectedHandler;
-    WiFiEventHandler  eventSoftAPDisconnectedHandler;
-#endif // ESP8266
-    String            _meshSSID;
-    String            _meshPassword;
-    uint16_t          _meshPort;
-    uint8_t           _meshChannel;
-    uint8_t           _meshHidden;
-    uint8_t           _meshMaxConn;
+  WiFiEventHandler eventSTAConnectedHandler;
+  WiFiEventHandler eventSTADisconnectedHandler;
+  WiFiEventHandler eventSTAAuthChangeHandler;
+  WiFiEventHandler eventSTAGotIPHandler;
+  WiFiEventHandler eventSoftAPConnectedHandler;
+  WiFiEventHandler eventSoftAPDisconnectedHandler;
+#endif  // ESP8266
+  uint16_t _meshPort;
 
-    IPAddress         _apIp;
+  AsyncServer *_tcpListener;
 
-    AsyncServer       *_tcpListener;
+  bool _station_got_ip = false;
 
-    bool              _station_got_ip = false;
+  bool isExternalScheduler = false;
 
-    bool              isExternalScheduler = false;
+  /// Is the node a root node
+  bool shouldContainRoot;
 
-    /// Is the node a root node
-    bool shouldContainRoot;
+  Scheduler _scheduler;
+  Task droppedConnectionTask;
+  Task newConnectionTask;
 
-    Scheduler         _scheduler;
-    Task              droppedConnectionTask;
-    Task              newConnectionTask;
+  /**
+   * Wrapper function for ESP32 semaphore function
+   *
+   * Waits for the semaphore to be available and then returns true
+   *
+   * Always return true on ESP8266
+   */
+  bool semaphoreTake();
+  /**
+   * Wrapper function for ESP32 semaphore give function
+   *
+   * Does nothing on ESP8266 hardware
+   */
+  void semaphoreGive();
 
-    /**
-     * Wrapper function for ESP32 semaphore function
-     *
-     * Waits for the semaphore to be available and then returns true
-     *
-     * Always return true on ESP8266
-     */
-    bool semaphoreTake();
-    /**
-     * Wrapper function for ESP32 semaphore give function
-     *
-     * Does nothing on ESP8266 hardware
-     */
-    void semaphoreGive();
-
-    friend class StationScan;
-    friend class MeshConnection;
-    friend void onDataCb(void *, AsyncClient *, void *, size_t);
-    friend void tcpSentCb(void *, AsyncClient *, size_t, uint32_t);
-    friend void meshRecvCb(void *, AsyncClient *, void *, size_t);
-    friend void painlessmesh::ntp::handleTimeSync<painlessMesh, MeshConnection>(
-        painlessMesh &, painlessmesh::protocol::TimeSync,
-        std::shared_ptr<MeshConnection>, uint32_t);
-    friend void
-    painlessmesh::ntp::handleTimeDelay<painlessMesh, MeshConnection>(
-        painlessMesh &, painlessmesh::protocol::TimeDelay,
-        std::shared_ptr<MeshConnection>, uint32_t);
-    friend void painlessmesh::router::handleNodeSync<
-        painlessMesh, MeshConnection>(painlessMesh &, protocol::NodeTree,
-                                      std::shared_ptr<MeshConnection> conn);
+  friend class StationScan;
+  friend class MeshConnection;
+  friend void onDataCb(void *, AsyncClient *, void *, size_t);
+  friend void tcpSentCb(void *, AsyncClient *, size_t, uint32_t);
+  friend void meshRecvCb(void *, AsyncClient *, void *, size_t);
+  friend void painlessmesh::ntp::handleTimeSync<painlessMesh, MeshConnection>(
+      painlessMesh &, painlessmesh::protocol::TimeSync,
+      std::shared_ptr<MeshConnection>, uint32_t);
+  friend void painlessmesh::ntp::handleTimeDelay<painlessMesh, MeshConnection>(
+      painlessMesh &, painlessmesh::protocol::TimeDelay,
+      std::shared_ptr<MeshConnection>, uint32_t);
+  friend void
+  painlessmesh::router::handleNodeSync<painlessMesh, MeshConnection>(
+      painlessMesh &, protocol::NodeTree, std::shared_ptr<MeshConnection> conn);
+  friend void painlessmesh::tcp::initServer<MeshConnection, painlessMesh>(
+      AsyncServer &, painlessMesh &);
+  friend void painlessmesh::tcp::connect<MeshConnection, painlessMesh>(
+      AsyncClient &, IPAddress, uint16_t, painlessMesh &);
 };
 
-#endif //   _EASY_MESH_H_
+#endif  //   _EASY_MESH_H_

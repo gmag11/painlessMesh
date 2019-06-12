@@ -10,31 +10,6 @@ namespace painlessmesh {
 namespace layout {
 
 #include <memory>
-/*
-struct virtual_enable_shared_from_this_base
-    : std::enable_shared_from_this<virtual_enable_shared_from_this_base> {
-  virtual ~virtual_enable_shared_from_this_base() {}
-};
-
-template <typename T>
-struct virtual_enable_shared_from_this
-    : virtual virtual_enable_shared_from_this_base {
-  std::shared_ptr<T> shared_from_this() {
-    return std::dynamic_pointer_cast<T>(
-        virtual_enable_shared_from_this_base::shared_from_this());
-  }
-};*/
-
-/*
-struct A: virtual_enable_shared_from_this<A> {};
-struct B: virtual_enable_shared_from_this<B> {};
-struct Z: A, B { };
-int main() {
- std::shared_ptr<Z> z = std::make_shared<Z>();
- std::shared_ptr<B> b = z->B::shared_from_this();
-}
-*/
-
 /**
  * Whether the tree contains the given nodeId
  */
@@ -61,9 +36,11 @@ inline protocol::NodeTree excludeRoute(protocol::NodeTree&& tree,
 template <class T>
 class Layout {
  public:
+  size_t stability = 0;
+
   std::list<std::shared_ptr<T> > subs;
-  uint32_t nodeId;
-  bool root;
+  uint32_t nodeId = 0;
+  bool root = false;
 
   uint32_t getNodeId() { return nodeId; }
 
@@ -75,6 +52,18 @@ class Layout {
     return nt;
   }
 };
+
+template <class T>
+void syncLayout(Layout<T> &layout, uint32_t changedId) {
+  // TODO: this should be called from changed connections and dropped connections events
+  for (auto&& sub : layout.subs) {
+    if (sub->connected && !sub->newConnection && sub->nodeId != 0 &&
+        sub->nodeId != changedId) {  // Exclude current
+      sub->nodeSyncTask.forceNextIteration();
+    }
+  }
+  layout.stability /= 2;
+}
 
 class Neighbour : public protocol::NodeTree {
  public:

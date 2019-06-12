@@ -52,6 +52,37 @@ inline int32_t tripDelay(uint32_t time0, uint32_t time1, uint32_t time2,
   return ((time3 - time0) - (time2 - time1)) / 2;
 }
 
+inline bool adopt(protocol::NodeTree mesh, protocol::NodeTree connection) {
+  auto mySubCount = layout::size(layout::excludeRoute(std::move(mesh), connection.nodeId));
+  auto remoteSubCount = layout::size(connection);
+  if (mySubCount > remoteSubCount)
+    return false;
+  if (mySubCount == remoteSubCount) {
+    if (connection.nodeId == 0)
+      Log(logger::ERROR, "Adopt called on uninitialized connection\n");
+    return mesh.nodeId > connection.nodeId;
+  }
+  return true;
+}
+
+template <class T>
+void initTimeSync(protocol::NodeTree mesh, std::shared_ptr<T> connection,
+                  uint32_t nodeTime) {
+  using namespace painlessmesh::logger;
+  painlessmesh::protocol::TimeSync timeSync;
+  if (adopt(mesh, (*connection))) {
+    timeSync =
+        painlessmesh::protocol::TimeSync(mesh.nodeId, connection->nodeId, nodeTime);
+    Log(S_TIME, "initTimeSync(): Requesting %u to adopt our time\n",
+        connection->nodeId);
+  } else {
+    timeSync = painlessmesh::protocol::TimeSync(mesh.nodeId, connection->nodeId);
+    Log(S_TIME, "initTimeSync(): Requesting time from %u\n",
+        connection->nodeId);
+  }
+  router::send<protocol::TimeSync, T>(timeSync, connection, true);
+}
+
 template <class T, class U>
 void handleTimeSync(T& mesh, painlessmesh::protocol::TimeSync timeSync,
                     std::shared_ptr<U> conn, uint32_t receivedAt) {

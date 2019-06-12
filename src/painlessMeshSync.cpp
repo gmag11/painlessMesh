@@ -2,14 +2,12 @@
 
 #include "time.h"
 
-extern painlessMesh* staticThis;
 extern LogClass Log;
 
 void ICACHE_FLASH_ATTR
 painlessMesh::startTimeSync(std::shared_ptr<MeshConnection> conn) {
   using namespace painlessmesh;
-  Log(S_TIME, "startTimeSync(): with %u, local port: %d\n", conn->nodeId,
-      conn->client->getLocalPort());
+  Log(S_TIME, "startTimeSync(): with %u\n", conn->nodeId);
   auto adopt = adoptionCalc(conn);
   painlessmesh::protocol::TimeSync timeSync;
   if (adopt) {
@@ -36,7 +34,7 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection
   uint16_t mySubCount = layout::size(layout::excludeRoute(
       this->asNodeTree(), conn->nodeId));           // exclude this connection.
   uint16_t remoteSubCount = layout::size((*conn));  // exclude this connection.
-  bool ap = conn->client->getLocalPort() == _meshPort;
+  bool ap = !conn->station;
 
   // ToDo. Simplify this logic
   bool ret = (mySubCount > remoteSubCount) ? false : true;
@@ -49,16 +47,4 @@ bool ICACHE_FLASH_ATTR painlessMesh::adoptionCalc(std::shared_ptr<MeshConnection
         mySubCount, remoteSubCount, ap ? "AP" : "STA", ret ? "true" : "false");
 
     return ret;
-}
-
-void ICACHE_FLASH_ATTR painlessMesh::syncSubConnections(uint32_t changedId) {
-  Log(SYNC, "syncSubConnections(): changedId = %u\n", changedId);
-  for (auto&& connection : this->subs) {
-    if (connection->connected && !connection->newConnection &&
-        connection->nodeId != 0 &&
-        connection->nodeId != changedId) {  // Exclude current
-      connection->nodeSyncTask.forceNextIteration();
-    }
-    }
-    staticThis->stability /= 2;
 }
