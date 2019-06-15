@@ -95,7 +95,7 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     mScheduler->deleteTask(newConnectionTask);
     droppedConnectionTask.setCallback(NULL);
     mScheduler->deleteTask(droppedConnectionTask);
-    plugin::PackageHandler<T>::stop();
+    plugin::PackageHandler<T>::stop(*mScheduler);
   }
 
   void update(void) {

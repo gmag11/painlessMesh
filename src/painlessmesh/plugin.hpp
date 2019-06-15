@@ -69,14 +69,20 @@ class BroadcastPackage : public protocol::PackageInterface {
 template <typename T>
 class PackageHandler : public layout::Layout<T> {
  public:
-  void stop() {
-    while (this->taskList.size() > 0) {
-      auto task = this->taskList.begin();
-      (*task)->disable();
+  void stop(Scheduler& scheduler) {
+    for (auto&& task : taskList) {
+      task->disable();
+      scheduler.deleteTask(*task);
     }
+    taskList.clear();
   }
 
-  ~PackageHandler() { this->stop(); }
+  ~PackageHandler() {
+    if (taskList.size() > 0)
+      Log(logger::ERROR,
+          "~PackageHandler(): Always call PackageHandler::stop(scheduler) "
+          "before calling this destructor");
+  }
 
   bool sendPackage(protocol::PackageInterface* pkg) {
     auto variant = protocol::Variant(pkg);
@@ -105,43 +111,38 @@ class PackageHandler : public layout::Layout<T> {
   /**
    * Add a task to the scheduler
    *
-   * The task will be stored in a list and a reference to the task will be
-   * returned. When the task is disabled it is automatically removed from
-   * the lst and the task object is destruced unless the returned reference
-   * was stored by the caller of addTask.
+   * The task will be stored in a list and a shared_ptr to the task will be
+   * returned. If the task is anonymous (i.e. no shared_ptr to it is held
+   * anywhere else) and disabled then it will be reused when a new task is
+   * added.
    */
   std::shared_ptr<Task> addTask(Scheduler& scheduler, unsigned long aInterval,
                                 long aIterations,
                                 std::function<void()> aCallback) {
+    for (auto && task : taskList) {
+      if (task.use_count() == 1 && !task->isEnabled()) {
+        task->set(aInterval, aIterations, aCallback, NULL, NULL); 
+        task->enable();
+        return task;
+      }
+    }
+
     std::shared_ptr<Task> task =
         std::make_shared<Task>(aInterval, aIterations, aCallback);
-    // According to the standard this should always point to the same
-    // task, so we can use it to remove it
-    // taskList.insert(taskList.end(), task);
-    auto it = taskList.insert(taskList.end(), task);
-    task->set(aInterval, aIterations, aCallback, NULL, [it, this]() {
-      if (it->use_count() == 1) {
-        // If we hold the only copy, then the onDisable function will call the
-        // Task destructor in the middle of being disabled. This in turn will
-        // invalidate the task too soon. As workaround we store such a task
-        // temporary. This is a workaround for a bug in TaskScheduler. In worst
-        // case scenario this means we keep hold of one unused and disabled task
-        // forever.
-        (*it)->setCallback(NULL);
-        temporaryStore = (*it);
-      }
-      this->taskList.erase(it);
-    });
     scheduler.addTask((*task));
     task->enable();
+    taskList.push_front(task);
     return task;
+  }
+
+  std::shared_ptr<Task> addTask(Scheduler& scheduler,
+                                std::function<void()> aCallback) {
+    return this->addTask(scheduler, 0, TASK_ONCE, aCallback);
   }
 
  protected:
   router::MeshCallbackList<T> callbackList;
   std::list<std::shared_ptr<Task> > taskList = {};
-
-  std::shared_ptr<Task> temporaryStore;
 };
 
 }  // namespace plugin

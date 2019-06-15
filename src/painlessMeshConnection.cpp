@@ -182,8 +182,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     this->client->onError(NULL, NULL);
 
     mesh->addTask(
-        (*mesh->mScheduler), TASK_SECOND, TASK_ONCE,
-        [mesh = this->mesh, nodeId = this->nodeId]() {
+        (*mesh->mScheduler), [mesh = this->mesh, nodeId = this->nodeId]() {
           Log(CONNECTION, "closingTask():\n");
           Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
               mesh->getNodeTime());
