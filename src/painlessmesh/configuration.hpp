@@ -1,9 +1,8 @@
-/**
- * Configution file. To override settings in this file make sure to set them
- * before including painlessMesh.h
- **/
+#include "Arduino.h"
 #ifndef _PAINLESS_MESH_CONFIGURATION_HPP_
 #define _PAINLESS_MESH_CONFIGURATION_HPP_
+
+#include<list>
 
 #define _TASK_PRIORITY // Support for layered scheduling priority
 #define _TASK_STD_FUNCTION
@@ -27,6 +26,17 @@
 #endif // ESP32
 
 typedef String TSTRING;
+
+// backward compatibility
+template <typename T>
+using SimpleList = std::list<T>;
+
+namespace painlessmesh {
+namespace wifi {
+class Mesh;
+};
+};  // namespace painlessmesh
+using painlessMesh = painlessmesh::wifi::Mesh;
 
 #ifdef ESP32
 #define MAX_CONN 10

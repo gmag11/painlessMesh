@@ -122,6 +122,7 @@ SCENARIO("We can add tasks to the taskscheduler") {
     auto task1 = handler.addTask(mScheduler, 0, 1, [&i]() { ++i; });
     auto task2 = handler.addTask(mScheduler, 0, 3, [&j]() { ++j; });
     auto task3 = handler.addTask(mScheduler, 0, 3, [&k]() { ++k; });
+    auto task4 = handler.addTask(mScheduler, 0, 3, []() {});
     REQUIRE(task1.use_count() == 2);
     REQUIRE(task2.use_count() == 2);
 
@@ -140,6 +141,34 @@ SCENARIO("We can add tasks to the taskscheduler") {
         REQUIRE(task3.use_count() == 2);
         task3->disable();
         REQUIRE(task3.use_count() == 1);
+        handler.stop();
+      }
+    }
+  }
+}
+
+SCENARIO("We can add anonymous tasks to the taskscheduler") {
+  GIVEN("A couple of tasks added") {
+    Scheduler mScheduler;
+    auto handler = plugin::PackageHandler<MockConnection>();
+    int i = 0;
+    int j = 0;
+    int k = 0;
+    handler.addTask(mScheduler, 0, 1, [&i]() { ++i; });
+    handler.addTask(mScheduler, 0, 3, [&j]() { ++j; });
+    handler.addTask(mScheduler, 0, 3, [&k]() { ++k; });
+    handler.addTask(mScheduler, 0, 3, []() {});
+
+    WHEN("Executing the tasks") {
+      THEN("They should be called and automatically removed") {
+        REQUIRE(i == 0);
+        REQUIRE(j == 0);
+        mScheduler.execute();
+        REQUIRE(i == 1);
+        mScheduler.execute();
+        REQUIRE(i == 1);
+        REQUIRE(j == 2);
+        handler.stop();
       }
     }
   }

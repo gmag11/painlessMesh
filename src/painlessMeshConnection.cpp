@@ -6,6 +6,7 @@
 //
 //
 
+#include "painlessMeshConnection.h"
 #include "painlessMesh.h"
 
 #include "painlessmesh/logger.hpp"
@@ -17,7 +18,9 @@ extern LogClass Log;
 
 static painlessmesh::buffer::temp_buffer_t shared_buffer;
 
-ICACHE_FLASH_ATTR MeshConnection::MeshConnection(AsyncClient *client_ptr, painlessMesh *pMesh, bool is_station) {
+ICACHE_FLASH_ATTR MeshConnection::MeshConnection(
+    AsyncClient *client_ptr, painlessmesh::Mesh<MeshConnection> *pMesh,
+    bool is_station) {
   using namespace painlessmesh;
   station = is_station;
   mesh = pMesh;
@@ -43,7 +46,7 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
     client->close(true);
   }
   client->abort();
-  delete client;
+  if (!station) delete client;
 }
 
 void MeshConnection::initTCPCallbacks() {
@@ -126,7 +129,7 @@ void MeshConnection::initTasks() {
         router::send<protocol::NodeSyncRequest, MeshConnection>(
             self->request(self->mesh->asNodeTree()), self);
       });
-  mesh->_scheduler.addTask(this->nodeSyncTask);
+  mesh->mScheduler->addTask(this->nodeSyncTask);
   if (station)
     this->nodeSyncTask.enable();
   else
@@ -148,7 +151,7 @@ void MeshConnection::initTasks() {
                              self->mesh->getNodeTime());
                        }
                      });
-  mesh->_scheduler.addTask(readBufferTask);
+  mesh->mScheduler->addTask(readBufferTask);
   readBufferTask.enableDelayed();
 
   sentBufferTask.set(
@@ -160,7 +163,7 @@ void MeshConnection::initTasks() {
           self->sentBufferTask.forceNextIteration();
         }
       });
-  mesh->_scheduler.addTask(sentBufferTask);
+  mesh->mScheduler->addTask(sentBufferTask);
   sentBufferTask.enableDelayed();
 }
 
@@ -178,11 +181,9 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     this->client->onDisconnect(NULL, NULL);
     this->client->onError(NULL, NULL);
 
-    auto nodeId = this->nodeId;
-
     mesh->addTask(
-        mesh->_scheduler, TASK_SECOND, TASK_ONCE,
-        [mesh = this->mesh, nodeId = nodeId]() {
+        (*mesh->mScheduler), TASK_SECOND, TASK_ONCE,
+        [mesh = this->mesh, nodeId = this->nodeId]() {
           Log(CONNECTION, "closingTask():\n");
           Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
               mesh->getNodeTime());
@@ -208,9 +209,6 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
 
     receiveBuffer.clear();
     sentBuffer.clear();
-
-    if (station && mesh->_station_got_ip)
-        mesh->_station_got_ip = false;
 
     this->nodeId = 0;
     mesh->eraseClosedConnections();
@@ -291,164 +289,4 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
 
 }
 
-// connection managment functions
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::onReceive(receivedCallback_t  cb) {
-  using namespace painlessmesh;
-  callbackList.onPackage(protocol::SINGLE,
-                         [cb](protocol::Variant variant,
-                              std::shared_ptr<MeshConnection>, uint32_t) {
-                           auto pkg = variant.to<protocol::Single>();
-                           cb(pkg.from, pkg.msg);
-                           return false;
-                         });
-  callbackList.onPackage(protocol::BROADCAST,
-                         [cb](protocol::Variant variant,
-                              std::shared_ptr<MeshConnection>, uint32_t) {
-                           auto pkg = variant.to<protocol::Broadcast>();
-                           cb(pkg.from, pkg.msg);
-                           return false;
-                         });
-}
 
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::onNewConnection(newConnectionCallback_t cb) {
-  Log(GENERAL, "onNewConnection():\n");
-  newConnectionCallback = cb;
-}
-
-void ICACHE_FLASH_ATTR painlessMesh::onDroppedConnection(droppedConnectionCallback_t cb) {
-  Log(GENERAL, "onDroppedConnection():\n");
-  droppedConnectionCallback = cb;
-}
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::onChangedConnections(changedConnectionsCallback_t cb) {
-  Log(GENERAL, "onChangedConnections():\n");
-  changedConnectionsCallback = cb;
-}
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::onNodeTimeAdjusted(nodeTimeAdjustedCallback_t cb) {
-  Log(GENERAL, "onNodeTimeAdjusted():\n");
-  nodeTimeAdjustedCallback = cb;
-}
-
-//***********************************************************************
-void ICACHE_FLASH_ATTR painlessMesh::onNodeDelayReceived(nodeDelayCallback_t cb) {
-  Log(GENERAL, "onNodeDelayReceived():\n");
-  nodeDelayReceivedCallback = cb;
-}
-
-void ICACHE_FLASH_ATTR painlessMesh::eraseClosedConnections() {
-  Log(CONNECTION, "eraseClosedConnections():\n");
-  this->subs.remove_if([](const std::shared_ptr<MeshConnection> &conn) {
-    return !conn->connected;
-  });
-}
-
-bool ICACHE_FLASH_ATTR painlessMesh::closeConnectionSTA()
-{
-  auto connection = this->subs.begin();
-  while (connection != this->subs.end()) {
-    if ((*connection)->station) {
-      // We found the STA connection, close it
-      (*connection)->close();
-      return true;
-    }
-    ++connection;
-    }
-    return false;
-}
-
-//***********************************************************************
-std::list<uint32_t> ICACHE_FLASH_ATTR
-painlessMesh::getNodeList(bool includeSelf) {
-  return painlessmesh::layout::asList(this->asNodeTree(), includeSelf);
-}
-
-//***********************************************************************
-// WiFi event handler
-void ICACHE_FLASH_ATTR painlessMesh::eventHandleInit() {
-#ifdef ESP32
-  eventScanDoneHandler = WiFi.onEvent(
-      [this](WiFiEvent_t event, WiFiEventInfo_t info) {
-        Log(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
-        this->stationScan.task.setCallback(
-            [this]() { this->stationScan.scanComplete(); });
-        this->stationScan.task.forceNextIteration();
-      },
-      WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
-
-  eventSTAStartHandler = WiFi.onEvent(
-      [](WiFiEvent_t event, WiFiEventInfo_t info) {
-        Log(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
-      },
-      WiFiEvent_t::SYSTEM_EVENT_STA_START);
-
-  eventSTADisconnectedHandler = WiFi.onEvent(
-      [this](WiFiEvent_t event, WiFiEventInfo_t info) {
-        this->_station_got_ip = false;
-        Log(CONNECTION,
-            "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-        WiFi.disconnect();
-        // Search for APs and connect to the best one
-        this->stationScan.connectToAP();
-      },
-      WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
-
-  eventSTAGotIPHandler = WiFi.onEvent(
-      [this](WiFiEvent_t event, WiFiEventInfo_t info) {
-        this->_station_got_ip = true;
-        Log(CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
-        this->tcpConnect();  // Connect to TCP port
-      },
-      WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
-#elif defined(ESP8266)
-  eventSTAConnectedHandler = WiFi.onStationModeConnected(
-      [&](const WiFiEventStationModeConnected &event) {
-        // Log(CONNECTION, "Event: Station Mode Connected to \"%s\"\n",
-        // event.ssid.c_str());
-        Log(CONNECTION, "Event: Station Mode Connected\n");
-      });
-
-  eventSTADisconnectedHandler = WiFi.onStationModeDisconnected(
-      [&](const WiFiEventStationModeDisconnected &event) {
-        this->_station_got_ip = false;
-        // Log(CONNECTION, "Event: Station Mode
-        // Disconnected from %s\n", event.ssid.c_str());
-        Log(CONNECTION, "Event: Station Mode Disconnected\n");
-        WiFi.disconnect();
-        this->stationScan
-            .connectToAP();  // Search for APs and connect to the best one
-      });
-
-  eventSTAAuthChangeHandler = WiFi.onStationModeAuthModeChanged(
-      [&](const WiFiEventStationModeAuthModeChanged &event) {
-        Log(CONNECTION, "Event: Station Mode Auth Mode Change\n");
-      });
-
-  eventSTAGotIPHandler =
-      WiFi.onStationModeGotIP([&](const WiFiEventStationModeGotIP &event) {
-        this->_station_got_ip = true;
-        Log(CONNECTION,
-            "Event: Station Mode Got IP (IP: %s  Mask: %s  Gateway: %s)\n",
-            event.ip.toString().c_str(), event.mask.toString().c_str(),
-            event.gw.toString().c_str());
-        this->tcpConnect();  // Connect to TCP port
-      });
-
-  eventSoftAPConnectedHandler = WiFi.onSoftAPModeStationConnected(
-      [&](const WiFiEventSoftAPModeStationConnected &event) {
-        Log(CONNECTION, "Event: %lu Connected to AP Mode Station\n",
-            this->encodeNodeId(event.mac));
-      });
-
-  eventSoftAPDisconnectedHandler = WiFi.onSoftAPModeStationDisconnected(
-      [&](const WiFiEventSoftAPModeStationDisconnected &event) {
-        Log(CONNECTION, "Event: %lu Disconnected from AP Mode Station\n",
-            this->encodeNodeId(event.mac));
-      });
-#endif // ESP32
-    return;
-}

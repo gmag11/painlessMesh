@@ -69,12 +69,14 @@ class BroadcastPackage : public protocol::PackageInterface {
 template <typename T>
 class PackageHandler : public layout::Layout<T> {
  public:
-  ~PackageHandler() {
-    for (auto&& task : taskList) {
-      task->set(1, 1, NULL, NULL, NULL);
-      task->disable();
+  void stop() {
+    while (this->taskList.size() > 0) {
+      auto task = this->taskList.begin();
+      (*task)->disable();
     }
   }
+
+  ~PackageHandler() { this->stop(); }
 
   bool sendPackage(protocol::PackageInterface* pkg) {
     auto variant = protocol::Variant(pkg);
@@ -113,15 +115,23 @@ class PackageHandler : public layout::Layout<T> {
                                 std::function<void()> aCallback) {
     std::shared_ptr<Task> task =
         std::make_shared<Task>(aInterval, aIterations, aCallback);
-    // std::shared_ptr<A> task = std::make_shared<A>();
     // According to the standard this should always point to the same
     // task, so we can use it to remove it
     // taskList.insert(taskList.end(), task);
     auto it = taskList.insert(taskList.end(), task);
-    // auto disableFunc = [it, this]() {};
-    // disableFunc();
-    task->set(aInterval, aIterations, aCallback, NULL,
-              [it, this]() { this->taskList.erase(it); });
+    task->set(aInterval, aIterations, aCallback, NULL, [it, this]() {
+      if (it->use_count() == 1) {
+        // If we hold the only copy, then the onDisable function will call the
+        // Task destructor in the middle of being disabled. This in turn will
+        // invalidate the task too soon. As workaround we store such a task
+        // temporary. This is a workaround for a bug in TaskScheduler. In worst
+        // case scenario this means we keep hold of one unused and disabled task
+        // forever.
+        (*it)->setCallback(NULL);
+        temporaryStore = (*it);
+      }
+      this->taskList.erase(it);
+    });
     scheduler.addTask((*task));
     task->enable();
     return task;
@@ -130,6 +140,8 @@ class PackageHandler : public layout::Layout<T> {
  protected:
   router::MeshCallbackList<T> callbackList;
   std::list<std::shared_ptr<Task> > taskList = {};
+
+  std::shared_ptr<Task> temporaryStore;
 };
 
 }  // namespace plugin
