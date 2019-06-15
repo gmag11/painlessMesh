@@ -10,8 +10,10 @@ ESPClass ESP;
 #include "catch_utils.hpp"
 
 #include "painlessMesh.h"
+#include "painlessMeshConnection.h"
 
 using namespace painlessmesh;
+painlessmesh::logger::LogClass Log;
 
 template <typename T, typename U>
 bool contains(T &container, const U &val) {
@@ -112,6 +114,9 @@ SCENARIO("I can connect two meshes") {
 
   REQUIRE((*mesh1.getNodeList().begin()) == 2);
   REQUIRE((*mesh2.getNodeList().begin()) == 1);
+  scheduler.disableAll();
+  mesh1.stop();
+  mesh2.stop();
 }
 
 // Make a circular mesh, test that it will be broken due to circular
@@ -228,8 +233,9 @@ SCENARIO("Time sync is working") {
   }
   REQUIRE(diff > 10000);
 
-  for (auto i = 0; i < 100; ++i) {
+  for (auto i = 0; i < 1000; ++i) {
     n.update();
+    delay(1000);
   }
 
   diff = 0;

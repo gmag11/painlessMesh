@@ -38,7 +38,7 @@ inline int32_t clockOffset(uint32_t time0, uint32_t time1, uint32_t time2,
       ((int32_t)(time1 - time0) / 2) + ((int32_t)(time2 - time3) / 2);
 
   // Take small steps to avoid over correction
-  if (offset < TASK_SECOND && offset > 4) offset = offset / 4;
+  if (offset < 0.5 * TASK_SECOND && offset > 4) offset = offset / 4;
   return offset;
 }
 
@@ -53,14 +53,14 @@ inline int32_t tripDelay(uint32_t time0, uint32_t time1, uint32_t time2,
 }
 
 inline bool adopt(protocol::NodeTree mesh, protocol::NodeTree connection) {
-  auto mySubCount = layout::size(layout::excludeRoute(std::move(mesh), connection.nodeId));
+  auto mySubCount =
+      layout::size(layout::excludeRoute(std::move(mesh), connection.nodeId));
   auto remoteSubCount = layout::size(connection);
-  if (mySubCount > remoteSubCount)
-    return false;
+  if (mySubCount > remoteSubCount) return false;
   if (mySubCount == remoteSubCount) {
     if (connection.nodeId == 0)
       Log(logger::ERROR, "Adopt called on uninitialized connection\n");
-    return mesh.nodeId > connection.nodeId;
+    return mesh.nodeId < connection.nodeId;
   }
   return true;
 }
@@ -71,15 +71,17 @@ void initTimeSync(protocol::NodeTree mesh, std::shared_ptr<T> connection,
   using namespace painlessmesh::logger;
   painlessmesh::protocol::TimeSync timeSync;
   if (adopt(mesh, (*connection))) {
-    timeSync =
-        painlessmesh::protocol::TimeSync(mesh.nodeId, connection->nodeId, nodeTime);
-    Log(S_TIME, "initTimeSync(): Requesting %u to adopt our time\n",
-        connection->nodeId);
-  } else {
-    timeSync = painlessmesh::protocol::TimeSync(mesh.nodeId, connection->nodeId);
+    timeSync = painlessmesh::protocol::TimeSync(mesh.nodeId, connection->nodeId,
+                                                nodeTime);
     Log(S_TIME, "initTimeSync(): Requesting time from %u\n",
         connection->nodeId);
+  } else {
+    timeSync =
+        painlessmesh::protocol::TimeSync(mesh.nodeId, connection->nodeId);
+    Log(S_TIME, "initTimeSync(): Requesting %u to adopt our time\n",
+        connection->nodeId);
   }
+
   router::send<protocol::TimeSync, T>(timeSync, connection, true);
 }
 
@@ -115,7 +117,9 @@ void handleTimeSync(T& mesh, painlessmesh::protocol::TimeSync timeSync,
       break;
 
     case (painlessmesh::protocol::TIME_REPLY): {
-      Log(logger::S_TIME, "handleTimeSync(): TIME RESPONSE received.\n");
+      Log(logger::S_TIME,
+          "handleTimeSync(): %u adopting TIME_RESPONSE from %u\n", mesh.nodeId,
+          conn->nodeId);
       int32_t offset = painlessmesh::ntp::clockOffset(
           timeSync.msg.t0, timeSync.msg.t1, timeSync.msg.t2, receivedAt);
       mesh.timeOffset += offset;  // Accumulate offset

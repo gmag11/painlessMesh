@@ -14,15 +14,18 @@
 #include "painlessmesh/buffer.hpp"
 #include "painlessmesh/configuration.hpp"
 #include "painlessmesh/layout.hpp"
+#include "painlessmesh/mesh.hpp"
 
-#include <string>
-class painlessMesh;
+#ifndef PAINLESSMESH_ENABLE_ARDUINO_WIFI
+class MeshConnection;
+using painlessMesh = painlessmesh::Mesh<MeshConnection>;
+#endif
 
 class MeshConnection : public painlessmesh::layout::Neighbour,
                        public std::enable_shared_from_this<MeshConnection> {
  public:
   AsyncClient *client;
-  painlessMesh *mesh;
+  painlessmesh::Mesh<MeshConnection> *mesh;
 
   bool newConnection = true;
   bool connected = true;
@@ -42,13 +45,9 @@ class MeshConnection : public painlessmesh::layout::Neighbour,
   Task readBufferTask;
   Task sentBufferTask;
 
-#ifdef UNITY  // Facilitate testing
-  MeshConnection(){};
-#endif
-  MeshConnection(AsyncClient *client, painlessMesh *pMesh, bool station);
-#ifndef UNITY
+  MeshConnection(AsyncClient *client, painlessmesh::Mesh<MeshConnection> *pMesh,
+                 bool station);
   ~MeshConnection();
-#endif
 
   void initTCPCallbacks();
   void initTasks();
@@ -57,6 +56,6 @@ class MeshConnection : public painlessmesh::layout::Neighbour,
 
   void close();
 
-  friend class painlessMesh;
+  friend painlessmesh::Mesh<MeshConnection>;
 };
 #endif

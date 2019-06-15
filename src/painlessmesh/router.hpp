@@ -203,7 +203,7 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
                 remoteNodeId);  // Connection dropped. Signal user
         });
 
-    mesh._scheduler.addTask(mesh.newConnectionTask);
+    mesh.mScheduler->addTask(mesh.newConnectionTask);
     mesh.newConnectionTask.enable();
 
     // Initially interval is every 10 seconds,
@@ -214,7 +214,7 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
       Log(logger::S_TIME, "timeSyncTask(): %u\n", conn->nodeId);
       mesh.startTimeSync(conn);
     });
-    mesh._scheduler.addTask(conn->timeSyncTask);
+    mesh.mScheduler->addTask(conn->timeSyncTask);
     if (conn->station)
       // We are STA, request time immediately
       conn->timeSyncTask.enable();

@@ -69,11 +69,19 @@ class BroadcastPackage : public protocol::PackageInterface {
 template <typename T>
 class PackageHandler : public layout::Layout<T> {
  public:
-  ~PackageHandler() {
+  void stop(Scheduler& scheduler) {
     for (auto&& task : taskList) {
-      task->set(1, 1, NULL, NULL, NULL);
       task->disable();
+      scheduler.deleteTask(*task);
     }
+    taskList.clear();
+  }
+
+  ~PackageHandler() {
+    if (taskList.size() > 0)
+      Log(logger::ERROR,
+          "~PackageHandler(): Always call PackageHandler::stop(scheduler) "
+          "before calling this destructor");
   }
 
   bool sendPackage(protocol::PackageInterface* pkg) {
@@ -103,28 +111,33 @@ class PackageHandler : public layout::Layout<T> {
   /**
    * Add a task to the scheduler
    *
-   * The task will be stored in a list and a reference to the task will be
-   * returned. When the task is disabled it is automatically removed from
-   * the lst and the task object is destruced unless the returned reference
-   * was stored by the caller of addTask.
+   * The task will be stored in a list and a shared_ptr to the task will be
+   * returned. If the task is anonymous (i.e. no shared_ptr to it is held
+   * anywhere else) and disabled then it will be reused when a new task is
+   * added.
    */
   std::shared_ptr<Task> addTask(Scheduler& scheduler, unsigned long aInterval,
                                 long aIterations,
                                 std::function<void()> aCallback) {
+    for (auto && task : taskList) {
+      if (task.use_count() == 1 && !task->isEnabled()) {
+        task->set(aInterval, aIterations, aCallback, NULL, NULL); 
+        task->enable();
+        return task;
+      }
+    }
+
     std::shared_ptr<Task> task =
         std::make_shared<Task>(aInterval, aIterations, aCallback);
-    // std::shared_ptr<A> task = std::make_shared<A>();
-    // According to the standard this should always point to the same
-    // task, so we can use it to remove it
-    // taskList.insert(taskList.end(), task);
-    auto it = taskList.insert(taskList.end(), task);
-    // auto disableFunc = [it, this]() {};
-    // disableFunc();
-    task->set(aInterval, aIterations, aCallback, NULL,
-              [it, this]() { this->taskList.erase(it); });
     scheduler.addTask((*task));
     task->enable();
+    taskList.push_front(task);
     return task;
+  }
+
+  std::shared_ptr<Task> addTask(Scheduler& scheduler,
+                                std::function<void()> aCallback) {
+    return this->addTask(scheduler, 0, TASK_ONCE, aCallback);
   }
 
  protected:
