@@ -1,84 +1,134 @@
-#define ARDUINOJSON_ENABLE_STD_STRING 1
+#ifndef _PAINLESS_MESH_PLUGIN_OTA_HPP_
+#define _PAINLESS_MESH_PLUGIN_OTA_HPP_
 
+#include "painlessmesh/plugin.hpp"
+
+namespace painlessmesh {
+namespace plugin {
+namespace ota {
+
+class State {
+ public:
+  TSTRING md5;
 #ifdef ESP32
-#include <SPIFFS.h>
-#include <Update.h>
+  TSTRING hardware = "ESP32";
 #else
-#include <FS.h>
+  TSTRING hardware = "ESP8266";
 #endif
+  TSTRING nodeType;
+  size_t partNo = 0;
+  ota_fn = "/ota_fw.json";
 
-#include "base64.h"
-#include "painlessMesh.h"
+  State(JsonObject jsonObj) {
+    md5 = jsonObj["md5"].as<TSTRING>();
+    hardware = jsonObj["hardware"].as<TSTRING>();
+    nodeType = jsonObj["nodeType"].as<TSTRING>();
+  }
 
-#define OTA_FN "/ota_fw.json"
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj["md5"] = md5;
+    jsonObj["hardware"] = hardware;
+    jsonObj["nodeType"] = nodeType;
+    return jsonObj;
+  }
 
-#define MESH_PREFIX "whateverYouLike"
-#define MESH_PASSWORD "somethingSneaky"
-#define MESH_PORT 5555
+  size_t jsonObjectSize() {
+    return JSON_OBJECT_SIZE(3) + md5.length() + hardware.length() +
+           nodeType.length();
+  }
+}
 
-Scheduler userScheduler;  // to control your personal task
-painlessMesh mesh;
+class Announce : public BroadcastPackage {
+ public:
+  TSTRING md5;
+  TSTRING hardware;
+  TSTRING nodeType;
+  bool forced = false;
+  size_t noPart;
 
-struct firmware_ota_t {
-#ifdef ESP32
-    String hardware = "ESP32";
-#else
-    String hardware = "ESP8266";
-#endif
-    String nodeType = "test";
-    String md5;
-    size_t noPart;
-    size_t partNo = 0;
+  Announce() : BroadcastPackage(10) {}
+
+  Announce(JsonObject jsonObj) : BroadcastPackage(jsonObj) {
+    md5 = jsonObj["md5"].as<TSTRING>();
+    hardware = jsonObj["hardware"].as<TSTRING>();
+    nodeType = jsonObj["nodeType"].as<TSTRING>();
+    if (jsonObj.containsKey("forced")) forced = jsonObj["forced"];
+    noPart = jsonObj["noPart"];
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = BroadcastPackage::addTo(std::move(jsonObj));
+    jsonObj["md5"] = md5;
+    jsonObj["hardware"] = hardware;
+    jsonObj["nodeType"] = nodeType;
+    if (forced) jsonObj["forced"] = forced;
+    jsonObj["noPart"] = noPart;
+    return jsonObj;
+  }
+
+  size_t jsonObjectSize() {
+    return JSON_OBJECT_SIZE(noJsonFields + 5) + md5.length() +
+           hardware.length() + nodeType.length();
+  }
+
+ protected:
+  Announce(int type, router::Type routing) : BroadcastPackage(type) {
+    this->routing = routing;
+  }
 };
 
-void createDataRequest(JsonObject &req, firmware_ota_t updateFW) {
-    req["plugin"] = "ota";
-    req["type"] = "request";
-    req["hardware"] = updateFW.hardware;
-    req["nodeType"] = updateFW.nodeType;
-    req["md5"] = updateFW.md5;
-    req["noPart"] = updateFW.noPart;
-    req["partNo"] = updateFW.partNo;
-}
+class DataRequest : public Announce {
+ public:
+  uint32_t from = 0;
+  size_t partNo = 0;
 
-void firmwareFromJSON(firmware_ota_t &fw, JsonObject &req) {
-    fw.hardware = req["hardware"].as<String>();
-    fw.nodeType = req["nodeType"].as<String>();
-    fw.md5 = req["md5"].as<String>();
-}
+  DataRequest() : Announce(11, router::SINGLE) {}
 
-firmware_ota_t currentFW;
-firmware_ota_t updateFW;
-Task otaDataRequestTask;
+  DataRequest(JsonObject jsonObj) : Announce(jsonObj) {
+    from = jsonObj["from"];
+    partNo = jsonObj["partNo"];
+  }
 
-// User stub
-void sendMessage();  // Prototype so PlatformIO doesn't complain
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = Announce::addTo(std::move(jsonObj));
+    jsonObj["from"] = from;
+    jsonObj["partNo"] = partNo;
+    return jsonObj;
+  }
 
-Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage);
+  size_t jsonObjectSize() {
+    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2) + md5.length() +
+           hardware.length() + nodeType.length();
+  }
 
-void sendMessage() {
-    String msg = "Hello from node ";
-    msg += mesh.getNodeId();
-    mesh.sendBroadcast(msg);
-    taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
-}
+ protected:
+  DataRequest(int type) : Announce(type, router::SINGLE) {}
+};
 
-// Needed for painless library
-void receivedCallback(uint32_t from, String &msg) {
-    bool isJSON = false;
-#if ARDUINOJSON_VERSION_MAJOR == 6
-    DynamicJsonDocument jsonBuffer(1024 + msg.length());
-    DeserializationError error = deserializeJson(jsonBuffer, msg);
-    if (!error) {
-        isJSON = true;
-    }
-    JsonObject root = jsonBuffer.as<JsonObject>();
-#else
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject &root = jsonBuffer.parseObject(msg);
-    if (root.success()) isJSON = true;
-#endif
-    if (isJSON && root.containsKey("plugin") &&
+class Data : public DataRequest {
+ public:
+  TSTRING data;
+
+  Data() : DataRequest(12) {}
+
+  Data(JsonObject jsonObj) : DataRequest(jsonObj) {
+    data = jsonObj["data"].as<TSTRING>();
+  }
+
+  JsonObject addTo(JsonObject&& jsonObj) {
+    jsonObj = DataRequest::addTo(std::move(jsonObj));
+    jsonObj["data"] = data;
+    return jsonObj;
+  }
+
+  size_t jsonObjectSize() {
+    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2 + 1) + md5.length() +
+           hardware.length() + nodeType.length() + data.length();
+  }
+};
+
+/**
+if (isJSON && root.containsKey("plugin") &&
         String("ota").equals(root["plugin"].as<String>())) {
         Serial.printf("startHere: Received OTA msg from %u msg=%s\n", from,
                       msg.c_str());
@@ -195,72 +245,57 @@ void receivedCallback(uint32_t from, String &msg) {
             }
         }
     }
-
     Serial.printf("ota: Received from %u msg=%s\n", from, msg.c_str());
 }
+*/
 
-void newConnectionCallback(uint32_t nodeId) {
-    Serial.printf("--> ota: New Connection, nodeId = %u\n", nodeId);
-}
 
-void changedConnectionCallback() {
-  Serial.printf("Changed connections\n");
-}
-
-void setup() {
-    Serial.begin(115200);
-
-    // set before init() so that you can see startup messages
-    mesh.setDebugMsgTypes(ERROR | STARTUP);
-
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT,
-              WIFI_AP_STA, 6);
-    // mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
-    mesh.onReceive(&receivedCallback);
-    mesh.onNewConnection(&newConnectionCallback);
-    mesh.onChangedConnections(&changedConnectionCallback);
-    mesh.setContainsRoot(true);
-
-    userScheduler.addTask(otaDataRequestTask);
-
-    userScheduler.addTask(taskSendMessage);
-    taskSendMessage.enable();
-
+template <class T>
+void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
+                        TSTRING nodeType = "") {
+  auto currentFW = std::make_shared<State>();
+  auto updateFW = std::make_shared<State>();
 #ifdef ESP32
-    SPIFFS.begin(true);  // Start the SPI Flash Files System
+  SPIFFS.begin(true);  // Start the SPI Flash Files System
 #else
-    SPIFFS.begin();  // Start the SPI Flash Files System
+  SPIFFS.begin();  // Start the SPI Flash Files System
 #endif
-    if (SPIFFS.exists(OTA_FN)) {
-        auto file = SPIFFS.open(OTA_FN, "r");
-        String msg = "";
-        while (file.available()) {
-            msg += (char)file.read();
-        }
-
-#if ARDUINOJSON_VERSION_MAJOR == 6
-        DynamicJsonDocument jsonBuffer(1024);
-        DeserializationError error = deserializeJson(jsonBuffer, msg);
-        if (error) {
-            Serial.printf("JSON DeserializationError\n");
-        }
-        JsonObject root = jsonBuffer.as<JsonObject>();
-#else
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject &root = jsonBuffer.parseObject(msg);
-#endif
-        firmwareFromJSON(currentFW, root);
-
-        Serial.printf("Current firmware MD5: %s, type = %s, hardware = %s\n",
-                      currentFW.md5.c_str(), currentFW.nodeType.c_str(),
-                      currentFW.hardware.c_str());
-        file.close();
-    } else {
-        Serial.printf("No OTA_FN found!\n");
+  if (SPIFFS.exists(currentFW.ota_fn)) {
+    auto file = SPIFFS.open(currentFW.ota_fn, "r");
+    TSTRING msg = "";
+    while (file.available()) {
+      msg += (char)file.read();
     }
+    auto var = protocol::Variant(msg);
+    currentFW = var.to<State>();
+  }
+
+  // Add request task in disabled state with [updateFW], to know
+  // the partNo (and others) to request
+
+  mesh.onPackage(10, [currentFW, updateFW](protocol::Variant variant) {
+      // convert variant to Announce
+      // Check if we want the update
+      // if not then return false
+      // if yes then change the relevant fields in updateFW and 
+      // enable the request task 
+      });
+
+  mesh.onPackage(11, [currentFW](protocol::Variant variant) {
+      // Data request
+      // Log as unhandled for now)
+      });
+
+  mesh.onPackage(12, [currentFW, updateFW](protocol::Variant variant) {
+      // Check whether it is a new part
+      // If so write, update updateFW and restart the request task iterations
+      // If last part then write ota_fn and reboot
+      });
 }
 
-void loop() {
-    userScheduler.execute();  // it will run mesh scheduler as well
-    mesh.update();
-}
+}  // namespace ota
+}  // namespace plugin
+}  // namespace painlessmesh
+
+#endif
+
