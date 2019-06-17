@@ -36,10 +36,10 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     mScheduler->enableAll();
 
     // Add package handlers
-    callbackList =
-        painlessmesh::ntp::addPackageCallback(std::move(callbackList), (*this));
-    callbackList = painlessmesh::router::addPackageCallback(
-        std::move(callbackList), (*this));
+    this->callbackList =
+        painlessmesh::ntp::addPackageCallback(std::move(this->callbackList), (*this));
+    this->callbackList = painlessmesh::router::addPackageCallback(
+        std::move(this->callbackList), (*this));
   }
 
   void init(Scheduler *scheduler, uint32_t id, uint16_t port) {
@@ -107,7 +107,8 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
   }
 
   bool sendSingle(uint32_t destId, TSTRING msg) {
-    Log(logger::COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId, msg.c_str());
+    Log(logger::COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId,
+        msg.c_str());
     auto single = painlessmesh::protocol::Single(this->nodeId, destId, msg);
     return painlessmesh::router::send<T>(single, (*this));
   }
@@ -119,7 +120,7 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     auto success = router::broadcast<protocol::Broadcast, T>(pkg, (*this), 0);
     if (success && includeSelf) {
       auto variant = protocol::Variant(pkg);
-      callbackList.execute(pkg.type, pkg, NULL, 0);
+      this->callbackList.execute(pkg.type, pkg, NULL, 0);
     }
     if (success > 0) return true;
     return false;
@@ -128,8 +129,7 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
   bool startDelayMeas(uint32_t id) {
     using namespace logger;
     Log(S_TIME, "startDelayMeas(): NodeId %u\n", id);
-    auto conn =
-        painlessmesh::router::findRoute<T>((*this), id);
+    auto conn = painlessmesh::router::findRoute<T>((*this), id);
     if (!conn) return false;
     return router::send<protocol::TimeDelay, T>(
         protocol::TimeDelay(this->nodeId, id, this->getNodeTime()), conn);
@@ -137,14 +137,14 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
 
   void onReceive(receivedCallback_t onReceive) {
     using namespace painlessmesh;
-    callbackList.onPackage(
+    this->callbackList.onPackage(
         protocol::SINGLE,
         [onReceive](protocol::Variant variant, std::shared_ptr<T>, uint32_t) {
           auto pkg = variant.to<protocol::Single>();
           onReceive(pkg.from, pkg.msg);
           return false;
         });
-    callbackList.onPackage(
+    this->callbackList.onPackage(
         protocol::BROADCAST,
         [onReceive](protocol::Variant variant, std::shared_ptr<T>, uint32_t) {
           auto pkg = variant.to<protocol::Broadcast>();
@@ -177,6 +177,11 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     nodeDelayReceivedCallback = onDelayReceived;
   }
 
+  /**
+   * Are we connected/know a route to the given node?
+   *
+   * @param nodeId The nodeId we are looking for
+   */
   bool isConnected(uint32_t nodeId) {
     return painlessmesh::router::findRoute<T>((*this), nodeId) != NULL;
   }
@@ -196,21 +201,21 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     this->stop();
     if (!isExternalScheduler) delete mScheduler;
   }
+
  protected:
   void setScheduler(Scheduler *baseScheduler) {
     this->mScheduler = baseScheduler;
     isExternalScheduler = true;
   }
 
-  painlessmesh::router::MeshCallbackList<T> callbackList;
-
   void startTimeSync(std::shared_ptr<T> conn) {
     using namespace logger;
-    Log(S_TIME, "startTimeSync(): from %u with %u\n", this->nodeId, conn->nodeId);
+    Log(S_TIME, "startTimeSync(): from %u with %u\n", this->nodeId,
+        conn->nodeId);
     painlessmesh::protocol::TimeSync timeSync;
     if (ntp::adopt(this->asNodeTree(), (*conn))) {
-      timeSync =
-          painlessmesh::protocol::TimeSync(this->nodeId, conn->nodeId, this->getNodeTime());
+      timeSync = painlessmesh::protocol::TimeSync(this->nodeId, conn->nodeId,
+                                                  this->getNodeTime());
       Log(S_TIME, "startTimeSync(): Requesting time from %u\n", conn->nodeId);
     } else {
       timeSync = painlessmesh::protocol::TimeSync(this->nodeId, conn->nodeId);

@@ -17,6 +17,9 @@
 // Enable (arduino) wifi support
 #define PAINLESSMESH_ENABLE_ARDUINO_WIFI
 
+// Enable OTA support
+#define PAINLESSMESH_ENABLE_OTA
+
 #ifdef ESP32
 #include <WiFi.h>
 #include <AsyncTCP.h>
@@ -36,6 +39,8 @@ namespace wifi {
 class Mesh;
 };
 };  // namespace painlessmesh
+
+/** A convenience typedef to access the mesh class*/
 using painlessMesh = painlessmesh::wifi::Mesh;
 
 #ifdef ESP32

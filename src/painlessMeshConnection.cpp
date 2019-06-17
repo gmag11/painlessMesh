@@ -209,7 +209,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     receiveBuffer.clear();
     sentBuffer.clear();
 
-    this->nodeId = 0;
+    NodeTree::clear();
     mesh->eraseClosedConnections();
     Log(CONNECTION, "MeshConnection::close() Done.\n");
 }
@@ -264,8 +264,7 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
       auto data_ptr = sentBuffer.readPtr(len);
       auto written = client->write(data_ptr, len, 1);
       if (written == len) {
-        Log(COMMUNICATION, "writeNext(): Package sent = %s\n",
-            shared_buffer.buffer);
+        Log(COMMUNICATION, "writeNext(): Package sent = %s\n", data_ptr);
         client->send();  // TODO only do this for priority messages
         sentBuffer.freeRead();
         sentBufferTask.forceNextIteration();

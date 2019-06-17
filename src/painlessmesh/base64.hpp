@@ -43,7 +43,7 @@ static inline bool is_base64(unsigned char c) {
     return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
-TSTRING encode(unsigned char const* bytes_to_encode,
+inline TSTRING encode(unsigned char const* bytes_to_encode,
                           unsigned int in_len) {
     TSTRING ret;
     int i = 0;
@@ -84,8 +84,8 @@ TSTRING encode(unsigned char const* bytes_to_encode,
     return ret;
 }
 
-TSTRING decode(TSTRING const& encoded_string) {
-    int in_len = encoded_string.size();
+inline TSTRING decode(TSTRING const& encoded_string) {
+    int in_len = encoded_string.length();
     int i = 0;
     int j = 0;
     int in_ = 0;
@@ -98,7 +98,11 @@ TSTRING decode(TSTRING const& encoded_string) {
         in_++;
         if (i == 4) {
             for (i = 0; i < 4; i++)
+#ifdef PAINLESSMESH_ENABLE_STD_STRING
                 char_array_4[i] = chars.find(char_array_4[i]);
+#else
+                char_array_4[i] = chars.indexOf(char_array_4[i]);
+#endif
 
             char_array_3[0] =
                 (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
@@ -115,7 +119,11 @@ TSTRING decode(TSTRING const& encoded_string) {
         for (j = i; j < 4; j++) char_array_4[j] = 0;
 
         for (j = 0; j < 4; j++)
+#ifdef PAINLESSMESH_ENABLE_STD_STRING
             char_array_4[j] = chars.find(char_array_4[j]);
+#else
+            char_array_4[j] = chars.indexOf(char_array_4[j]);
+#endif
 
         char_array_3[0] =
             (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);

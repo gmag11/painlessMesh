@@ -61,6 +61,9 @@ struct IPAddress {
 
 #define PAINLESSMESH_ENABLE_STD_STRING
 
+// Enable OTA support
+#define PAINLESSMESH_ENABLE_OTA
+
 typedef std::string TSTRING;
 
 #ifdef ESP32

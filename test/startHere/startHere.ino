@@ -10,6 +10,8 @@
 //************************************************************
 #include <painlessMesh.h>
 
+#include "painlessmesh/ota.hpp"
+
 // some gpio pin that is connected to an LED...
 // on my rig, this is 5, change to the right number of your LED.
 #define   LED             2       // GPIO number of connected LED, ON ESP-12 IS GPIO2
@@ -47,9 +49,12 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
-  mesh.setDebugMsgTypes(ERROR | DEBUG);  // set before init() so that you can see error messages
+  mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION);  // set before init() so that you can see error messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
+
+  painlessmesh::plugin::ota::addPackageCallback(userScheduler, mesh, "otatest");
+  
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
@@ -107,7 +112,6 @@ void sendMessage() {
   
   taskSendMessage.setInterval( random(TASK_SECOND * 1, TASK_SECOND * 5));  // between 1 and 5 seconds
 }
-
 
 void receivedCallback(uint32_t from, String & msg) {
   Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());

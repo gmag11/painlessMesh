@@ -37,19 +37,25 @@ class AsyncClient {
   void onData(AcDataHandler cb, void* arg = 0) {_recv_cb = cb;}
   void onAck(AcAckHandler cb, void* arg = 0) { _sent_cb = cb; }
   void onError(AcErrorHandler cb, void* arg = 0) {}
-  void onDisconnect(AcConnectHandler cb, void* arg = 0) {}
+  void onDisconnect(AcConnectHandler cb, void* arg = 0) {_discard_cb = cb;}
   void onConnect(AcConnectHandler cb, void* arg = 0) { _connect_cb = cb; }
 
   const char* errorToString(int err) { return ""; }
 
-  bool connected() { return true; }
+  bool connected() { return mOther; }
 
   bool canSend() { return true; }
   void ack(int len) {
     if (_sent_cb) 
       _sent_cb(NULL, this, len, 0);
   }
-  void close(bool now = false) {}
+  void close(bool now = false) {
+    /*if (mOther && mOther->_discard_cb) {
+      mOther->_discard_cb(NULL, this);
+      mOther = NULL;
+    }
+    mServer = NULL;*/
+  }
   bool connect(IPAddress ip, uint16_t port);
   size_t space() { return 1000; }
   bool send() { return true; }
@@ -76,6 +82,7 @@ class AsyncClient {
   AsyncServer* mServer = NULL;
   AsyncClient* mOther = NULL;
   AcConnectHandler _connect_cb = NULL;
+  AcConnectHandler _discard_cb = NULL;
   AcDataHandler _recv_cb = NULL;
   AcAckHandler _sent_cb = NULL;
 };
