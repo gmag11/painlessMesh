@@ -96,8 +96,8 @@ class Announce : public BroadcastPackage {
   }
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(noJsonFields + 5) + md5.length() +
-           hardware.length() + role.length();
+    return JSON_OBJECT_SIZE(noJsonFields + 5) + round(1.1*(md5.length() +
+           hardware.length() + role.length()));
   }
 
  protected:
@@ -151,8 +151,8 @@ class DataRequest : public Announce {
   static DataRequest replyTo(const Data& d, size_t partNo);
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2) + md5.length() +
-           hardware.length() + role.length();
+    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2) + round(1.1*(md5.length() +
+           hardware.length() + role.length()));
   }
 
  protected:
@@ -194,8 +194,8 @@ class Data : public DataRequest {
   }
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2 + 1) + md5.length() +
-           hardware.length() + role.length() + data.length();
+    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2 + 1) + round(1.1*(md5.length() +
+           hardware.length() + role.length() + data.length()));
   }
 };
 
@@ -248,15 +248,15 @@ class State : public protocol::PackageInterface {
   }
 
   JsonObject addTo(JsonObject&& jsonObj) const {
+    jsonObj["role"] = role;
     jsonObj["md5"] = md5;
     jsonObj["hardware"] = hardware;
-    jsonObj["role"] = role;
     return jsonObj;
   }
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(3) + md5.length() + hardware.length() +
-           role.length();
+    return JSON_OBJECT_SIZE(3) + round(1.1*(md5.length() + hardware.length() +
+           role.length()));
   }
 
   std::shared_ptr<Task> task;
@@ -266,7 +266,6 @@ template <class T>
 void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
                         TSTRING role = "") {
   using namespace logger;
-  Log(DEBUG, "Adding callbacks\n");
 #if defined(ESP32) || defined(ESP8266)
   auto currentFW = std::make_shared<State>();
   currentFW->role = role;
@@ -283,16 +282,17 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
     while (file.available()) {
       msg += (char)file.read();
     }
+    Log(DEBUG, "Read file %s\n", msg.c_str());
     auto var = protocol::Variant(msg);
     auto fw = var.to<State>();
-    if (fw.role == role) {
+    if (fw.role == role && fw.hardware == currentFW->hardware) {
       currentFW->md5 = fw.md5;
+      Log(DEBUG, "MD5 found %s\n", fw.md5.c_str());
     }
   }
 
   mesh.onPackage(10, [currentFW, updateFW, &mesh,
                       &scheduler](protocol::Variant variant) {
-    Log(DEBUG, "Adding callback for announce\n");
     // convert variant to Announce
     auto pkg = variant.to<Announce>();
     // Check if we want the update
@@ -302,6 +302,7 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
         // Either already have it, or already updating to it
         return false;
       else {
+        Log(DEBUG, "Adding callback for announce\n");
         auto request = DataRequest::replyTo(pkg, mesh.nodeId, updateFW->partNo);
         updateFW->md5 = pkg.md5;
         // enable the request task
@@ -324,6 +325,7 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
 
   mesh.onPackage(12, [currentFW, updateFW, &mesh,
                       &scheduler](protocol::Variant variant) {
+    Log(DEBUG, "Received data\n");
     auto pkg = variant.to<Data>();
     // Check whether it is a new part, of correct md5 role etc etc
     if (updateFW->partNo == pkg.partNo && updateFW->md5 == pkg.md5 &&
@@ -350,8 +352,8 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
       }
 
       //    write data
-      auto b64data = pkg.data;
-      auto b64Data = base64::decode(b64data);
+      auto b64Data = base64::b64decode(pkg.data);
+      Log(DEBUG, "Data length %d and partNo %d, from: %d\n", b64Data.length(), pkg.partNo, pkg.data.length());
 
       if (Update.write((uint8_t*)b64Data.c_str(), b64Data.length()) !=
           b64Data.length()) {
@@ -359,6 +361,7 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
         Update.printError(Serial);
         Update.end();
         updateFW->md5 = "";
+        updateFW->partNo = 0;
         return false;
       }
 
@@ -375,12 +378,13 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
           file.print(msg);
           file.close();
 
-          Log(DEBUG, "handleOTA(): OTA Success!\n");
+          Log(DEBUG, "handleOTA(): OTA Success! %s, %s\n", msg.c_str(), updateFW->role.c_str());
           ESP.restart();
         } else {
           Log(DEBUG, "handleOTA(): OTA failed!\n");
           Update.printError(Serial);
           updateFW->md5 = "";
+          updateFW->partNo = 0;
         }
         updateFW->task->setOnDisable(NULL);
         updateFW->task->disable();
