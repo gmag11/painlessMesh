@@ -50,3 +50,14 @@ pages:
     - public
   only:
   - master
+
+pages_develop:
+  script:
+  - apt-get update && apt-get install -y doxygen
+  - doxygen doxygen/Doxyfile
+  - mv doxygen/documentation/html/ public/develop/
+  artifacts:
+    paths:
+    - public
+  only:
+  - develop 

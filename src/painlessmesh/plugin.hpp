@@ -8,12 +8,31 @@
 
 namespace painlessmesh {
 
-  /** Plugin interface for painlessMesh packages/messages
-   *
-   * This interface allows one to design their own messages types/packages, and add handlers that are called when the new package type arrives at a node. Here you can think of things like sensor packages, which hold the measurements done by the sensors. The packages related to OTA updates are also implemented as a plugin system (see plugin::ota). Each package type is uniquely identified using the protocol::PackageInterface::type. Currently default package types use numbers up to 12, so to be on the safe side we recommend your own packages to use higher type values, e.g. start counting at 20 at the lowest.
-   *
-   * An important piece of information is how a package should be routed. Currently we have three main routing algorithms (router::Type).
-   */
+/** Plugin interface for painlessMesh packages/messages
+ *
+ * This interface allows one to design their own messages types/packages, and
+ * add handlers that are called when the new package type arrives at a node.
+ * Here you can think of things like sensor packages, which hold the
+ * measurements done by the sensors. The packages related to OTA updates are
+ * also implemented as a plugin system (see plugin::ota). Each package type is
+ * uniquely identified using the protocol::PackageInterface::type. Currently
+ * default package types use numbers up to 12, so to be on the safe side we
+ * recommend your own packages to use higher type values, e.g. start counting at
+ * 20 at the lowest.
+ *
+ * An important piece of information is how a package should be routed.
+ * Currently we have three main routing algorithms (router::Type).
+ *
+ * \code
+* using namespace painlessmesh;
+* 
+* // Inherit from SinglePackage, the most basic package with router::Type::SINGLE
+* class SensorPackage : public plugin::SinglePackage {
+* 
+* };
+*
+ * \endcode
+ */
 namespace plugin {
 
 class SinglePackage : public protocol::PackageInterface {
@@ -67,7 +86,9 @@ class BroadcastPackage : public protocol::PackageInterface {
 
 class NeighbourPackage : public plugin::SinglePackage {
  public:
-  NeighbourPackage(int type) : SinglePackage(type) { routing = router::NEIGHBOUR; }
+  NeighbourPackage(int type) : SinglePackage(type) {
+    routing = router::NEIGHBOUR;
+  }
 
   NeighbourPackage(JsonObject jsonObj) : SinglePackage(jsonObj) {}
 };
@@ -118,7 +139,7 @@ class PackageHandler : public layout::Layout<T> {
 
   void onPackage(int type, std::function<bool(protocol::Variant)> function) {
     auto func = [function](protocol::Variant var, std::shared_ptr<T>,
-                            uint32_t) { return function(var); };
+                           uint32_t) { return function(var); };
     this->callbackList.onPackage(type, func);
   }
 
@@ -133,9 +154,9 @@ class PackageHandler : public layout::Layout<T> {
   std::shared_ptr<Task> addTask(Scheduler& scheduler, unsigned long aInterval,
                                 long aIterations,
                                 std::function<void()> aCallback) {
-    for (auto && task : taskList) {
+    for (auto&& task : taskList) {
       if (task.use_count() == 1 && !task->isEnabled()) {
-        task->set(aInterval, aIterations, aCallback, NULL, NULL); 
+        task->set(aInterval, aIterations, aCallback, NULL, NULL);
         task->enable();
         return task;
       }

@@ -31,7 +31,6 @@ class CallbackList {
    * Add a callback for specific package id
    */
   void onPackage(int id, std::function<bool(Args...)> func) {
-    Log(logger::DEBUG, "Adding callbacks %d %u\n", id, this);
     callbackMap[id].push_back(func);
   }
 

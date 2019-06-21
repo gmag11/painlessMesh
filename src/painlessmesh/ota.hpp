@@ -65,6 +65,8 @@ class Announce : public BroadcastPackage {
    * node can be a sensor and therefore needs the firmware meant for sensor
    * nodes. This allows one to set the type of node (role) this firmware is
    * aimed at.
+   *
+   * Note that the role should not contain underscores or dots.
    */
   TSTRING role;
 
@@ -96,8 +98,8 @@ class Announce : public BroadcastPackage {
   }
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(noJsonFields + 5) + round(1.1*(md5.length() +
-           hardware.length() + role.length()));
+    return JSON_OBJECT_SIZE(noJsonFields + 5) +
+           round(1.1 * (md5.length() + hardware.length() + role.length()));
   }
 
  protected:
@@ -151,8 +153,8 @@ class DataRequest : public Announce {
   static DataRequest replyTo(const Data& d, size_t partNo);
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2) + round(1.1*(md5.length() +
-           hardware.length() + role.length()));
+    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2) +
+           round(1.1 * (md5.length() + hardware.length() + role.length()));
   }
 
  protected:
@@ -194,8 +196,9 @@ class Data : public DataRequest {
   }
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2 + 1) + round(1.1*(md5.length() +
-           hardware.length() + role.length() + data.length()));
+    return JSON_OBJECT_SIZE(noJsonFields + 5 + 2 + 1) +
+           round(1.1 * (md5.length() + hardware.length() + role.length() +
+                        data.length()));
   }
 };
 
@@ -255,8 +258,8 @@ class State : public protocol::PackageInterface {
   }
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(3) + round(1.1*(md5.length() + hardware.length() +
-           role.length()));
+    return JSON_OBJECT_SIZE(3) +
+           round(1.1 * (md5.length() + hardware.length() + role.length()));
   }
 
   std::shared_ptr<Task> task;
@@ -282,12 +285,11 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
     while (file.available()) {
       msg += (char)file.read();
     }
-    Log(DEBUG, "Read file %s\n", msg.c_str());
     auto var = protocol::Variant(msg);
     auto fw = var.to<State>();
     if (fw.role == role && fw.hardware == currentFW->hardware) {
-      currentFW->md5 = fw.md5;
       Log(DEBUG, "MD5 found %s\n", fw.md5.c_str());
+      currentFW->md5 = fw.md5;
     }
   }
 
@@ -302,7 +304,6 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
         // Either already have it, or already updating to it
         return false;
       else {
-        Log(DEBUG, "Adding callback for announce\n");
         auto request = DataRequest::replyTo(pkg, mesh.nodeId, updateFW->partNo);
         updateFW->md5 = pkg.md5;
         // enable the request task
@@ -325,7 +326,6 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
 
   mesh.onPackage(12, [currentFW, updateFW, &mesh,
                       &scheduler](protocol::Variant variant) {
-    Log(DEBUG, "Received data\n");
     auto pkg = variant.to<Data>();
     // Check whether it is a new part, of correct md5 role etc etc
     if (updateFW->partNo == pkg.partNo && updateFW->md5 == pkg.md5 &&
@@ -352,9 +352,7 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
       }
 
       //    write data
-      auto b64Data = base64::b64decode(pkg.data);
-      Log(DEBUG, "Data length %d and partNo %d, from: %d\n", b64Data.length(), pkg.partNo, pkg.data.length());
-
+      auto b64Data = base64::decode(pkg.data);
       if (Update.write((uint8_t*)b64Data.c_str(), b64Data.length()) !=
           b64Data.length()) {
         Log(ERROR, "handleOTA(): OTA write failed!");
@@ -370,7 +368,6 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
         //       check md5, reboot
         if (Update.end(true)) {  // true to set the size to the
                                  // current progress
-          Log(DEBUG, "Update.MD5: %s\n", Update.md5String().c_str());
           auto file = SPIFFS.open(updateFW->ota_fn, "w");
           String msg;
           auto var = protocol::Variant(updateFW.get());
@@ -378,7 +375,8 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
           file.print(msg);
           file.close();
 
-          Log(DEBUG, "handleOTA(): OTA Success! %s, %s\n", msg.c_str(), updateFW->role.c_str());
+          Log(DEBUG, "handleOTA(): OTA Success! %s, %s\n", msg.c_str(),
+              updateFW->role.c_str());
           ESP.restart();
         } else {
           Log(DEBUG, "handleOTA(): OTA failed!\n");
