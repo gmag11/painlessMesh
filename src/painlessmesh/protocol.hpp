@@ -1,8 +1,8 @@
 #ifndef _PAINLESS_MESH_PROTOCOL_HPP_
 #define _PAINLESS_MESH_PROTOCOL_HPP_
 
-#include <list>
 #include <cmath>
+#include <list>
 
 #include "Arduino.h"
 #include "painlessmesh/configuration.hpp"
@@ -10,8 +10,19 @@
 namespace painlessmesh {
 
 namespace router {
+
+/** Different ways to route packages
+ *
+ * NEIGHBOUR packages are send to the neighbour and will be immediately handled
+ * there. The TIME_SYNC and NODE_SYNC packages are NEIGHBOUR. SINGLE messages
+ * are meant for a specific node. When another node receives this message, it
+ * will look in its routing information and send it on to the correct node,
+ * withouth processing the message in any other way. Only the targetted node
+ * will actually parse/handle this message (without sending it on). Finally,
+ * BROADCAST message are send to every node and processed/handled by every node.
+ * */
 enum Type { ROUTING_ERROR = -1, NEIGHBOUR, SINGLE, BROADCAST };
-}
+}  // namespace router
 
 namespace protocol {
 
@@ -34,8 +45,8 @@ enum TimeType {
 
 class PackageInterface {
  public:
-  virtual JsonObject addTo(JsonObject&& jsonObj) = 0;
-  virtual size_t jsonObjectSize() = 0;
+  virtual JsonObject addTo(JsonObject&& jsonObj) const = 0;
+  virtual size_t jsonObjectSize() const = 0;
 };
 
 /**
@@ -63,7 +74,7 @@ class Single : public PackageInterface {
     msg = jsonObj["msg"].as<TSTRING>();
   }
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj["type"] = type;
     jsonObj["dest"] = dest;
     jsonObj["from"] = from;
@@ -71,7 +82,7 @@ class Single : public PackageInterface {
     return jsonObj;
   }
 
-  size_t jsonObjectSize() {
+  size_t jsonObjectSize() const {
     return JSON_OBJECT_SIZE(4) + round(1.1 * msg.length());
   }
 };
@@ -85,13 +96,13 @@ class Broadcast : public Single {
 
   using Single::Single;
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj = Single::addTo(std::move(jsonObj));
     jsonObj["type"] = type;
     return jsonObj;
   }
 
-  size_t jsonObjectSize() {
+  size_t jsonObjectSize() const {
     return JSON_OBJECT_SIZE(4) + round(1.1 * msg.length());
   }
 };
@@ -124,7 +135,7 @@ class NodeTree : public PackageInterface {
     }
   }
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj["nodeId"] = nodeId;
     if (root) jsonObj["root"] = root;
     if (subs.size() > 0) {
@@ -157,7 +168,7 @@ class NodeTree : public PackageInterface {
 
   TSTRING toString(bool pretty = false);
 
-  size_t jsonObjectSize() {
+  size_t jsonObjectSize() const {
     size_t base = 1;
     if (root) ++base;
     if (subs.size() > 0) ++base;
@@ -165,6 +176,12 @@ class NodeTree : public PackageInterface {
     if (subs.size() > 0) size += JSON_ARRAY_SIZE(subs.size());
     for (auto&& s : subs) size += s.jsonObjectSize();
     return size;
+  }
+
+  void clear() {
+    nodeId = 0;
+    subs.clear();
+    root = false;
   }
 };
 
@@ -192,7 +209,7 @@ class NodeSyncRequest : public NodeTree {
     from = jsonObj["from"].as<uint32_t>();
   }
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj = NodeTree::addTo(std::move(jsonObj));
     jsonObj["type"] = type;
     jsonObj["dest"] = dest;
@@ -209,7 +226,7 @@ class NodeSyncRequest : public NodeTree {
     return !this->operator==(b);
   }
 
-  size_t jsonObjectSize() {
+  size_t jsonObjectSize() const {
     size_t base = 4;
     if (root) ++base;
     if (subs.size() > 0) ++base;
@@ -229,7 +246,7 @@ class NodeSyncReply : public NodeSyncRequest {
 
   using NodeSyncRequest::NodeSyncRequest;
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj = NodeSyncRequest::addTo(std::move(jsonObj));
     jsonObj["type"] = type;
     return jsonObj;
@@ -298,7 +315,7 @@ class TimeSync : public PackageInterface {
       msg.t2 = jsonObj["msg"]["t2"].as<uint32_t>();
   }
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj["type"] = type;
     jsonObj["dest"] = dest;
     jsonObj["from"] = from;
@@ -331,7 +348,9 @@ class TimeSync : public PackageInterface {
     std::swap(from, dest);
   }
 
-  size_t jsonObjectSize() { return JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(4); }
+  size_t jsonObjectSize() const {
+    return JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(4);
+  }
 };
 
 /**
@@ -342,7 +361,7 @@ class TimeDelay : public TimeSync {
   int type = TIME_DELAY;
   using TimeSync::TimeSync;
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj = TimeSync::addTo(std::move(jsonObj));
     jsonObj["type"] = type;
     return jsonObj;
@@ -413,7 +432,7 @@ class Variant {
   /**
    * Create Variant object from any package implementing PackageInterface
    */
-  Variant(PackageInterface *pkg) : jsonBuffer(pkg->jsonObjectSize()) {
+  Variant(const PackageInterface* pkg) : jsonBuffer(pkg->jsonObjectSize()) {
     jsonObj = jsonBuffer.to<JsonObject>();
     jsonObj = pkg->addTo(std::move(jsonObj));
   }
@@ -528,11 +547,10 @@ class Variant {
   }
 
   /**
-   * Destination node of the package 
+   * Destination node of the package
    */
   uint32_t dest() {
-    if (jsonObj.containsKey("dest"))
-      return jsonObj["dest"].as<uint32_t>();
+    if (jsonObj.containsKey("dest")) return jsonObj["dest"].as<uint32_t>();
     return 0;
   }
 

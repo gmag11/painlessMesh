@@ -22,13 +22,13 @@ class CustomPackage : public plugin::SinglePackage {
     sensor = jsonObj["sensor"];
   }
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj = SinglePackage::addTo(std::move(jsonObj));
     jsonObj["sensor"] = sensor;
     return jsonObj;
   }
 
-  size_t jsonObjectSize() { return JSON_OBJECT_SIZE(noJsonFields + 1); }
+  size_t jsonObjectSize() const { return JSON_OBJECT_SIZE(noJsonFields + 1); }
 };
 
 class BCustomPackage : public plugin::BroadcastPackage {
@@ -41,13 +41,13 @@ class BCustomPackage : public plugin::BroadcastPackage {
     sensor = jsonObj["sensor"];
   }
 
-  JsonObject addTo(JsonObject&& jsonObj) {
+  JsonObject addTo(JsonObject&& jsonObj) const {
     jsonObj = BroadcastPackage::addTo(std::move(jsonObj));
     jsonObj["sensor"] = sensor;
     return jsonObj;
   }
 
-  size_t jsonObjectSize() { return JSON_OBJECT_SIZE(noJsonFields + 1); }
+  size_t jsonObjectSize() const { return JSON_OBJECT_SIZE(noJsonFields + 1); }
 };
 
 class MockConnection : public layout::Neighbour {

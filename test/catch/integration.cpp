@@ -81,6 +81,10 @@ class Nodes {
     for (auto &&m : nodes) m->update();
   }
 
+  void stop() {
+    for (auto &&m : nodes) m->stop();
+  }
+
   auto size() { return nodes.size(); }
 
   std::shared_ptr<MeshTest> get(size_t nodeId) { return nodes[nodeId - 1]; }
@@ -105,7 +109,7 @@ SCENARIO("I can connect two meshes") {
   auto client = AsyncClient(&server);
   tcp::connect<MeshConnection, painlessMesh>(client, IPAddress(), 0, mesh2);
   // Now mesh1 and mesh2 should be able to talk to each other
-  for (auto i = 0; i < 10; ++i) {
+  for (auto i = 0; i < 20; ++i) {
     // scheduler.execute();
     mesh1.update();
     mesh2.update();
@@ -130,7 +134,7 @@ SCENARIO("MeshTest works") {
   MeshTest m2(&scheduler, 2);
   m1.connect(m2);
 
-  for (auto i = 0; i < 10; ++i) {
+  for (auto i = 0; i < 20; ++i) {
     m1.update();
     m2.update();
   }
@@ -186,6 +190,12 @@ SCENARIO("We can send a message") {
   REQUIRE(contains(m3.events, event_test_t("receive", 2, "myMessage4")));
   REQUIRE(contains(m4.events, event_test_t("receive", 2, "myMessage4")));
   REQUIRE(contains(m5.events, event_test_t("receive", 2, "myMessage4")));
+
+  m1.stop();
+  m2.stop();
+  m3.stop();
+  m4.stop();
+  m5.stop();
 }
 
 SCENARIO("We can send a message using our Nodes class") {
@@ -223,7 +233,7 @@ SCENARIO("Time sync is working") {
   Log.setLogLevel(ERROR);
 
   Scheduler scheduler;
-  auto n = Nodes(&scheduler, runif(8, 12));
+  auto n = Nodes(&scheduler, runif(8, 15));
 
   uint32_t diff = 0;
   for (size_t i = 1; i < n.size(); ++i) {
@@ -233,11 +243,10 @@ SCENARIO("Time sync is working") {
   }
   REQUIRE(diff > 10000);
 
-  for (auto i = 0; i < 1000; ++i) {
+  for (auto i = 0; i < 10000; ++i) {
     n.update();
-    delay(1000);
+    delay(100);
   }
-
   diff = 0;
   for (size_t i = 1; i < n.size(); ++i) {
     diff += ((double)std::abs((int)n.get(i)->getNodeTime() -
@@ -245,4 +254,5 @@ SCENARIO("Time sync is working") {
             n.size();
   }
   REQUIRE(diff < 10000);
+  n.stop();
 }

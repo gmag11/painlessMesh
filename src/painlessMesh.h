@@ -25,6 +25,10 @@ using namespace std;
 #include "arduino/wifi.hpp"
 #endif
 
+#ifdef PAINLESSMESH_ENABLE_OTA
+#include "painlessmesh/ota.hpp"
+#endif
+
 #include "painlessmesh/buffer.hpp"
 #include "painlessmesh/layout.hpp"
 #include "painlessmesh/logger.hpp"
@@ -42,6 +46,16 @@ using namespace painlessmesh::logger;
 #define MAX_MESSAGE_QUEUE \
   50  // MAX number of unsent messages in queue. Newer messages are discarded
 #define MAX_CONSECUTIVE_SEND 5  // Max message burst
+
+/*! \mainpage painlessMesh: A painless way to setup a mesh.
+ *
+ * painlessMesh is designed in a modular way, with many parent classes. The best
+ * place to get started with the documentation is to have a look at
+ * painlessmesh::wifi::Mesh (the main painlessMesh class is an alias (typedef)
+ * of the painlessmesh::wifi::Mesh class). Make sure to also explore the public
+ * member functions inherited from other classes, to get full information on the
+ * functions available to you.
+ */
 
 #ifndef PAINLESSMESH_ENABLE_ARDUINO_WIFI
 class MeshConnection;

@@ -1,6 +1,7 @@
 #include<map>
 
 #include "painlessMesh.h"
+using namespace painlessmesh;
 
 typedef std::function<void(String &from, String &msg)> namedReceivedCallback_t;
 
@@ -77,7 +78,7 @@ class namedMesh : public painlessMesh {
                         }
                 );
                 // Add it
-                _scheduler.addTask(nameBroadCastTask);
+                mScheduler->addTask(nameBroadCastTask);
                 nameBroadCastTask.enableDelayed();
 
                 nameBroadCastInit = true;
@@ -99,7 +100,7 @@ class namedMesh : public painlessMesh {
 
         virtual void stop() {
             nameBroadCastTask.disable();
-            _scheduler.deleteTask(nameBroadCastTask);
+            mScheduler->deleteTask(nameBroadCastTask);
             painlessMesh::stop();
         }
 

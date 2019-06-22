@@ -1,8 +1,8 @@
 #ifndef _PAINLESS_MESH_ROUTER_HPP_
 #define _PAINLESS_MESH_ROUTER_HPP_
 
-#include <map>
 #include <algorithm>
+#include <map>
 
 #include "painlessmesh/layout.hpp"
 #include "painlessmesh/logger.hpp"
@@ -142,32 +142,37 @@ void routePackage(layout::Layout<T> layout, std::shared_ptr<T> connection,
   static size_t baseCapacity = 512;
   Log(COMMUNICATION, "routePackage(): Recvd from %u: %s\n", connection->nodeId,
       pkg.c_str());
-  auto variant = protocol::Variant(pkg, pkg.length() + baseCapacity);
-  while (variant.error == 3 && baseCapacity <= 10240) {
+  // Using a ptr so we can overwrite it if we need to grow capacity.
+  // Bug in copy constructor with grown capacity can cause segmentation fault
+  auto variant =
+      std::make_shared<protocol::Variant>(pkg, pkg.length() + baseCapacity);
+  while (variant->error == 3 && baseCapacity <= 20480) {
     // Not enough memory, adapt scaling (variant::capacityScaling) and log the
     // new value
-    Log(DEBUG, "routePackage(): parsing failed. err=%u, increasing capacity: %f\n",
-        variant.error, baseCapacity);
+    Log(DEBUG,
+        "routePackage(): parsing failed. err=%u, increasing capacity: %u\n",
+        variant->error, baseCapacity);
     baseCapacity += 256;
-    variant = protocol::Variant(pkg, pkg.length() + baseCapacity);
+    variant =
+        std::make_shared<protocol::Variant>(pkg, pkg.length() + baseCapacity);
   }
-  if (variant.error) {
+  if (variant->error) {
     Log(ERROR,
-        "routePackage(): parsing failed. err=%u, total_length=%d, data=%s<--\n", variant.error,
-        pkg.length(), pkg.c_str());
+        "routePackage(): parsing failed. err=%u, total_length=%d, data=%s<--\n",
+        variant->error, pkg.length(), pkg.c_str());
     return;
   }
 
-  if (variant.routing() == SINGLE && variant.dest() != layout.nodeId) {
+  if (variant->routing() == SINGLE && variant->dest() != layout.nodeId) {
     // Send on without further processing
-    send<T>(variant, layout);
+    send<T>((*variant), layout);
     return;
-  } else if (variant.routing() == BROADCAST) {
-    broadcast<T>(variant, layout, connection->nodeId);
+  } else if (variant->routing() == BROADCAST) {
+    broadcast<T>((*variant), layout, connection->nodeId);
   }
-  auto calls = cbl.execute(variant.type(), variant, connection, receivedAt);
+  auto calls = cbl.execute(variant->type(), (*variant), connection, receivedAt);
   if (calls == 0)
-    Log(DEBUG, "routePackage(): No callbacks executed; %s\n", pkg.c_str());
+    Log(DEBUG, "routePackage(): No callbacks executed; %u, %s\n", variant->type(), pkg.c_str());
 }
 
 template <class T, class U>
@@ -209,7 +214,8 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
     // Initially interval is every 10 seconds,
     // this will slow down to TIME_SYNC_INTERVAL
     // after first succesfull sync
-    // TODO move it to a new connection callback and use initTimeSync from ntp.hpp
+    // TODO move it to a new connection callback and use initTimeSync from
+    // ntp.hpp
     conn->timeSyncTask.set(10 * TASK_SECOND, TASK_FOREVER, [conn, &mesh]() {
       Log(logger::S_TIME, "timeSyncTask(): %u\n", conn->nodeId);
       mesh.startTimeSync(conn);

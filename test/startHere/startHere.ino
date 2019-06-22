@@ -1,18 +1,16 @@
 //************************************************************
-// this is prints (and sends around) information used for debugging library
+// this is a simple example that uses the easyMesh library
 //
 // 1. blinks led once for every node on the mesh
-// 2. blink cycle repeats every BLINK_PERIOD and is in sync between nodes
-//
+// 2. blink cycle repeats every BLINK_PERIOD
+// 3. sends a silly message to every node on the mesh at a random time between 1 and 5 seconds
+// 4. prints anything it receives to Serial.print
 //
 //
 //************************************************************
-
-// Collect nodeInformation (on every change and 10 seconds)
-// send it every 5 seconds
-// Print on change/newConnection/receive from other node
-#define UNITY
 #include <painlessMesh.h>
+
+#include "painlessmesh/ota.hpp"
 
 // some gpio pin that is connected to an LED...
 // on my rig, this is 5, change to the right number of your LED.
@@ -25,72 +23,22 @@
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
-#define   ISROOT          false
-
 // Prototypes
+void sendMessage(); 
 void receivedCallback(uint32_t from, String & msg);
 void newConnectionCallback(uint32_t nodeId);
 void changedConnectionCallback(); 
-//void nodeTimeAdjustedCallback(int32_t offset); 
-//void delayReceivedCallback(uint32_t from, int32_t delay);
+void nodeTimeAdjustedCallback(int32_t offset); 
+void delayReceivedCallback(uint32_t from, int32_t delay);
 
 Scheduler     userScheduler; // to control your personal task
 painlessMesh  mesh;
 
-String state;
-void collectData() {
-    state = "";
+bool calc_delay = false;
+SimpleList<uint32_t> nodes;
 
-#if ARDUINOJSON_VERSION_MAJOR==6
-    DynamicJsonDocument jsonBuffer(256);
-    JsonObject stateObj = jsonBuffer.to<JsonObject>();
-#else
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& stateObj = jsonBuffer.createObject();
-#endif
-    stateObj["nodeId"] = mesh.getNodeId();
-#ifdef ESP32
-    stateObj["hardware"] = "ESP32";
-#else
-    stateObj["hardware"] = "ESP8266";
-#endif
-
-    stateObj["isRoot"] = mesh.isRoot();
-    stateObj["isRooted"] = painlessmesh::layout::isRooted(mesh.asNodeTree());
-
-    stateObj["csize"] = mesh.subs.size();
-#if ARDUINOJSON_VERSION_MAJOR==6
-#else
-    JsonArray& connections = stateObj.createNestedArray("connections");
-    for(auto && conn : mesh.subs) {
-        JsonObject& connection = connections.createNestedObject();
-        connection["nodeId"] = conn->nodeId;
-        connection["connected"] = conn->connected;
-        connection["station"] = conn->station;
-        connection["root"] = conn->root;
-        connection["rooted"] = conn->rooted;
-    }
-#endif
-#if ARDUINOJSON_VERSION_MAJOR==6
-    serializeJsonPretty(stateObj, state);
-#else
-    stateObj.prettyPrintTo(state);
-#endif
-}
-
-Task taskGatherState( TASK_SECOND * 30, TASK_FOREVER, &collectData); // start with a one second interval
-Task taskPrintState(TASK_SECOND * 5, TASK_FOREVER, []() {
-    Serial.println("Node state:");
-    Serial.printf("%s\n", state.c_str());
-    //stateObj.prettyPrintTo(Serial);
-});
-
-Task taskSendState(TASK_SECOND * 15, TASK_FOREVER, []() {
-    //String str;
-    //stateObj.prettyPrintTo(str);
-    //mesh.sendBroadcast(str);
-    mesh.sendBroadcast(state);
-});
+void sendMessage() ; // Prototype
+Task taskSendMessage( TASK_SECOND * 1, TASK_FOREVER, &sendMessage ); // start with a one second interval
 
 // Task to blink the number of nodes
 Task blinkNoNodes;
@@ -101,25 +49,20 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
-  //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
-  //mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | COMMUNICATION);  // set before init() so that you can see startup messages
-  mesh.setDebugMsgTypes(ERROR);  // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION);  // set before init() so that you can see error messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
+
+  painlessmesh::plugin::ota::addPackageCallback(userScheduler, mesh, "otatest");
+  
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
   mesh.onNodeDelayReceived(&delayReceivedCallback);
-  mesh.setRoot(ISROOT);
-  mesh.setContainsRoot(true);
 
-  userScheduler.addTask( taskGatherState );
-  taskGatherState.enable();
-  userScheduler.addTask( taskPrintState );
-  taskPrintState.enable();
-  userScheduler.addTask( taskSendState );
-  taskSendState.enable();
+  userScheduler.addTask( taskSendMessage );
+  taskSendMessage.enable();
 
   blinkNoNodes.set(BLINK_PERIOD, (mesh.getNodeList().size() + 1) * 2, []() {
       // If on, switch off, else switch on
@@ -146,13 +89,32 @@ void setup() {
 }
 
 void loop() {
-  userScheduler.execute(); // it will run mesh scheduler as well
   mesh.update();
   digitalWrite(LED, !onFlag);
 }
 
+void sendMessage() {
+  String msg = "Hello from node ";
+  msg += mesh.getNodeId();
+  msg += " myFreeMemory: " + String(ESP.getFreeHeap());
+  mesh.sendBroadcast(msg);
+
+  if (calc_delay) {
+    SimpleList<uint32_t>::iterator node = nodes.begin();
+    while (node != nodes.end()) {
+      mesh.startDelayMeas(*node);
+      node++;
+    }
+    calc_delay = false;
+  }
+
+  Serial.printf("Sending message: %s\n", msg.c_str());
+  
+  taskSendMessage.setInterval( random(TASK_SECOND * 1, TASK_SECOND * 5));  // between 1 and 5 seconds
+}
+
 void receivedCallback(uint32_t from, String & msg) {
-  Serial.printf("startHere: Received from %u msg = %s\n", from, msg.c_str());
+  Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
 }
 
 void newConnectionCallback(uint32_t nodeId) {
@@ -161,8 +123,8 @@ void newConnectionCallback(uint32_t nodeId) {
   blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);
   blinkNoNodes.enableDelayed(BLINK_PERIOD - (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
  
-  Serial.printf("New Connection, nodeId = %u\n", nodeId);
-  taskGatherState.forceNextIteration();
+  Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
+  Serial.printf("--> startHere: New Connection, %s\n", mesh.subConnectionJson(true).c_str());
 }
 
 void changedConnectionCallback() {
@@ -171,7 +133,19 @@ void changedConnectionCallback() {
   onFlag = false;
   blinkNoNodes.setIterations((mesh.getNodeList().size() + 1) * 2);
   blinkNoNodes.enableDelayed(BLINK_PERIOD - (mesh.getNodeTime() % (BLINK_PERIOD*1000))/1000);
-  taskGatherState.forceNextIteration();
+ 
+  nodes = mesh.getNodeList();
+
+  Serial.printf("Num nodes: %d\n", nodes.size());
+  Serial.printf("Connection list:");
+
+  SimpleList<uint32_t>::iterator node = nodes.begin();
+  while (node != nodes.end()) {
+    Serial.printf(" %u", *node);
+    node++;
+  }
+  Serial.println();
+  calc_delay = true;
 }
 
 void nodeTimeAdjustedCallback(int32_t offset) {
