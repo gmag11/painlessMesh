@@ -19,6 +19,7 @@ platformio:
 catch_testing:
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake
+    - apt-get install libboost-system-dev -y -qq
     - cmake . -DCMAKE_CXX_FLAGS="-Wall -Werror"
     - make
   script:

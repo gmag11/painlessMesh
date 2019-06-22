@@ -235,7 +235,7 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
     layout::syncLayout(mesh, conn->nodeId);
   } else {
     conn->nodeSyncTask.delay();
-    mesh.stability += min(1000 - mesh.stability, (size_t)25);
+    mesh.stability += std::min(1000 - mesh.stability, (size_t)25);
   }
 }
 
