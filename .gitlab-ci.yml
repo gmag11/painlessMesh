@@ -55,9 +55,9 @@ pages_develop:
   script:
   - apt-get update && apt-get install -y doxygen
   - doxygen doxygen/Doxyfile
-  - mv doxygen/documentation/html/ public/develop/
+  - mv doxygen/documentation/html/ html/
   artifacts:
     paths:
-    - public
+    - html
   only:
   - develop 
