@@ -47,7 +47,8 @@ class AsyncClient {
         [&](auto& ec, auto len) { this->handleData(ec, len); });
   }
 
-  size_t write(const void* data, size_t len, size_t copy = ASYNC_WRITE_FLAG_COPY) {
+  size_t write(const void* data, size_t len,
+               size_t copy = ASYNC_WRITE_FLAG_COPY) {
     if (writing) return 0;
     writing = true;
     if (copy == ASYNC_WRITE_FLAG_COPY) {
@@ -67,8 +68,7 @@ class AsyncClient {
   void send() {}
   void setNoDelay(bool value = true) {}
   void setRxTimeout(uint32_t timeout) {}
-  const char * errorToString(int8_t error) { return ""; }
-  
+  const char* errorToString(int8_t error) { return ""; }
 
   // TODO: check if there is a better one
   void abort() { this->close(true); }
@@ -115,6 +115,9 @@ class AsyncClient {
   void close(bool now = true) {
     if (this->connected()) {
       mSocket.close();
+    }
+    if (!disconnectCalled) {
+      disconnectCalled = true;
       if (_discard_cb) {
         _discard_cb(_discard_cb_arg, this);
       }
@@ -129,9 +132,7 @@ class AsyncClient {
     return TCP_MSS;
   }
 
-  bool canSend() {
-    return this->space() > 0;
-  }
+  bool canSend() { return this->space() > 0; }
 
   size_t ack(size_t len) {
     // Currently assumes that len is actually the size of the data that was sent
@@ -149,6 +150,8 @@ class AsyncClient {
   char mInputBuffer[TCP_MSS];
   char mWriteBuffer[TCP_MSS];
   bool writing = false;
+
+  bool disconnectCalled = false;
 
   AcConnectHandler _connect_cb = 0;
   void* _connect_cb_arg = 0;
@@ -177,7 +180,7 @@ class AsyncClient {
   }
 
   void handleData(const boost::system::error_code& ec, size_t len) {
-    if (!this->connected()) return;
+    if (disconnectCalled) return;
 
     if (!ec) {
       if (_recv_cb) {
@@ -190,7 +193,7 @@ class AsyncClient {
   }
 
   void handleWrite(const boost::system::error_code& ec, size_t len) {
-    if (!this->connected()) return;
+    if (disconnectCalled) return;
 
     if (!ec) {
       if (_sent_cb) {
@@ -243,6 +246,7 @@ class AsyncServer {
 
   // Dummy function for compatibility with ESPAsycnTCP
   void setNoDelay(bool value = true) {}
+
  protected:
   boost::asio::io_service& _io_service;
   uint16_t _port;
