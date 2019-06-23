@@ -20,6 +20,8 @@
 // Enable OTA support
 #define PAINLESSMESH_ENABLE_OTA
 
+#define NODE_TIMEOUT 5 * TASK_SECOND
+
 #ifdef ESP32
 #include <WiFi.h>
 #include <AsyncTCP.h>

@@ -40,7 +40,6 @@ using namespace std;
 #include "painlessmesh/tcp.hpp"
 using namespace painlessmesh::logger;
 
-#define NODE_TIMEOUT 10 * TASK_SECOND
 #define MIN_FREE_MEMORY \
   4000  // Minimum free memory, besides here all packets in queue are discarded.
 #define MAX_MESSAGE_QUEUE \

@@ -9,6 +9,7 @@
 #include "painlessMeshConnection.h"
 #include "painlessMesh.h"
 
+#include "painlessmesh/configuration.hpp"
 #include "painlessmesh/logger.hpp"
 using namespace painlessmesh;
 
@@ -27,14 +28,11 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(
   client = client_ptr;
 
   client->setNoDelay(true);
-  client->setRxTimeout(NODE_TIMEOUT / TASK_SECOND);
-
   if (station) {  // we are the station, start nodeSync
     Log(CONNECTION, "meshConnectedCb(): we are STA\n");
   } else {
     Log(CONNECTION, "meshConnectedCb(): we are AP\n");
   }
-
   Log(GENERAL, "MeshConnection(): leaving\n");
 }
 
@@ -51,7 +49,18 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
 
 void MeshConnection::initTCPCallbacks() {
   using namespace logger;
-  auto arg = static_cast<void *>(this);
+  client->onDisconnect(
+      [self = this->shared_from_this()](void *arg, AsyncClient *client) {
+        if (self->mesh->semaphoreTake()) {
+          Log(GENERAL, "onDisconnect():\n");
+          Log(CONNECTION, "onDisconnect(): dropping %u now= %u\n", self->nodeId,
+              self->mesh->getNodeTime());
+          self->close();
+          self->mesh->semaphoreGive();
+        }
+      },
+      NULL);
+
   client->onData(
       [self = this->shared_from_this()](void *arg, AsyncClient *client,
                                         void *data, size_t len) {
@@ -69,7 +78,7 @@ void MeshConnection::initTCPCallbacks() {
           self->mesh->semaphoreGive();
         }
       },
-      arg);
+      NULL);
 
   client->onAck(
       [self = this->shared_from_this()](void *arg, AsyncClient *client,
@@ -83,7 +92,7 @@ void MeshConnection::initTCPCallbacks() {
           self->mesh->semaphoreGive();
         }
       },
-      arg);
+      NULL);
 
   client->onError(
       [self = this->shared_from_this()](void *arg, AsyncClient *client,
@@ -97,44 +106,30 @@ void MeshConnection::initTCPCallbacks() {
           self->mesh->semaphoreGive();
         }
       },
-      arg);
-
-  client->onDisconnect(
-      [self = this->shared_from_this()](void *arg, AsyncClient *client) {
-        if (self->mesh->semaphoreTake()) {
-          if (arg == NULL) {
-            Log(CONNECTION, "onDisconnect(): MeshConnection NULL\n");
-            if (client->connected()) client->close(true);
-            return;
-          }
-          auto conn = static_cast<MeshConnection *>(arg);
-          Log(CONNECTION, "onDisconnect():\n");
-          Log(CONNECTION, "onDisconnect(): dropping %u now= %u\n", conn->nodeId,
-              self->mesh->getNodeTime());
-          conn->close();
-          self->mesh->semaphoreGive();
-        }
-      },
-      arg);
+      NULL);
 }
 
 void MeshConnection::initTasks() {
   using namespace logger;
-  auto syncInterval = NODE_TIMEOUT * 0.75;
-  if (!station) syncInterval = syncInterval * 4;
+
+  timeOutTask.set(NODE_TIMEOUT, TASK_ONCE, [self = this->shared_from_this()]() {
+    Log(CONNECTION, "Time out reached\n");
+    self->close();
+  });
+  this->mesh->mScheduler->addTask(timeOutTask);
 
   this->nodeSyncTask.set(
-      syncInterval, TASK_FOREVER, [self = this->shared_from_this()]() {
+      TASK_MINUTE, TASK_FOREVER, [self = this->shared_from_this()]() {
         Log(SYNC, "nodeSyncTask(): request with %u\n", self->nodeId);
         router::send<protocol::NodeSyncRequest, MeshConnection>(
             self->request(self->mesh->asNodeTree()), self);
+        self->timeOutTask.enableDelayed();
       });
   mesh->mScheduler->addTask(this->nodeSyncTask);
   if (station)
     this->nodeSyncTask.enable();
   else
-    this->nodeSyncTask.enableDelayed();
-  // this->nodeSyncTask.enable();
+    this->nodeSyncTask.enableDelayed(10 * TASK_SECOND);
 
   receiveBuffer = painlessmesh::buffer::ReceiveBuffer<TSTRING>();
   readBufferTask.set(100 * TASK_MILLISECOND, TASK_FOREVER,
@@ -168,50 +163,52 @@ void MeshConnection::initTasks() {
 }
 
 void ICACHE_FLASH_ATTR MeshConnection::close() {
-    if (!connected)
-        return;
+  if (!connected) return;
 
-    Log(CONNECTION, "MeshConnection::close().\n");
-    this->connected = false;
+  Log(CONNECTION, "MeshConnection::close().\n");
+  this->connected = false;
 
-    this->timeSyncTask.setCallback(NULL);
-    this->nodeSyncTask.setCallback(NULL);
-    this->readBufferTask.setCallback(NULL);
-    this->sentBufferTask.setCallback(NULL);
-    this->client->onDisconnect(NULL, NULL);
-    this->client->onError(NULL, NULL);
+  this->timeSyncTask.setCallback(NULL);
+  this->nodeSyncTask.setCallback(NULL);
+  this->readBufferTask.setCallback(NULL);
+  this->sentBufferTask.setCallback(NULL);
+  this->timeOutTask.setCallback(NULL);
 
-    mesh->addTask(
-        (*mesh->mScheduler), [mesh = this->mesh, nodeId = this->nodeId]() {
-          Log(CONNECTION, "closingTask():\n");
-          Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
-              mesh->getNodeTime());
-          if (mesh->changedConnectionsCallback)
-            mesh->changedConnectionsCallback();  // Connection dropped. Signal
-          // user
-          if (mesh->droppedConnectionCallback)
-            mesh->droppedConnectionCallback(
-                nodeId);  // Connection dropped. Signal user
-          layout::syncLayout<MeshConnection>((*mesh), nodeId);
-        });
+  this->client->onDisconnect(NULL, NULL);
+  this->client->onError(NULL, NULL);
+  this->client->onData(NULL, NULL);
+  this->client->onAck(NULL, NULL);
 
-    if (client->connected()) {
-      Log(CONNECTION, "close(): Closing pcb\n");
-      client->close();
-    }
+  mesh->addTask(
+      (*mesh->mScheduler), [mesh = this->mesh, nodeId = this->nodeId]() {
+        Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
+            mesh->getNodeTime());
+        if (mesh->changedConnectionsCallback)
+          mesh->changedConnectionsCallback();  // Connection dropped. Signal
+        // user
+        if (mesh->droppedConnectionCallback)
+          mesh->droppedConnectionCallback(
+              nodeId);  // Connection dropped. Signal user
+        layout::syncLayout<MeshConnection>((*mesh), nodeId);
+      });
 
-    // TODO: This should be handled by the mesh.onDisconnect callback/event
-    if (station && WiFi.status() == WL_CONNECTED) {
-      Log(CONNECTION, "close(): call WiFi.disconnect().\n");
-      WiFi.disconnect();
-    }
+  if (client->connected()) {
+    Log(CONNECTION, "close(): Closing pcb\n");
+    client->close();
+  }
 
-    receiveBuffer.clear();
-    sentBuffer.clear();
+  // TODO: This should be handled by the mesh.onDisconnect callback/event
+  if (station && WiFi.status() == WL_CONNECTED) {
+    Log(CONNECTION, "close(): call WiFi.disconnect().\n");
+    WiFi.disconnect();
+  }
 
-    NodeTree::clear();
-    mesh->eraseClosedConnections();
-    Log(CONNECTION, "MeshConnection::close() Done.\n");
+  receiveBuffer.clear();
+  sentBuffer.clear();
+
+  NodeTree::clear();
+  mesh->eraseClosedConnections();
+  Log(CONNECTION, "MeshConnection::close() Done.\n");
 }
 
 bool ICACHE_FLASH_ATTR MeshConnection::addMessage(TSTRING &message,
@@ -250,41 +247,37 @@ bool ICACHE_FLASH_ATTR MeshConnection::addMessage(TSTRING &message,
 }
 
 bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
-    if (sentBuffer.empty()) {
-      Log(COMMUNICATION, "writeNext(): sendQueue is empty\n");
+  if (sentBuffer.empty()) {
+    Log(COMMUNICATION, "writeNext(): sendQueue is empty\n");
+    return false;
+  }
+  auto len = sentBuffer.requestLength(shared_buffer.length);
+  auto snd_len = client->space();
+  if (len > snd_len) len = snd_len;
+  if (len > 0) {
+    // sentBuffer.read(len, shared_buffer);
+    // auto written = client->write(shared_buffer.buffer, len, 1);
+    auto data_ptr = sentBuffer.readPtr(len);
+    auto written = client->write(data_ptr, len, 1);
+    if (written == len) {
+      Log(COMMUNICATION, "writeNext(): Package sent = %s\n", data_ptr);
+      client->send();  // TODO only do this for priority messages
+      sentBuffer.freeRead();
+      sentBufferTask.forceNextIteration();
+      return true;
+    } else if (written == 0) {
+      Log(COMMUNICATION,
+          "writeNext(): tcp_write Failed node=%u. Resending later\n", nodeId);
       return false;
-    }
-    auto len = sentBuffer.requestLength(shared_buffer.length);
-    auto snd_len = client->space();
-    if (len > snd_len)
-        len = snd_len;
-    if (len > 0) {
-      // sentBuffer.read(len, shared_buffer);
-      // auto written = client->write(shared_buffer.buffer, len, 1);
-      auto data_ptr = sentBuffer.readPtr(len);
-      auto written = client->write(data_ptr, len, 1);
-      if (written == len) {
-        Log(COMMUNICATION, "writeNext(): Package sent = %s\n", data_ptr);
-        client->send();  // TODO only do this for priority messages
-        sentBuffer.freeRead();
-        sentBufferTask.forceNextIteration();
-        return true;
-        } else if (written == 0) {
-          Log(COMMUNICATION,
-              "writeNext(): tcp_write Failed node=%u. Resending later\n",
-              nodeId);
-          return false;
-        } else {
-          Log(ERROR,
-              "writeNext(): Less written than requested. Please report bug on "
-              "the issue tracker\n");
-          return false;
-        }
     } else {
-      Log(COMMUNICATION, "writeNext(): tcp_sndbuf not enough space\n");
+      Log(ERROR,
+          "writeNext(): Less written than requested. Please report bug on "
+          "the issue tracker\n");
       return false;
     }
-
+  } else {
+    Log(COMMUNICATION, "writeNext(): tcp_sndbuf not enough space\n");
+    return false;
+  }
 }
-
 

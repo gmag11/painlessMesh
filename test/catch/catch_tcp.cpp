@@ -9,8 +9,6 @@
 WiFiClass WiFi;
 ESPClass ESP;
 
-#define NODE_TIMEOUT 10 * TASK_SECOND
-
 #include "painlessmesh/logger.hpp"
 
 using namespace painlessmesh;

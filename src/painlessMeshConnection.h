@@ -44,6 +44,7 @@ class MeshConnection : public painlessmesh::layout::Neighbour,
   Task timeSyncTask;
   Task readBufferTask;
   Task sentBufferTask;
+  Task timeOutTask;
 
   MeshConnection(AsyncClient *client, painlessmesh::Mesh<MeshConnection> *pMesh,
                  bool station);

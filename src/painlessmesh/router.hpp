@@ -261,6 +261,7 @@ router::MeshCallbackList<U> addPackageCallback(
               uint32_t receivedAt) {
         auto newTree = variant.to<protocol::NodeSyncReply>();
         handleNodeSync<T, U>(mesh, newTree, connection);
+        connection->timeOutTask.disable();
         return false;
       });
 

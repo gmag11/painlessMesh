@@ -235,7 +235,7 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
           this->_station_got_ip = false;
           Log(CONNECTION,
               "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-          WiFi.disconnect();
+          //WiFi.disconnect();
           // Search for APs and connect to the best one
           this->stationScan.connectToAP();
         },

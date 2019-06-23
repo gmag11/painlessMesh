@@ -49,9 +49,9 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
-  mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION);  // set before init() so that you can see error messages
+  mesh.setDebugMsgTypes(ERROR | CONNECTION);  // set before init() so that you can see error messages
 
-  mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
+  mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 6);
   mesh.initOTA("otatest");
   
   mesh.onReceive(&receivedCallback);

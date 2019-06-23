@@ -55,6 +55,7 @@ inline void yield() {}
 
 #define PAINLESSMESH_ENABLE_STD_STRING
 #define PAINLESSMESH_ENABLE_OTA
+#define NODE_TIMEOUT 5 * TASK_SECOND
 
 typedef std::string TSTRING;
 
