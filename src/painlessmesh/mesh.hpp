@@ -7,6 +7,10 @@
 #include "painlessmesh/plugin.hpp"
 #include "painlessmesh/tcp.hpp"
 
+#ifdef PAINLESSMESH_ENABLE_OTA
+#include "painlessmesh/ota.hpp"
+#endif
+
 namespace painlessmesh {
 typedef std::function<void(uint32_t nodeId)> newConnectionCallback_t;
 typedef std::function<void(uint32_t nodeId)> droppedConnectionCallback_t;
@@ -46,6 +50,12 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     this->setScheduler(scheduler);
     this->init(id, port);
   }
+  
+#ifdef PAINLESSMESH_ENABLE_OTA
+  void initOTA(TSTRING role = "") {  
+    painlessmesh::plugin::ota::addPackageCallback(*this->mScheduler, (*this), role);
+  }
+#endif
 
   /**
    * Set the node as an root/master node for the mesh

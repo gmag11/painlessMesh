@@ -52,8 +52,7 @@ void setup() {
   mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION);  // set before init() so that you can see error messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT);
-
-  painlessmesh::plugin::ota::addPackageCallback(userScheduler, mesh, "otatest");
+  mesh.initOTA("otatest");
   
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
