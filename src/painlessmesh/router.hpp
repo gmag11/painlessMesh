@@ -198,18 +198,14 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
     }
 
     // TODO: Move this to its own function
-    mesh.newConnectionTask.set(
-        TASK_SECOND, TASK_ONCE, [&mesh, remoteNodeId = newTree.nodeId]() {
-          Log(logger::CONNECTION, "newConnectionTask():\n");
-          Log(logger::CONNECTION, "newConnectionTask(): adding %u now= %u\n",
-              remoteNodeId, mesh.getNodeTime());
-          if (mesh.newConnectionCallback)
-            mesh.newConnectionCallback(
-                remoteNodeId);  // Connection dropped. Signal user
-        });
-
-    mesh.mScheduler->addTask(mesh.newConnectionTask);
-    mesh.newConnectionTask.enable();
+    mesh.addTask((*mesh.mScheduler), [&mesh, remoteNodeId = newTree.nodeId]() {
+      Log(logger::CONNECTION, "newConnectionTask():\n");
+      Log(logger::CONNECTION, "newConnectionTask(): adding %u now= %u\n",
+          remoteNodeId, mesh.getNodeTime());
+      if (mesh.newConnectionCallback)
+        mesh.newConnectionCallback(
+            remoteNodeId);  // Connection dropped. Signal user
+    });
 
     // Initially interval is every 10 seconds,
     // this will slow down to TIME_SYNC_INTERVAL

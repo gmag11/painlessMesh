@@ -33,7 +33,6 @@ ICACHE_FLASH_ATTR MeshConnection::MeshConnection(
   } else {
     Log(CONNECTION, "meshConnectedCb(): we are AP\n");
   }
-  Log(GENERAL, "MeshConnection(): leaving\n");
 }
 
 ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
@@ -49,14 +48,17 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
 
 void MeshConnection::initTCPCallbacks() {
   using namespace logger;
+  // Need to pass separate copy of this->mesh, because self->close() can
+  // invalidate the pointer, causing a segmentation fault when trying to access
+  // self->mesh afterwards
   client->onDisconnect(
-      [self = this->shared_from_this()](void *arg, AsyncClient *client) {
-        if (self->mesh->semaphoreTake()) {
-          Log(GENERAL, "onDisconnect():\n");
+      [self = this->shared_from_this(), m = this->mesh](void *arg,
+                                                        AsyncClient *client) {
+        if (m->semaphoreTake()) {
           Log(CONNECTION, "onDisconnect(): dropping %u now= %u\n", self->nodeId,
-              self->mesh->getNodeTime());
+              m->getNodeTime());
           self->close();
-          self->mesh->semaphoreGive();
+          m->semaphoreGive();
         }
       },
       NULL);
@@ -85,9 +87,6 @@ void MeshConnection::initTCPCallbacks() {
                                         size_t len, uint32_t time) {
         using namespace logger;
         if (self->mesh->semaphoreTake()) {
-          if (self == NULL) {
-            Log(COMMUNICATION, "onAck(): no valid connection found\n");
-          }
           self->sentBufferTask.forceNextIteration();
           self->mesh->semaphoreGive();
         }
@@ -116,14 +115,15 @@ void MeshConnection::initTasks() {
     Log(CONNECTION, "Time out reached\n");
     self->close();
   });
-  this->mesh->mScheduler->addTask(timeOutTask);
+  mesh->mScheduler->addTask(timeOutTask);
 
   this->nodeSyncTask.set(
       TASK_MINUTE, TASK_FOREVER, [self = this->shared_from_this()]() {
         Log(SYNC, "nodeSyncTask(): request with %u\n", self->nodeId);
         router::send<protocol::NodeSyncRequest, MeshConnection>(
             self->request(self->mesh->asNodeTree()), self);
-        self->timeOutTask.enableDelayed();
+        self->timeOutTask.disable();
+        self->timeOutTask.restartDelayed();
       });
   mesh->mScheduler->addTask(this->nodeSyncTask);
   if (station)
@@ -165,7 +165,7 @@ void MeshConnection::initTasks() {
 void ICACHE_FLASH_ATTR MeshConnection::close() {
   if (!connected) return;
 
-  Log(CONNECTION, "MeshConnection::close().\n");
+  Log(CONNECTION, "MeshConnection::close() %u.\n", this->nodeId);
   this->connected = false;
 
   this->timeSyncTask.setCallback(NULL);
@@ -173,6 +173,11 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
   this->readBufferTask.setCallback(NULL);
   this->sentBufferTask.setCallback(NULL);
   this->timeOutTask.setCallback(NULL);
+  this->timeSyncTask.disable();
+  this->nodeSyncTask.disable();
+  this->readBufferTask.disable();
+  this->sentBufferTask.disable();
+  this->timeOutTask.disable();
 
   this->client->onDisconnect(NULL, NULL);
   this->client->onError(NULL, NULL);
@@ -190,6 +195,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
           mesh->droppedConnectionCallback(
               nodeId);  // Connection dropped. Signal user
         layout::syncLayout<MeshConnection>((*mesh), nodeId);
+        mesh->eraseClosedConnections();
       });
 
   if (client->connected()) {
@@ -207,8 +213,10 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
   sentBuffer.clear();
 
   NodeTree::clear();
+
+  // Keep a shared_ptr around till this function closes.
+  auto self = this->shared_from_this();
   mesh->eraseClosedConnections();
-  Log(CONNECTION, "MeshConnection::close() Done.\n");
 }
 
 bool ICACHE_FLASH_ATTR MeshConnection::addMessage(TSTRING &message,

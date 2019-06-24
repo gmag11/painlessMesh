@@ -274,9 +274,15 @@ SCENARIO("Disconnects are detected and forwarded") {
 
   n.nodes[dim - 1]->onChangedConnections([&x]() { ++x; });
 
-  REQUIRE(n.nodes[5]->subs.size() > 0);
+  auto no = n.nodes[5]->subs.size();
+  REQUIRE(no > 0);
+
+  auto ptr = (*n.nodes[5]->subs.begin());
 
   (*n.nodes[5]->subs.begin())->close();
+  REQUIRE(n.nodes[5]->subs.size() == no - 1);
+  REQUIRE(ptr.use_count() == 1);
+  ptr = NULL;
 
   for (auto i = 0; i < 1000; ++i) {
     n.update();

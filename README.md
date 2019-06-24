@@ -50,7 +50,7 @@ We try to follow the [git flow](https://www.atlassian.com/git/tutorials/comparin
 
 # Getting help
 
-There is help available on the [wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/home) and you can also reach us on our [gitter channel](https://gitter.im/painlessMesh/Lobby)
+There is help available on the our [forum](https://groups.google.com/forum/#!forum/painlessmesh-user), the [wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/home) and you can also reach us on our [gitter channel](https://gitter.im/painlessMesh/Lobby)
 
 # painlessMesh API
 

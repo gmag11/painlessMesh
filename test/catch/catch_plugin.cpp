@@ -137,7 +137,7 @@ SCENARIO("We can add tasks to the taskscheduler") {
         REQUIRE(j == 2);
         // Still kept in handler, because hasn't been executed 3 times yet
         task3->disable();
-        handler.stop(mScheduler);
+        handler.stop();
       }
     }
   }
@@ -166,7 +166,7 @@ SCENARIO("We can add anonymous tasks to the taskscheduler") {
         handler.addTask(mScheduler, 0, 1, [&i]() { ++i; });
         mScheduler.execute();
         REQUIRE(i == 2);
-        handler.stop(mScheduler);
+        handler.stop();
       }
     }
   }

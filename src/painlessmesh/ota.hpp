@@ -392,6 +392,7 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
         auto request = DataRequest::replyTo(pkg, updateFW->partNo);
         updateFW->task->setCallback(
             [request, &mesh]() { mesh.sendPackage(&request); });
+        updateFW->task->disable();
         updateFW->task->restart();
       }
     }

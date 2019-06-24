@@ -99,13 +99,7 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
       (*conn)->close();
       this->eraseClosedConnections();
     }
-    // Note that this results in the droppedConnections not to be signalled
-    // We might want to change this later
-    newConnectionTask.setCallback(NULL);
-    mScheduler->deleteTask(newConnectionTask);
-    droppedConnectionTask.setCallback(NULL);
-    mScheduler->deleteTask(droppedConnectionTask);
-    plugin::PackageHandler<T>::stop(*mScheduler);
+    plugin::PackageHandler<T>::stop();
   }
 
   void update(void) {
@@ -271,8 +265,6 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
   bool shouldContainRoot;
 
   Scheduler *mScheduler;
-  Task droppedConnectionTask;
-  Task newConnectionTask;
 
   /**
    * Wrapper function for ESP32 semaphore function

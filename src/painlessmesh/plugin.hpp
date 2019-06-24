@@ -104,10 +104,10 @@ class NeighbourPackage : public plugin::SinglePackage {
 template <typename T>
 class PackageHandler : public layout::Layout<T> {
  public:
-  void stop(Scheduler& scheduler) {
+  void stop() {
     for (auto&& task : taskList) {
       task->disable();
-      scheduler.deleteTask(*task);
+      task->setCallback(NULL);
     }
     taskList.clear();
   }
@@ -154,6 +154,7 @@ class PackageHandler : public layout::Layout<T> {
   std::shared_ptr<Task> addTask(Scheduler& scheduler, unsigned long aInterval,
                                 long aIterations,
                                 std::function<void()> aCallback) {
+    using namespace painlessmesh::logger;
     for (auto&& task : taskList) {
       if (task.use_count() == 1 && !task->isEnabled()) {
         task->set(aInterval, aIterations, aCallback, NULL, NULL);
