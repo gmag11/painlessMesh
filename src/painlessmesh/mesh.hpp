@@ -40,8 +40,8 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     mScheduler->enableAll();
 
     // Add package handlers
-    this->callbackList =
-        painlessmesh::ntp::addPackageCallback(std::move(this->callbackList), (*this));
+    this->callbackList = painlessmesh::ntp::addPackageCallback(
+        std::move(this->callbackList), (*this));
     this->callbackList = painlessmesh::router::addPackageCallback(
         std::move(this->callbackList), (*this));
   }
@@ -50,10 +50,11 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     this->setScheduler(scheduler);
     this->init(id, port);
   }
-  
+
 #ifdef PAINLESSMESH_ENABLE_OTA
-  void initOTA(TSTRING role = "") {  
-    painlessmesh::plugin::ota::addPackageCallback(*this->mScheduler, (*this), role);
+  void initOTA(TSTRING role = "") {
+    painlessmesh::plugin::ota::addPackageCallback(*this->mScheduler, (*this),
+                                                  role);
   }
 #endif
 
@@ -102,6 +103,11 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     plugin::PackageHandler<T>::stop();
   }
 
+  /** Perform crucial maintenance task
+   *
+   * Add this to your loop() function. This routine runs various maintenance
+   * tasks.
+   */
   void update(void) {
     if (semaphoreTake()) {
       mScheduler->execute();
@@ -110,6 +116,13 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     return;
   }
 
+  /** Send message to a specific node
+   *
+   * @param destId The nodeId of the node to send it to.
+   * @param msg The message to send
+   *
+   * @return true if everything works, false if not.
+   */
   bool sendSingle(uint32_t destId, TSTRING msg) {
     Log(logger::COMMUNICATION, "sendSingle(): dest=%u msg=%s\n", destId,
         msg.c_str());
@@ -117,6 +130,12 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     return painlessmesh::router::send<T>(single, (*this));
   }
 
+  /** Broadcast a message to every node on the mesh network.
+   *
+   * @param includeSelf Send message to myself as well. Default is false.
+   *
+   * @return true if everything works, false if not
+   */
   bool sendBroadcast(TSTRING msg, bool includeSelf = false) {
     using namespace logger;
     Log(COMMUNICATION, "sendBroadcast(): msg=%s\n", msg.c_str());
@@ -139,6 +158,20 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
         protocol::TimeDelay(this->nodeId, id, this->getNodeTime()), conn);
   }
 
+  /** Set a callback routine for any messages that are addressed to this node.
+   *
+   * Every time this node receives a message, this callback routine will the
+   * called.  “from” is the id of the original sender of the message, and “msg”
+   * is a string that contains the message.  The message can be anything.  A
+   * JSON, some other text string, or binary data.
+   *
+   * \code
+   * mesh.onReceive([](auto nodeId, auto msg) {
+   *    // Do something with the message
+   *    Serial.println(msg);
+   * });
+   * \endcode
+   */
   void onReceive(receivedCallback_t onReceive) {
     using namespace painlessmesh;
     this->callbackList.onPackage(
@@ -157,25 +190,78 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
         });
   }
 
+  /** Callback that gets called every time the local node makes a new
+   * connection.
+   *
+   * \code
+   * mesh.onNewConnection([](auto nodeId) {
+   *    // Do something with the event
+   *    Serial.println(String(nodeId));
+   * });
+   * \endcode
+   */
   void onNewConnection(newConnectionCallback_t onNewConnection) {
     Log(logger::GENERAL, "onNewConnection():\n");
     newConnectionCallback = onNewConnection;
   }
 
+  /** Callback that gets called every time the local node drops a connection.
+   *
+   * \code
+   * mesh.onDroppedConnection([](auto nodeId) {
+   *    // Do something with the event
+   *    Serial.println(String(nodeId));
+   * });
+   * \endcode
+   */
   void onDroppedConnection(droppedConnectionCallback_t onDroppedConnection) {
     Log(logger::GENERAL, "onDroppedConnection():\n");
     droppedConnectionCallback = onDroppedConnection;
   }
 
+  /** Callback that gets called every time the layout of the mesh changes
+   *
+   * \code
+   * mesh.onChangedConnections([]() {
+   *    // Do something with the event
+   * });
+   * \endcode
+   */
   void onChangedConnections(changedConnectionsCallback_t onChangedConnections) {
     Log(logger::GENERAL, "onChangedConnections():\n");
     changedConnectionsCallback = onChangedConnections;
   }
+
+  /** Callback that gets called every time node time gets adjusted
+   *
+   * Node time is automatically kept in sync in the mesh. This gets called
+   * whenever the time is to far out of sync with the rest of the mesh and gets
+   * adjusted.
+   *
+   * \code
+   * mesh.onNodeTimeAdjusted([](auto offset) {
+   *    // Do something with the event
+   *    Serial.println(String(offset));
+   * });
+   * \endcode
+   */
   void onNodeTimeAdjusted(nodeTimeAdjustedCallback_t onTimeAdjusted) {
     Log(logger::GENERAL, "onNodeTimeAdjusted():\n");
     nodeTimeAdjustedCallback = onTimeAdjusted;
   }
 
+  /** Callback that gets called when a delay measurement is received.
+   *
+   * This fires when a time delay masurement response is received, after a
+   * request was sent.
+   *
+   * \code
+   * mesh.onNodeDelayReceived([](auto nodeId, auto delay) {
+   *    // Do something with the event
+   *    Serial.println(String(delay));
+   * });
+   * \endcode
+   */
   void onNodeDelayReceived(nodeDelayCallback_t onDelayReceived) {
     Log(logger::GENERAL, "onNodeDelayReceived():\n");
     nodeDelayReceivedCallback = onDelayReceived;
@@ -190,6 +276,11 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     return painlessmesh::router::findRoute<T>((*this), nodeId) != NULL;
   }
 
+  /** Get a list of all known nodes.
+   *
+   * This includes nodes that are both directly and indirectly connected to the
+   * current node.
+   */
   std::list<uint32_t> getNodeList(bool includeSelf = false) {
     return painlessmesh::layout::asList(this->asNodeTree(), includeSelf);
   }

@@ -18,14 +18,19 @@ namespace painlessmesh {
 namespace wifi {
 class Mesh : public painlessmesh::Mesh<MeshConnection> {
  public:
-  void init(Scheduler *scheduler, uint32_t id, uint16_t port) {
-    painlessmesh::Mesh<MeshConnection>::init(scheduler, id, port);
-  }
-
-  void init(uint32_t id, uint16_t port) {
-    painlessmesh::Mesh<MeshConnection>::init(id, port);
-  }
-
+  /** Initialize the mesh network
+   * 
+   * Add this to your setup() function. This routine does the following things:
+   *
+   * - Starts a wifi network
+   * - Begins searching for other wifi networks that are part of the mesh
+   * - Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
+   * 
+   * @param ssid The name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
+   * @param password Wifi password to your mesh. 
+   * @param port the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
+   * @param connectMode Switch between WIFI_AP, WIFI_STA and WIFI_AP_STA (default) mode
+   */
   void init(TSTRING ssid, TSTRING password, uint16_t port = 5555,
             WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1,
             uint8_t hidden = 0, uint8_t maxconn = MAX_CONN) {
@@ -73,6 +78,19 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
     }
   }
 
+  /** Initialize the mesh network
+   * 
+   * Add this to your setup() function. This routine does the following things:
+   *
+   * - Starts a wifi network
+   * - Begins searching for other wifi networks that are part of the mesh
+   * - Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
+   * 
+   * @param ssid The name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
+   * @param password Wifi password to your mesh. 
+   * @param port the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
+   * @param connectMode Switch between WIFI_AP, WIFI_STA and WIFI_AP_STA (default) mode
+   */
   void init(TSTRING ssid, TSTRING password, Scheduler *baseScheduler,
             uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA,
             uint8_t channel = 1, uint8_t hidden = 0,
@@ -190,6 +208,14 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 
   IPAddress _apIp;
   StationScan stationScan;
+
+  void init(Scheduler *scheduler, uint32_t id, uint16_t port) {
+    painlessmesh::Mesh<MeshConnection>::init(scheduler, id, port);
+  }
+
+  void init(uint32_t id, uint16_t port) {
+    painlessmesh::Mesh<MeshConnection>::init(id, port);
+  }
 
   void apInit(uint32_t nodeId) {
     _apIp = IPAddress(10, (nodeId & 0xFF00) >> 8, (nodeId & 0xFF), 1);
