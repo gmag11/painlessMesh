@@ -21,6 +21,14 @@ namespace ntp {
 
 class MeshTime {
  public:
+  /** Returns the mesh time in microsecond precision.
+   *
+   * Time rolls over every 71 minutes.
+   *
+   * Nodes try to keep a common time base synchronizing to each other using [an
+   * SNTP based
+   * protocol](https://gitlab.com/painlessMesh/painlessMesh/wikis/mesh-protocol#time-sync)
+   */
   uint32_t getNodeTime() { return micros() + timeOffset; }
 
  protected:

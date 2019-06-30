@@ -84,7 +84,7 @@ class PerformancePackage : public plugin::BroadcastPackage {
   }
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(4 + 5) + round(1.1 * (hardware.length()));
+    return JSON_OBJECT_SIZE(4 + 5) + round(2 * (hardware.length()));
   }
 };
 
@@ -134,8 +134,8 @@ class TrackMap : public protocol::PackageInterface,
   }  // namespace performance
 
   size_t jsonObjectSize() const {
-    return JSON_OBJECT_SIZE(2) + 15 + JSON_ARRAY_SIZE(this->size()) +
-           JSON_OBJECT_SIZE(4 + 9) + round(1.1 * (10 + 3 * 100));
+    return JSON_OBJECT_SIZE(2 + 15) + JSON_ARRAY_SIZE(this->size()) +
+           this->size()*(JSON_OBJECT_SIZE(9) + 4 * 100);
   }
 };  // namespace plugin
 

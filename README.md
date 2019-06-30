@@ -44,13 +44,20 @@ If platformio is used to install the library, then the dependency will be instal
 
 StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh. Further examples are under the examples directory and shown on the platformio [page](http://platformio.org/lib/show/1269/painlessMesh).
 
+# Getting help
+
+There is help available from a variety of sources:
+
+- The [included examples](https://gitlab.com/painlessMesh/painlessMesh/tree/master/examples)
+- The [API documentation](http://painlessmesh.gitlab.io/painlessMesh/index.html)
+- The [wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/home)
+- On our new [forum/mailinglist](https://groups.google.com/forum/#!forum/painlessmesh-user)
+- On the [gitter channel](https://gitter.im/painlessMesh/Lobby)
+
 # Contributing
 
 We try to follow the [git flow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) development model. Which means that we have a `develop` branch and `master` branch. All development is done under feature branches, which are (when finished) merged into the development branch. When a new version is released we merge the `develop` branch into the `master` branch. For more details see the [CONTRIBUTING](https://gitlab.com/painlessMesh/painlessMesh/blob/master/CONTRIBUTING.md) file.
 
-# Getting help
-
-There is help available on the our [forum](https://groups.google.com/forum/#!forum/painlessmesh-user), the [wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/home) and you can also reach us on our [gitter channel](https://gitter.im/painlessMesh/Lobby)
 
 # painlessMesh API
 
@@ -190,6 +197,6 @@ You can donate using one of our cryptocoin addresses:
 
 Most development of painlessMesh has been done as a hobby, but some specific features have been funded by the companies listed below:
 
-![Sowillo](http://sowillo.com/wp-content/uploads/2016/08/Logo-Sowillo-1.png)
+![Sowillo](http://sowillo.com/er5eneo0p43dgz/2016/08/Logo-Sowillo-1.png)
 
 [Sowillo](http://sowillo.com/en/)

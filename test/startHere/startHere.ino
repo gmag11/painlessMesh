@@ -36,7 +36,7 @@ Scheduler     userScheduler; // to control your personal task
 painlessMesh  mesh;
 
 bool calc_delay = false;
-SimpleList<uint32_t> nodes;
+std::list<uint32_t> nodes;
 
 void sendMessage() ; // Prototype
 Task taskSendMessage( TASK_SECOND/SEND_FREQ, TASK_FOREVER, &sendMessage ); // start with a one second interval
@@ -54,6 +54,8 @@ void setup() {
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 6);
   mesh.initOTA("otatest");
+
+  mesh.setContainsRoot(true);
   
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);

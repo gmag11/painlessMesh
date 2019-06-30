@@ -179,7 +179,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         mesh->stability = 0;  // Discourage switching again
         // wifiEventCB should be triggered before this delay runs out
         // and reset the connecting
-        task.delay(1000 * SCAN_INTERVAL);
+        task.delay(6 * SCAN_INTERVAL);
       } else {
         task.delay(random(4, 7) * SCAN_INTERVAL);
       }

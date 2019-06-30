@@ -149,17 +149,17 @@ SCENARIO("We can send a message using our Nodes class") {
     y = id;
     z = msg;
   });
-  n.nodes[10]->sendSingle(n.nodes[2]->nodeId, "Blaat");
+  n.nodes[10]->sendSingle(n.nodes[2]->getNodeId(), "Blaat");
   for (auto i = 0; i < 1000; ++i) n.update();
   REQUIRE(x == 0);
   REQUIRE(y == 0);
   REQUIRE(z == "");
 
-  n.nodes[10]->sendSingle(n.nodes[0]->nodeId, "Blaat");
+  n.nodes[10]->sendSingle(n.nodes[0]->getNodeId(), "Blaat");
   for (auto i = 0; i < 1000; ++i) n.update();
   REQUIRE(z == "Blaat");
   REQUIRE(x == 1);
-  REQUIRE(y == n.nodes[10]->nodeId);
+  REQUIRE(y == n.nodes[10]->getNodeId());
 
   n.nodes[5]->onReceive([&x, &y, &z](auto id, auto msg) {
     ++x;
@@ -170,7 +170,7 @@ SCENARIO("We can send a message using our Nodes class") {
   for (auto i = 0; i < 10000; ++i) n.update();
   REQUIRE(z == "Blargh");
   REQUIRE(x == 3);
-  REQUIRE(y == n.nodes[10]->nodeId);
+  REQUIRE(y == n.nodes[10]->getNodeId());
   n.stop();
 }
 
@@ -200,6 +200,36 @@ SCENARIO("Time sync works") {
                      (int)n.nodes[i + 1]->getNodeTime());
   }
   REQUIRE(diff / n.size() < 10000);
+  n.stop();
+}
+
+SCENARIO("Rooting works") {
+  using namespace logger;
+  Log.setLogLevel(ERROR);
+
+  Scheduler scheduler;
+  boost::asio::io_service io_service;
+  auto dim = runif(8, 15);
+  Nodes n(&scheduler, dim, io_service);
+
+  n.nodes[5]->setRoot(true);
+  REQUIRE(n.nodes[5]->isRoot());
+  REQUIRE(layout::isRooted(n.nodes[5]->asNodeTree()));
+
+  for (auto i = 0; i < 10000; ++i) {
+    n.update();
+    delay(10);
+  }
+
+  for (auto &&node : n.nodes) {
+    REQUIRE(layout::isRooted(node->asNodeTree()));
+    if (n.nodes[5]->getNodeId() == node->getNodeId()) {
+      REQUIRE(node->isRoot());
+    } else {
+      REQUIRE(!node->isRoot());
+    }
+  }
+
   n.stop();
 }
 
@@ -258,6 +288,13 @@ SCENARIO("Disconnects are detected and forwarded") {
   auto dim = runif(10, 15);
   Nodes n(&scheduler, dim, io_service);
 
+  // Dummy task. This can catch mistaken use of the scheduler
+  Task dummyT;
+  int y = 0;
+  dummyT.set(TASK_MILLISECOND, TASK_FOREVER, [&y]() { ++y; });
+  scheduler.addTask(dummyT);
+  dummyT.enable();
+
   for (auto i = 0; i < 1000; ++i) {
     n.update();
     delay(10);
@@ -280,14 +317,14 @@ SCENARIO("Disconnects are detected and forwarded") {
   auto ptr = (*n.nodes[5]->subs.begin());
 
   (*n.nodes[5]->subs.begin())->close();
-  REQUIRE(n.nodes[5]->subs.size() == no - 1);
-  REQUIRE(ptr.use_count() == 1);
-  ptr = NULL;
-
   for (auto i = 0; i < 1000; ++i) {
     n.update();
     delay(10);
   }
+
+  REQUIRE(n.nodes[5]->subs.size() == no - 1);
+  REQUIRE(ptr.use_count() == 1);
+  ptr = NULL;
 
   REQUIRE(x == 3);
 
@@ -296,4 +333,5 @@ SCENARIO("Disconnects are detected and forwarded") {
   }
 
   n.stop();
+  REQUIRE(y > 0);
 }

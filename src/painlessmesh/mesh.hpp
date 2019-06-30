@@ -149,6 +149,13 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     return false;
   }
 
+  /** Sends a node a packet to measure network trip delay to that node.
+   *
+   * After calling this function, user program have to wait to the response in
+   * the form of a callback specified by onNodeDelayReceived().
+   *
+   * @return true if nodeId is connected to the mesh, false otherwise
+   */
   bool startDelayMeas(uint32_t id) {
     using namespace logger;
     Log(S_TIME, "startDelayMeas(): NodeId %u\n", id);

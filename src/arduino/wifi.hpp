@@ -4,8 +4,8 @@
 #include "painlessmesh/configuration.hpp"
 
 #ifdef PAINLESSMESH_ENABLE_ARDUINO_WIFI
-#include "painlessMeshSTA.h"
 #include "painlessMeshConnection.h"
+#include "painlessMeshSTA.h"
 
 #include "painlessmesh/logger.hpp"
 #include "painlessmesh/mesh.hpp"
@@ -19,17 +19,21 @@ namespace wifi {
 class Mesh : public painlessmesh::Mesh<MeshConnection> {
  public:
   /** Initialize the mesh network
-   * 
+   *
    * Add this to your setup() function. This routine does the following things:
    *
    * - Starts a wifi network
    * - Begins searching for other wifi networks that are part of the mesh
-   * - Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
-   * 
-   * @param ssid The name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
-   * @param password Wifi password to your mesh. 
-   * @param port the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
-   * @param connectMode Switch between WIFI_AP, WIFI_STA and WIFI_AP_STA (default) mode
+   * - Logs on to the best mesh network node it finds… if it doesn’t find
+   * anything, it starts a new search in 5 seconds.
+   *
+   * @param ssid The name of your mesh.  All nodes share same AP ssid. They are
+   * distinguished by BSSID.
+   * @param password Wifi password to your mesh.
+   * @param port the TCP port that you want the mesh server to run on. Defaults
+   * to 5555 if not specified.
+   * @param connectMode Switch between WIFI_AP, WIFI_STA and WIFI_AP_STA
+   * (default) mode
    */
   void init(TSTRING ssid, TSTRING password, uint16_t port = 5555,
             WiFiMode_t connectMode = WIFI_AP_STA, uint8_t channel = 1,
@@ -79,17 +83,21 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
   }
 
   /** Initialize the mesh network
-   * 
+   *
    * Add this to your setup() function. This routine does the following things:
    *
    * - Starts a wifi network
    * - Begins searching for other wifi networks that are part of the mesh
-   * - Logs on to the best mesh network node it finds… if it doesn’t find anything, it starts a new search in 5 seconds.
-   * 
-   * @param ssid The name of your mesh.  All nodes share same AP ssid. They are distinguished by BSSID.
-   * @param password Wifi password to your mesh. 
-   * @param port the TCP port that you want the mesh server to run on. Defaults to 5555 if not specified.
-   * @param connectMode Switch between WIFI_AP, WIFI_STA and WIFI_AP_STA (default) mode
+   * - Logs on to the best mesh network node it finds… if it doesn’t find
+   * anything, it starts a new search in 5 seconds.
+   *
+   * @param ssid The name of your mesh.  All nodes share same AP ssid. They are
+   * distinguished by BSSID.
+   * @param password Wifi password to your mesh.
+   * @param port the TCP port that you want the mesh server to run on. Defaults
+   * to 5555 if not specified.
+   * @param connectMode Switch between WIFI_AP, WIFI_STA and WIFI_AP_STA
+   * (default) mode
    */
   void init(TSTRING ssid, TSTRING password, Scheduler *baseScheduler,
             uint16_t port = 5555, WiFiMode_t connectMode = WIFI_AP_STA,
@@ -243,35 +251,47 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 #ifdef ESP32
     eventScanDoneHandler = WiFi.onEvent(
         [this](WiFiEvent_t event, WiFiEventInfo_t info) {
-          Log(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
-          this->stationScan.task.setCallback(
-              [this]() { this->stationScan.scanComplete(); });
-          this->stationScan.task.forceNextIteration();
+          if (this->semaphoreTake()) {
+            Log(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
+            this->stationScan.task.setCallback(
+                [this]() { this->stationScan.scanComplete(); });
+            this->stationScan.task.forceNextIteration();
+            this->semaphoreGive();
+          }
         },
         WiFiEvent_t::SYSTEM_EVENT_SCAN_DONE);
 
     eventSTAStartHandler = WiFi.onEvent(
-        [](WiFiEvent_t event, WiFiEventInfo_t info) {
-          Log(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
+        [this](WiFiEvent_t event, WiFiEventInfo_t info) {
+          if (this->semaphoreTake()) {
+            Log(CONNECTION, "eventSTAStartHandler: SYSTEM_EVENT_STA_START\n");
+            this->semaphoreGive();
+          }
         },
         WiFiEvent_t::SYSTEM_EVENT_STA_START);
 
     eventSTADisconnectedHandler = WiFi.onEvent(
         [this](WiFiEvent_t event, WiFiEventInfo_t info) {
-          this->_station_got_ip = false;
-          Log(CONNECTION,
-              "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-          //WiFi.disconnect();
-          // Search for APs and connect to the best one
-          this->stationScan.connectToAP();
+          if (this->semaphoreTake()) {
+            this->_station_got_ip = false;
+            Log(CONNECTION,
+                "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
+            // WiFi.disconnect();
+            // Search for APs and connect to the best one
+            this->stationScan.connectToAP();
+            this->semaphoreGive();
+          }
         },
         WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
     eventSTAGotIPHandler = WiFi.onEvent(
         [this](WiFiEvent_t event, WiFiEventInfo_t info) {
-          this->_station_got_ip = true;
-          Log(CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
-          this->tcpConnect();  // Connect to TCP port
+          if (this->semaphoreTake()) {
+            this->_station_got_ip = true;
+            Log(CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
+            this->tcpConnect();  // Connect to TCP port
+            this->semaphoreGive();
+          }
         },
         WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 #elif defined(ESP8266)
@@ -337,7 +357,6 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 #endif  // ESP8266
   AsyncServer *_tcpListener;
   bool _station_got_ip = false;
-
 };
 }  // namespace wifi
 };  // namespace painlessmesh

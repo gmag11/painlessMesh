@@ -37,11 +37,13 @@ template <class T>
 class Layout {
  public:
   size_t stability = 0;
-
   std::list<std::shared_ptr<T> > subs;
-  uint32_t nodeId = 0;
-  bool root = false;
 
+  /** Return the nodeId of the node that we are running on.
+   *
+   * On the ESP hardware nodeId is uniquely calculated from the MAC address of
+   * the node.
+   */
   uint32_t getNodeId() { return nodeId; }
 
   protocol::NodeTree asNodeTree() {
@@ -51,11 +53,16 @@ class Layout {
     }
     return nt;
   }
+
+ protected:
+  uint32_t nodeId = 0;
+  bool root = false;
 };
 
 template <class T>
-void syncLayout(Layout<T> &layout, uint32_t changedId) {
-  // TODO: this should be called from changed connections and dropped connections events
+void syncLayout(Layout<T>& layout, uint32_t changedId) {
+  // TODO: this should be called from changed connections and dropped
+  // connections events
   for (auto&& sub : layout.subs) {
     if (sub->connected && !sub->newConnection && sub->nodeId != 0 &&
         sub->nodeId != changedId) {  // Exclude current
@@ -111,7 +118,8 @@ class Neighbour : public protocol::NodeTree {
    */
   protocol::NodeSyncRequest request(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
-    return protocol::NodeSyncRequest(layout.nodeId, nodeId, subTree.subs, root);
+    return protocol::NodeSyncRequest(subTree.nodeId, nodeId, subTree.subs,
+                                     subTree.root);
   }
 
   /**
@@ -119,7 +127,8 @@ class Neighbour : public protocol::NodeTree {
    */
   protocol::NodeSyncReply reply(NodeTree&& layout) {
     auto subTree = excludeRoute(std::move(layout), nodeId);
-    return protocol::NodeSyncReply(layout.nodeId, nodeId, subTree.subs, root);
+    return protocol::NodeSyncReply(subTree.nodeId, nodeId, subTree.subs,
+                                   subTree.root);
   }
 };
 

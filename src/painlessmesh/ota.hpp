@@ -304,7 +304,7 @@ void addPackageCallback(Scheduler& scheduler, plugin::PackageHandler<T>& mesh,
         // Either already have it, or already updating to it
         return false;
       else {
-        auto request = DataRequest::replyTo(pkg, mesh.nodeId, updateFW->partNo);
+        auto request = DataRequest::replyTo(pkg, mesh.getNodeId(), updateFW->partNo);
         updateFW->md5 = pkg.md5;
         // enable the request task
         updateFW->task =

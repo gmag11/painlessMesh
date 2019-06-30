@@ -152,8 +152,11 @@ void MeshConnection::initTasks() {
       TASK_SECOND, TASK_FOREVER, [self = this->shared_from_this()]() {
         Log(GENERAL, "sentBufferTask()\n");
         if (!self->sentBuffer.empty() && self->client->canSend()) {
-          self->writeNext();
-          self->sentBufferTask.forceNextIteration();
+          auto ret = self->writeNext();
+          if (ret)
+            self->sentBufferTask.forceNextIteration();
+          else
+            self->sentBufferTask.delay(100 * TASK_MILLISECOND);
         }
       });
   mesh->mScheduler->addTask(sentBufferTask);
@@ -183,7 +186,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
   this->client->onAck(NULL, NULL);
 
   mesh->addTask(
-      [mesh = this->mesh, nodeId = this->nodeId]() {
+      [mesh = this->mesh, nodeId = this->nodeId, station = this->station]() {
         Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
             mesh->getNodeTime());
         if (mesh->changedConnectionsCallback)
@@ -192,8 +195,15 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
         if (mesh->droppedConnectionCallback)
           mesh->droppedConnectionCallback(
               nodeId);  // Connection dropped. Signal user
-        layout::syncLayout<MeshConnection>((*mesh), nodeId);
+
+        // TODO: This should be handled by the mesh.onDisconnect callback/event
+        if (station && WiFi.status() == WL_CONNECTED) {
+          Log(CONNECTION, "close(): call WiFi.disconnect().\n");
+          WiFi.disconnect();
+        }
+
         mesh->eraseClosedConnections();
+        if (nodeId != 0) layout::syncLayout<MeshConnection>((*mesh), nodeId);
       });
 
   if (client->connected()) {
@@ -201,20 +211,12 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
     client->close();
   }
 
-  // TODO: This should be handled by the mesh.onDisconnect callback/event
-  if (station && WiFi.status() == WL_CONNECTED) {
-    Log(CONNECTION, "close(): call WiFi.disconnect().\n");
-    WiFi.disconnect();
-  }
-
   receiveBuffer.clear();
   sentBuffer.clear();
 
   NodeTree::clear();
-
-  // Keep a shared_ptr around till this function closes.
-  auto self = this->shared_from_this();
-  mesh->eraseClosedConnections();
+  Log(CONNECTION, "MeshConnection::close() done. Was station: %d.\n",
+      this->station);
 }
 
 bool ICACHE_FLASH_ATTR MeshConnection::addMessage(TSTRING &message,
@@ -266,7 +268,7 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
     auto data_ptr = sentBuffer.readPtr(len);
     auto written = client->write(data_ptr, len, 1);
     if (written == len) {
-      Log(COMMUNICATION, "writeNext(): Package sent = %s\n", data_ptr);
+      Log(COMMUNICATION, "writeNext(): Package sent\n");
       client->send();  // TODO only do this for priority messages
       sentBuffer.freeRead();
       sentBufferTask.forceNextIteration();

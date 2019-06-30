@@ -34,7 +34,7 @@ void setup() {
   mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT, station_ip);
   // Bridge node, should (in most cases) be a root node. See [the wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/Possible-challenges-in-mesh-formation) for some background
   mesh.setRoot(true);
-  // This and all other mesh should ideally now the mesh contains a root
+  // This node and all other nodes should ideally know the mesh contains a root, so call this on all nodes
   mesh.setContainsRoot(true);
 
 
