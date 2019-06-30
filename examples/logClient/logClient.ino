@@ -63,8 +63,8 @@ void setup() {
 }
 
 void loop() {
-    userScheduler.execute(); // it will run mesh scheduler as well
-    mesh.update();
+  // it will run the user scheduler as well
+  mesh.update();
 }
 
 void receivedCallback( uint32_t from, String &msg ) {

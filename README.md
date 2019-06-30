@@ -20,8 +20,8 @@ painlessMesh does not create a TCP/IP network of nodes. Rather each of the nodes
 
 ### Limitations and caveats
 
-- Try to avoid using `delay()` in your code. To maintain the mesh we need to perform some tasks in the background. Using `delay()` will stop these tasks from happening and can cause the mesh to lose stability/fall apart. Instead we recommend using the scheduler included in `painlessMesh`. That scheduler is a slightly modified version of the [TaskScheduler](http://playground.arduino.cc/Code/TaskScheduler) library. Documentation can be found [here](http://www.smart4smart.com/TaskScheduler.pdf). For other examples on how to use the scheduler see the example folder.
-- `painlessMesh` subscribes to WiFi events ([ESP8266](https://gitlab.com/painlessMesh/painlessMesh/blob/7ed16871eaa5a57b199d2a469cd48bfda8ad4eb7/src/painlessMeshConnection.cpp#L613) and [ESP32](https://gitlab.com/painlessMesh/painlessMesh/blob/7ed16871eaa5a57b199d2a469cd48bfda8ad4eb7/src/painlessMeshConnection.cpp#L611)). Please be aware that as a result `painlessMesh` can be incompatible with user programs/other libraries that try to bind to the same events.
+- Try to avoid using `delay()` in your code. To maintain the mesh we need to perform some tasks in the background. Using `delay()` will stop these tasks from happening and can cause the mesh to lose stability/fall apart. Instead we recommend using [TaskScheduler](http://playground.arduino.cc/Code/TaskScheduler) which is used in `painlessMesh` itself. Documentation can be found [here](https://github.com/arkhipenko/TaskScheduler/wiki/Full-Document). For other examples on how to use the scheduler see the example folder.
+- `painlessMesh` subscribes to WiFi events. Please be aware that as a result `painlessMesh` can be incompatible with user programs/other libraries that try to bind to the same events.
 - Try to be conservative in the number of messages (and especially broadcast messages) you sent per minute. This is to prevent the hardware from overloading. Both esp8266 and esp32 are limited in processing power/memory, making it easy to overload the mesh and destabilise it. And while `painlessMesh` tries to prevent this from happening, it is not always possible to do so.
 - Messages can go missing or be dropped due to high traffic and you can not rely on all messages to be delivered. One suggestion to work around is to resend messages every so often. Even if some go missing, most should go through. Another option is to have your nodes send replies when they receive a message. The sending nodes can the resend the message if they haven’t gotten a reply in a certain amount of time. 
 
@@ -44,26 +44,33 @@ If platformio is used to install the library, then the dependency will be instal
 
 StartHere is a basic how to use example. It blinks built-in LED (in ESP-12) as many times as nodes are connected to the mesh. Further examples are under the examples directory and shown on the platformio [page](http://platformio.org/lib/show/1269/painlessMesh).
 
+# Getting help
+
+There is help available from a variety of sources:
+
+- The [included examples](https://gitlab.com/painlessMesh/painlessMesh/tree/master/examples)
+- The [API documentation](http://painlessmesh.gitlab.io/painlessMesh/index.html)
+- The [wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/home)
+- On our new [forum/mailinglist](https://groups.google.com/forum/#!forum/painlessmesh-user)
+- On the [gitter channel](https://gitter.im/painlessMesh/Lobby)
+
 # Contributing
 
 We try to follow the [git flow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) development model. Which means that we have a `develop` branch and `master` branch. All development is done under feature branches, which are (when finished) merged into the development branch. When a new version is released we merge the `develop` branch into the `master` branch. For more details see the [CONTRIBUTING](https://gitlab.com/painlessMesh/painlessMesh/blob/master/CONTRIBUTING.md) file.
 
-# Getting help
-
-There is help available on the [wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/home) and you can also reach us on our [gitter channel](https://gitter.im/painlessMesh/Lobby)
 
 # painlessMesh API
 
 Using painlessMesh is painless!
 
-First include the library and create an painlessMesh object like this…
+First include the library and create an painlessMesh object like this.
 
 ```
 #include <painlessMesh.h>
 painlessMesh  mesh;
 ```
 
-The main member functions are included below. Full doxygen generated documentation can be found [here](https://painlessmesh.gitlab.io/painlessMesh/classpainlessMesh.html)
+The main member functions are included below. **Full documentation can be found [here](https://painlessmesh.gitlab.io/painlessMesh/index.html)**
 
 ## Member Functions
 
@@ -190,6 +197,6 @@ You can donate using one of our cryptocoin addresses:
 
 Most development of painlessMesh has been done as a hobby, but some specific features have been funded by the companies listed below:
 
-![Sowillo](http://sowillo.com/wp-content/uploads/2016/08/Logo-Sowillo-1.png)
+![Sowillo](http://sowillo.com/er5eneo0p43dgz/2016/08/Logo-Sowillo-1.png)
 
 [Sowillo](http://sowillo.com/en/)

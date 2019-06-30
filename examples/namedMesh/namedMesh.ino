@@ -47,6 +47,6 @@ void setup() {
 }
 
 void loop() {
-  userScheduler.execute(); // it will run mesh scheduler as well
+  // it will run the user scheduler as well
   mesh.update();
 }

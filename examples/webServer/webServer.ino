@@ -51,6 +51,12 @@ void setup() {
 
   mesh.stationManual(STATION_SSID, STATION_PASSWORD);
   mesh.setHostname(HOSTNAME);
+
+  // Bridge node, should (in most cases) be a root node. See [the wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/Possible-challenges-in-mesh-formation) for some background
+  mesh.setRoot(true);
+  // This node and all other nodes should ideally know the mesh contains a root, so call this on all nodes
+  mesh.setContainsRoot(true);
+
   myAPIP = IPAddress(mesh.getAPIP());
   Serial.println("My AP IP is " + myAPIP.toString());
 

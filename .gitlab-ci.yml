@@ -15,14 +15,11 @@ platformio:
     - platformio ci --lib="." --board=nodemcuv2 examples/logServer/logServer.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --board=nodemcuv2 examples/logClient/logClient.ino -O "build_flags = -Werror"
     - platformio ci --lib="." --lib="./examples/namedMesh/" --board=esp32dev examples/namedMesh/namedMesh.ino -O ""
-    - platformio ci --lib="." --lib="./examples/ota/" --board=esp32dev examples/ota/ota.ino -O ""
-    - platformio ci --lib="." --lib="./examples/ota/" --board=nodemcuv2 examples/ota/ota.ino -O ""
-    - platformio ci --lib="." --board=esp32dev test/debugNode/debugNode.ino -O "build_flags = -std=c++14"
-    - platformio ci --lib="." --board=nodemcuv2 test/debugNode/debugNode.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror"
 
 catch_testing:
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake
+    - apt-get install libboost-system-dev -y -qq
     - cmake . -DCMAKE_CXX_FLAGS="-Wall -Werror"
     - make
   script:
@@ -54,3 +51,14 @@ pages:
     - public
   only:
   - master
+
+pages_develop:
+  script:
+  - apt-get update && apt-get install -y doxygen
+  - doxygen doxygen/Doxyfile
+  - mv doxygen/documentation/html/ html/
+  artifacts:
+    paths:
+    - html
+  only:
+  - develop 
