@@ -140,7 +140,7 @@ class TrackMap : public protocol::PackageInterface,
 };  // namespace plugin
 
 template <class T>
-void begin(T& mesh, size_t frequency = 2) {
+void begin(T& mesh, double frequency = 2) {
   auto tracker = std::make_shared<TrackMap>();
   auto sendPkg = std::make_shared<PerformancePackage>();
 
@@ -170,7 +170,7 @@ void begin(T& mesh, size_t frequency = 2) {
   });
 
   sendPkg->from = mesh.getNodeId();
-  mesh.addTask(TASK_SECOND / frequency, TASK_FOREVER, [sendPkg, &mesh]() {
+  mesh.addTask(frequency*TASK_SECOND, TASK_FOREVER, [sendPkg, &mesh]() {
     ++sendPkg->id;
     sendPkg->time = mesh.getNodeTime();
     sendPkg->stability = mesh.stability;

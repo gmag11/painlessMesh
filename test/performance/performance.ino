@@ -33,7 +33,7 @@ void setup() {
 
   mesh.init(MESH_SSID, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
   mesh.initOTA("performance");
-  plugin::performance::begin(mesh);
+  plugin::performance::begin(mesh, 2);
 }
 
 void loop() { mesh.update(); }
