@@ -198,7 +198,7 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
     }
 
     // TODO: Move this to its own function
-    mesh.addTask((*mesh.mScheduler), [&mesh, remoteNodeId = newTree.nodeId]() {
+    mesh.addTask([&mesh, remoteNodeId = newTree.nodeId]() {
       Log(logger::CONNECTION, "newConnectionTask():\n");
       Log(logger::CONNECTION, "newConnectionTask(): adding %u now= %u\n",
           remoteNodeId, mesh.getNodeTime());

@@ -7,6 +7,7 @@
 #include "catch_utils.hpp"
 
 #include "painlessmesh/plugin.hpp"
+#include "plugin/performance.hpp"
 
 using namespace painlessmesh;
 

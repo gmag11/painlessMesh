@@ -292,6 +292,15 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     return this->asNodeTree().toString(pretty);
   }
 
+  inline std::shared_ptr<Task> addTask(unsigned long aInterval, long aIterations,
+                                std::function<void()> aCallback) {
+    return plugin::PackageHandler<T>::addTask((*this->mScheduler), aInterval, aIterations, aCallback);
+  }
+
+  inline std::shared_ptr<Task> addTask(std::function<void()> aCallback) {
+    return plugin::PackageHandler<T>::addTask((*this->mScheduler), aCallback);
+  }
+
   ~Mesh() {
     this->stop();
     if (!isExternalScheduler) delete mScheduler;

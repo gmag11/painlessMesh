@@ -24,13 +24,13 @@ namespace painlessmesh {
  * Currently we have three main routing algorithms (router::Type).
  *
  * \code
-* using namespace painlessmesh;
-* 
-* // Inherit from SinglePackage, the most basic package with router::Type::SINGLE
-* class SensorPackage : public plugin::SinglePackage {
-* 
-* };
-*
+ * using namespace painlessmesh;
+ *
+ * // Inherit from SinglePackage, the most basic package with
+ * router::Type::SINGLE class SensorPackage : public plugin::SinglePackage {
+ *
+ * };
+ *
  * \endcode
  */
 namespace plugin {

@@ -132,26 +132,24 @@ void MeshConnection::initTasks() {
     this->nodeSyncTask.enableDelayed(10 * TASK_SECOND);
 
   receiveBuffer = painlessmesh::buffer::ReceiveBuffer<TSTRING>();
-  readBufferTask.set(100 * TASK_MILLISECOND, TASK_FOREVER,
-                     [self = this->shared_from_this()]() {
-                       Log(GENERAL, "readBufferTask()\n");
-                       if (!self->receiveBuffer.empty()) {
-                         TSTRING frnt = self->receiveBuffer.front();
-                         self->receiveBuffer.pop_front();
-                         if (!self->receiveBuffer.empty())
-                           self->readBufferTask.forceNextIteration();
-                         router::routePackage<MeshConnection>(
-                             (*self->mesh), self->shared_from_this(), frnt,
-                             self->mesh->callbackList,
-                             self->mesh->getNodeTime());
-                       }
-                     });
+  readBufferTask.set(
+      TASK_SECOND, TASK_FOREVER, [self = this->shared_from_this()]() {
+        Log(GENERAL, "readBufferTask()\n");
+        if (!self->receiveBuffer.empty()) {
+          TSTRING frnt = self->receiveBuffer.front();
+          self->receiveBuffer.pop_front();
+          if (!self->receiveBuffer.empty())
+            self->readBufferTask.forceNextIteration();
+          router::routePackage<MeshConnection>(
+              (*self->mesh), self->shared_from_this(), frnt,
+              self->mesh->callbackList, self->mesh->getNodeTime());
+        }
+      });
   mesh->mScheduler->addTask(readBufferTask);
   readBufferTask.enableDelayed();
 
   sentBufferTask.set(
-      500 * TASK_MILLISECOND, TASK_FOREVER,
-      [self = this->shared_from_this()]() {
+      TASK_SECOND, TASK_FOREVER, [self = this->shared_from_this()]() {
         Log(GENERAL, "sentBufferTask()\n");
         if (!self->sentBuffer.empty() && self->client->canSend()) {
           self->writeNext();
@@ -185,7 +183,7 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
   this->client->onAck(NULL, NULL);
 
   mesh->addTask(
-      (*mesh->mScheduler), [mesh = this->mesh, nodeId = this->nodeId]() {
+      [mesh = this->mesh, nodeId = this->nodeId]() {
         Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
             mesh->getNodeTime());
         if (mesh->changedConnectionsCallback)
@@ -274,8 +272,8 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
       sentBufferTask.forceNextIteration();
       return true;
     } else if (written == 0) {
-      Log(COMMUNICATION,
-          "writeNext(): tcp_write Failed node=%u. Resending later\n", nodeId);
+      Log(DEBUG, "writeNext(): tcp_write Failed node=%u. Resending later\n",
+          nodeId);
       return false;
     } else {
       Log(ERROR,

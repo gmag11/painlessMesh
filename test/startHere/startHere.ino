@@ -15,11 +15,12 @@
 // some gpio pin that is connected to an LED...
 // on my rig, this is 5, change to the right number of your LED.
 #define   LED             2       // GPIO number of connected LED, ON ESP-12 IS GPIO2
+#define SEND_FREQ 2
 
 #define   BLINK_PERIOD    3000 // milliseconds until cycle repeat
 #define   BLINK_DURATION  100  // milliseconds LED is on for
 
-#define   MESH_SSID       "whateverYouLike"
+#define   MESH_SSID       "otatest"
 #define   MESH_PASSWORD   "somethingSneaky"
 #define   MESH_PORT       5555
 
@@ -38,7 +39,7 @@ bool calc_delay = false;
 SimpleList<uint32_t> nodes;
 
 void sendMessage() ; // Prototype
-Task taskSendMessage( TASK_SECOND * 1, TASK_FOREVER, &sendMessage ); // start with a one second interval
+Task taskSendMessage( TASK_SECOND/SEND_FREQ, TASK_FOREVER, &sendMessage ); // start with a one second interval
 
 // Task to blink the number of nodes
 Task blinkNoNodes;
@@ -49,7 +50,7 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
-  mesh.setDebugMsgTypes(ERROR | CONNECTION);  // set before init() so that you can see error messages
+  mesh.setDebugMsgTypes(ERROR | CONNECTION | DEBUG);  // set before init() so that you can see error messages
 
   mesh.init(MESH_SSID, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 6);
   mesh.initOTA("otatest");
@@ -92,6 +93,7 @@ void loop() {
   digitalWrite(LED, !onFlag);
 }
 
+uint32_t lastTime = 0;
 void sendMessage() {
   String msg = "Hello from node ";
   msg += mesh.getNodeId();
@@ -107,9 +109,9 @@ void sendMessage() {
     calc_delay = false;
   }
 
-  Serial.printf("Sending message: %s\n", msg.c_str());
-  
-  taskSendMessage.setInterval( random(TASK_SECOND * 1, TASK_SECOND * 5));  // between 1 and 5 seconds
+  Serial.printf("Mesh stability: %u\n", mesh.stability);
+  Serial.printf("Sending message: %s with delay %u\n", msg.c_str(), mesh.getNodeTime() - lastTime);
+  lastTime = mesh.getNodeTime();
 }
 
 void receivedCallback(uint32_t from, String & msg) {
