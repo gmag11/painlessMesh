@@ -10,6 +10,18 @@
 
 namespace painlessmesh {
 namespace tcp {
+inline uint32_t encodeNodeId(const uint8_t *hwaddr) {
+  using namespace painlessmesh::logger;
+  Log(GENERAL, "encodeNodeId():\n");
+  uint32_t value = 0;
+
+  value |= hwaddr[2] << 24;  // Big endian (aka "network order"):
+  value |= hwaddr[3] << 16;
+  value |= hwaddr[4] << 8;
+  value |= hwaddr[5];
+  return value;
+}
+
 template <class T, class M>
 void initServer(AsyncServer &server, M &mesh) {
   using namespace logger;

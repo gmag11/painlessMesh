@@ -3,11 +3,11 @@
 
 #include "painlessmesh/configuration.hpp"
 
+#include "painlessmesh/logger.hpp"
 #ifdef PAINLESSMESH_ENABLE_ARDUINO_WIFI
 #include "painlessMeshConnection.h"
 #include "painlessMeshSTA.h"
 
-#include "painlessmesh/logger.hpp"
 #include "painlessmesh/mesh.hpp"
 #include "painlessmesh/router.hpp"
 #include "painlessmesh/tcp.hpp"
@@ -65,9 +65,11 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
     if (WiFi.softAPmacAddress(MAC) == 0) {
       Log(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
     }
-    uint32_t nodeId = encodeNodeId(MAC);
+    uint32_t nodeId = tcp::encodeNodeId(MAC);
+    if (nodeId == 0)
+      Log(ERROR, "NodeId set to 0\n");
 
-    this->init(nodeId, port);
+    this->init(nodeId);
 
     tcpServerInit();
     eventHandleInit();
@@ -151,7 +153,7 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 
     // TODO: We could pass this to tcpConnect instead of loading it here
 
-    if (_station_got_ip && WiFi.localIP()) {
+    if (WiFi.status() == WL_CONNECTED && WiFi.localIP()) {
       AsyncClient *pConn = new AsyncClient();
 
       IPAddress ip = WiFi.gatewayIP();
@@ -191,10 +193,7 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 #elif defined(ESP8266)
     eventSTAConnectedHandler = WiFiEventHandler();
     eventSTADisconnectedHandler = WiFiEventHandler();
-    eventSTAAuthChangeHandler = WiFiEventHandler();
     eventSTAGotIPHandler = WiFiEventHandler();
-    eventSoftAPConnectedHandler = WiFiEventHandler();
-    eventSoftAPDisconnectedHandler = WiFiEventHandler();
 #endif  // ESP32
     // Stop scanning task
     stationScan.task.setCallback(NULL);
@@ -217,12 +216,12 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
   IPAddress _apIp;
   StationScan stationScan;
 
-  void init(Scheduler *scheduler, uint32_t id, uint16_t port) {
-    painlessmesh::Mesh<MeshConnection>::init(scheduler, id, port);
+  void init(Scheduler *scheduler, uint32_t id) {
+    painlessmesh::Mesh<MeshConnection>::init(scheduler, id);
   }
 
-  void init(uint32_t id, uint16_t port) {
-    painlessmesh::Mesh<MeshConnection>::init(id, port);
+  void init(uint32_t id) {
+    painlessmesh::Mesh<MeshConnection>::init(id);
   }
 
   void apInit(uint32_t nodeId) {
@@ -233,19 +232,6 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
     WiFi.softAP(_meshSSID.c_str(), _meshPassword.c_str(), _meshChannel,
                 _meshHidden, _meshMaxConn);
   }
-
-  uint32_t encodeNodeId(const uint8_t *hwaddr) {
-    using namespace painlessmesh::logger;
-    Log(GENERAL, "encodeNodeId():\n");
-    uint32_t value = 0;
-
-    value |= hwaddr[2] << 24;  // Big endian (aka "network order"):
-    value |= hwaddr[3] << 16;
-    value |= hwaddr[4] << 8;
-    value |= hwaddr[5];
-    return value;
-  }
-
   void eventHandleInit() {
     using namespace logger;
 #ifdef ESP32
@@ -253,9 +239,7 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
         [this](WiFiEvent_t event, WiFiEventInfo_t info) {
           if (this->semaphoreTake()) {
             Log(CONNECTION, "eventScanDoneHandler: SYSTEM_EVENT_SCAN_DONE\n");
-            this->stationScan.task.setCallback(
-                [this]() { this->stationScan.scanComplete(); });
-            this->stationScan.task.forceNextIteration();
+            this->stationScan.scanComplete();
             this->semaphoreGive();
           }
         },
@@ -273,7 +257,6 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
     eventSTADisconnectedHandler = WiFi.onEvent(
         [this](WiFiEvent_t event, WiFiEventInfo_t info) {
           if (this->semaphoreTake()) {
-            this->_station_got_ip = false;
             Log(CONNECTION,
                 "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
             // WiFi.disconnect();
@@ -287,7 +270,6 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
     eventSTAGotIPHandler = WiFi.onEvent(
         [this](WiFiEvent_t event, WiFiEventInfo_t info) {
           if (this->semaphoreTake()) {
-            this->_station_got_ip = true;
             Log(CONNECTION, "eventSTAGotIPHandler: SYSTEM_EVENT_STA_GOT_IP\n");
             this->tcpConnect();  // Connect to TCP port
             this->semaphoreGive();
@@ -304,7 +286,6 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 
     eventSTADisconnectedHandler = WiFi.onStationModeDisconnected(
         [&](const WiFiEventStationModeDisconnected &event) {
-          this->_station_got_ip = false;
           // Log(CONNECTION, "Event: Station Mode
           // Disconnected from %s\n", event.ssid.c_str());
           Log(CONNECTION, "Event: Station Mode Disconnected\n");
@@ -312,31 +293,14 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
           this->stationScan
               .connectToAP();  // Search for APs and connect to the best one
         });
-    eventSTAAuthChangeHandler = WiFi.onStationModeAuthModeChanged(
-        [&](const WiFiEventStationModeAuthModeChanged &event) {
-          Log(CONNECTION, "Event: Station Mode Auth Mode Change\n");
-        });
 
     eventSTAGotIPHandler =
         WiFi.onStationModeGotIP([&](const WiFiEventStationModeGotIP &event) {
-          this->_station_got_ip = true;
           Log(CONNECTION,
               "Event: Station Mode Got IP (IP: %s  Mask: %s  Gateway: %s)\n",
               event.ip.toString().c_str(), event.mask.toString().c_str(),
               event.gw.toString().c_str());
           this->tcpConnect();  // Connect to TCP port
-        });
-
-    eventSoftAPConnectedHandler = WiFi.onSoftAPModeStationConnected(
-        [&](const WiFiEventSoftAPModeStationConnected &event) {
-          Log(CONNECTION, "Event: %lu Connected to AP Mode Station\n",
-              this->encodeNodeId(event.mac));
-        });
-
-    eventSoftAPDisconnectedHandler = WiFi.onSoftAPModeStationDisconnected(
-        [&](const WiFiEventSoftAPModeStationDisconnected &event) {
-          Log(CONNECTION, "Event: %lu Disconnected from AP Mode Station\n",
-              this->encodeNodeId(event.mac));
         });
 #endif  // ESP32
     return;
@@ -350,13 +314,9 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 #elif defined(ESP8266)
   WiFiEventHandler eventSTAConnectedHandler;
   WiFiEventHandler eventSTADisconnectedHandler;
-  WiFiEventHandler eventSTAAuthChangeHandler;
   WiFiEventHandler eventSTAGotIPHandler;
-  WiFiEventHandler eventSoftAPConnectedHandler;
-  WiFiEventHandler eventSoftAPDisconnectedHandler;
 #endif  // ESP8266
   AsyncServer *_tcpListener;
-  bool _station_got_ip = false;
 };
 }  // namespace wifi
 };  // namespace painlessmesh

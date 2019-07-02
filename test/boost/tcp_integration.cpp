@@ -25,7 +25,7 @@ class MeshTest : public PMesh {
   MeshTest(Scheduler *scheduler, size_t id, boost::asio::io_service &io)
       : io_service(io) {
     this->nodeId = id;
-    this->init(scheduler, this->nodeId, this->nodeId);
+    this->init(scheduler, this->nodeId);
     timeOffset = runif(0, 1e09);
     pServer = std::make_shared<AsyncServer>(io_service, this->nodeId);
     painlessmesh::tcp::initServer<MeshConnection, PMesh>(*pServer, (*this));
@@ -82,13 +82,13 @@ SCENARIO("We can setup and connect two meshes over localport") {
   boost::asio::io_service io_service;
 
   PMesh mesh1;
-  mesh1.init(&scheduler, 6841, 6841);
+  mesh1.init(&scheduler, 6841);
   std::shared_ptr<AsyncServer> pServer;
   pServer = std::make_shared<AsyncServer>(io_service, 6841);
   painlessmesh::tcp::initServer<MeshConnection, PMesh>(*pServer, mesh1);
 
   PMesh mesh2;
-  mesh2.init(&scheduler, 6842, 6842);
+  mesh2.init(&scheduler, 6842);
   std::shared_ptr<AsyncClient> pClient;
   pClient = std::make_shared<AsyncClient>(io_service);
   painlessmesh::tcp::connect<MeshConnection, PMesh>(

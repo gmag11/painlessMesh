@@ -5,6 +5,9 @@
 //  Created by Bill Gray on 7/26/16.
 //
 //
+#include "painlessmesh/configuration.hpp"
+
+#ifdef PAINLESSMESH_ENABLE_ARDUINO_WIFI
 
 #include <Arduino.h>
 #include <algorithm>
@@ -100,7 +103,7 @@ void ICACHE_FLASH_ATTR StationScan::scanComplete() {
 void ICACHE_FLASH_ATTR StationScan::filterAPs() {
   auto ap = aps.begin();
   while (ap != aps.end()) {
-    auto apNodeId = mesh->encodeNodeId(ap->bssid);
+    auto apNodeId = painlessmesh::tcp::encodeNodeId(ap->bssid);
     if (painlessmesh::router::findRoute<MeshConnection>((*mesh), apNodeId) !=
         NULL) {
       ap = aps.erase(ap);
@@ -113,7 +116,7 @@ void ICACHE_FLASH_ATTR StationScan::filterAPs() {
 void ICACHE_FLASH_ATTR StationScan::requestIP(WiFi_AP_Record_t &ap) {
   using namespace painlessmesh::logger;
   Log(CONNECTION, "connectToAP(): Best AP is %u<---\n",
-      mesh->encodeNodeId(ap.bssid));
+      painlessmesh::tcp::encodeNodeId(ap.bssid));
   WiFi.begin(ap.ssid.c_str(), password.c_str(), mesh->_meshChannel, ap.bssid);
   return;
 }
@@ -125,14 +128,14 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
   task.setCallback([this]() { stationScan(); });
 
   if (manual) {
-    if ((WiFi.SSID() == ssid) && mesh->_station_got_ip) {
+    if ((WiFi.SSID() == ssid) && WiFi.status() == WL_CONNECTED) {
       Log(CONNECTION,
           "connectToAP(): Already connected using manual connection. "
           "Disabling scanning.\n");
       task.disable();
       return;
     } else {
-      if (mesh->_station_got_ip) {
+      if (WiFi.status() == WL_CONNECTED) {
         mesh->closeConnectionSTA();
         task.enableDelayed(1000 * SCAN_INTERVAL);
         return;
@@ -145,7 +148,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
 
   if (aps.empty()) {
     // No unknown nodes found
-    if (mesh->_station_got_ip &&
+    if (WiFi.status() == WL_CONNECTED &&
         !(mesh->shouldContainRoot && !layout::isRooted(mesh->asNodeTree()))) {
       // if already connected -> scan slow
       Log(CONNECTION,
@@ -161,7 +164,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
     }
     mesh->stability += min(1000 - mesh->stability, (size_t)25);
   } else {
-    if (mesh->_station_got_ip) {
+    if (WiFi.status() == WL_CONNECTED) {
       Log(CONNECTION,
           "connectToAP(): Unknown nodes found. Current stability: %s\n",
           String(mesh->stability).c_str());
@@ -197,3 +200,4 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
     }
   }
 }
+#endif

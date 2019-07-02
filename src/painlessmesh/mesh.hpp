@@ -27,7 +27,7 @@ typedef std::function<void(uint32_t nodeId, int32_t delay)> nodeDelayCallback_t;
 template <class T>
 class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
  public:
-  void init(uint32_t id, uint16_t port) {
+  void init(uint32_t id) {
     if (!isExternalScheduler) {
       mScheduler = new Scheduler();
     }
@@ -46,9 +46,9 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
         std::move(this->callbackList), (*this));
   }
 
-  void init(Scheduler *scheduler, uint32_t id, uint16_t port) {
+  void init(Scheduler *scheduler, uint32_t id) {
     this->setScheduler(scheduler);
-    this->init(id, port);
+    this->init(id);
   }
 
 #ifdef PAINLESSMESH_ENABLE_OTA
