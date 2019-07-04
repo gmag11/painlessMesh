@@ -48,9 +48,7 @@ void connect(AsyncClient &client, IPAddress ip, uint16_t port, M &mesh) {
   client.onError([&mesh](void *, AsyncClient *client, int8_t err) {
     if (mesh.semaphoreTake()) {
       Log(CONNECTION, "tcp_err(): error trying to connect %d\n", err);
-      if (client->connected()) client->close();
-      // TODO: can we make this platform indepenedent?
-      WiFi.disconnect();
+      mesh.droppedConnectionCallbacks.execute(0, true);
       mesh.semaphoreGive();
     }
   });

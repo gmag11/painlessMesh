@@ -44,9 +44,8 @@ void ICACHE_FLASH_ATTR StationScan::stationScan() {
   WiFi.scanNetworksAsync([&](int networks) { this->scanComplete(); }, true);
 #endif
 
-  task.delay(1000 *
-             SCAN_INTERVAL);  // Scan should be completed by then and next step
-                              // called. If not then we restart here.
+  task.delay(10 * SCAN_INTERVAL);  // Scan should be completed by then and next
+                                   // step called. If not then we restart here.
   return;
 }
 
@@ -137,7 +136,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
     } else {
       if (WiFi.status() == WL_CONNECTED) {
         mesh->closeConnectionSTA();
-        task.enableDelayed(1000 * SCAN_INTERVAL);
+        task.enableDelayed(10 * SCAN_INTERVAL);
         return;
       } else if (aps.empty() || !ssid.equals(aps.begin()->ssid)) {
         task.enableDelayed(SCAN_INTERVAL);
@@ -154,13 +153,13 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
       Log(CONNECTION,
           "connectToAP(): Already connected, and no unknown nodes found: "
           "scan rate set to slow\n");
-      task.delay(random(25, 36) * SCAN_INTERVAL);
+      task.delay(random(2, 4) * SCAN_INTERVAL);
     } else {
       // else scan fast (SCAN_INTERVAL)
       Log(CONNECTION,
           "connectToAP(): No unknown nodes found scan rate set to "
           "normal\n");
-      task.setInterval(SCAN_INTERVAL);
+      task.setInterval(0.5 * SCAN_INTERVAL);
     }
     mesh->stability += min(1000 - mesh->stability, (size_t)25);
   } else {
@@ -182,9 +181,13 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
         mesh->stability = 0;  // Discourage switching again
         // wifiEventCB should be triggered before this delay runs out
         // and reset the connecting
-        task.delay(6 * SCAN_INTERVAL);
+        task.delay(3 * SCAN_INTERVAL);
       } else {
-        task.delay(random(4, 7) * SCAN_INTERVAL);
+        if (mesh->shouldContainRoot)
+          // Increase scanning rate, because we want to find root
+          task.delay(0.5 * SCAN_INTERVAL);
+        else
+          task.delay(random(2, 4) * SCAN_INTERVAL);
       }
     } else {
       // Else try to connect to first
@@ -196,7 +199,7 @@ void ICACHE_FLASH_ATTR StationScan::connectToAP() {
       Log(CONNECTION,
           "connectToAP(): Trying to connect, scan rate set to "
           "4*normal\n");
-      task.delay(4 * SCAN_INTERVAL);
+      task.delay(2 * SCAN_INTERVAL);
     }
   }
 }

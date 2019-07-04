@@ -8,6 +8,7 @@
 #include "painlessMeshConnection.h"
 #include "painlessMeshSTA.h"
 
+#include "painlessmesh/callback.hpp"
 #include "painlessmesh/mesh.hpp"
 #include "painlessmesh/router.hpp"
 #include "painlessmesh/tcp.hpp"
@@ -66,8 +67,7 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
       Log(ERROR, "init(): WiFi.softAPmacAddress(MAC) failed.\n");
     }
     uint32_t nodeId = tcp::encodeNodeId(MAC);
-    if (nodeId == 0)
-      Log(ERROR, "NodeId set to 0\n");
+    if (nodeId == 0) Log(ERROR, "NodeId set to 0\n");
 
     this->init(nodeId);
 
@@ -131,6 +131,14 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
     stationScan.init(this, _meshSSID, _meshPassword, _meshPort);
     mScheduler->addTask(stationScan.task);
     stationScan.task.enable();
+
+    this->droppedConnectionCallbacks.push_back(
+        [this](uint32_t nodeId, bool station) {
+          if (station) {
+            if (WiFi.status() == WL_CONNECTED) WiFi.disconnect();
+            this->stationScan.connectToAP();
+          }
+        });
   }
 
   void tcpServerInit() {
@@ -220,9 +228,7 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
     painlessmesh::Mesh<MeshConnection>::init(scheduler, id);
   }
 
-  void init(uint32_t id) {
-    painlessmesh::Mesh<MeshConnection>::init(id);
-  }
+  void init(uint32_t id) { painlessmesh::Mesh<MeshConnection>::init(id); }
 
   void apInit(uint32_t nodeId) {
     _apIp = IPAddress(10, (nodeId & 0xFF00) >> 8, (nodeId & 0xFF), 1);
@@ -259,9 +265,7 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
           if (this->semaphoreTake()) {
             Log(CONNECTION,
                 "eventSTADisconnectedHandler: SYSTEM_EVENT_STA_DISCONNECTED\n");
-            // WiFi.disconnect();
-            // Search for APs and connect to the best one
-            this->stationScan.connectToAP();
+            this->droppedConnectionCallbacks.execute(0, true);
             this->semaphoreGive();
           }
         },
@@ -286,12 +290,8 @@ class Mesh : public painlessmesh::Mesh<MeshConnection> {
 
     eventSTADisconnectedHandler = WiFi.onStationModeDisconnected(
         [&](const WiFiEventStationModeDisconnected &event) {
-          // Log(CONNECTION, "Event: Station Mode
-          // Disconnected from %s\n", event.ssid.c_str());
           Log(CONNECTION, "Event: Station Mode Disconnected\n");
-          WiFi.disconnect();
-          this->stationScan
-              .connectToAP();  // Search for APs and connect to the best one
+          this->droppedConnectionCallbacks.execute(0, true);
         });
 
     eventSTAGotIPHandler =

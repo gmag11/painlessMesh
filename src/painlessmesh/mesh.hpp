@@ -28,6 +28,7 @@ template <class T>
 class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
  public:
   void init(uint32_t id) {
+    using namespace logger;
     if (!isExternalScheduler) {
       mScheduler = new Scheduler();
     }
@@ -44,6 +45,19 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
         std::move(this->callbackList), (*this));
     this->callbackList = painlessmesh::router::addPackageCallback(
         std::move(this->callbackList), (*this));
+
+    this->changedConnectionCallbacks.push_back([this](uint32_t nodeId) {
+      Log(MESH_STATUS, "Changed connections in neighbour %u\n", nodeId);
+      if (nodeId != 0) layout::syncLayout<T>((*this), nodeId);
+    });
+    this->droppedConnectionCallbacks.push_back([this](uint32_t nodeId,
+                                                      bool station) {
+      Log(MESH_STATUS, "Dropped connection %u, station %d\n", nodeId, station);
+      this->eraseClosedConnections();
+    });
+    this->newConnectionCallbacks.push_back([this](uint32_t nodeId) {
+      Log(MESH_STATUS, "New connection %u\n", nodeId);
+    });
   }
 
   void init(Scheduler *scheduler, uint32_t id) {
@@ -209,7 +223,9 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
    */
   void onNewConnection(newConnectionCallback_t onNewConnection) {
     Log(logger::GENERAL, "onNewConnection():\n");
-    newConnectionCallback = onNewConnection;
+    newConnectionCallbacks.push_back([onNewConnection](uint32_t nodeId) {
+      if (nodeId != 0) onNewConnection(nodeId);
+    });
   }
 
   /** Callback that gets called every time the local node drops a connection.
@@ -222,8 +238,10 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
    * \endcode
    */
   void onDroppedConnection(droppedConnectionCallback_t onDroppedConnection) {
-    Log(logger::GENERAL, "onDroppedConnection():\n");
-    droppedConnectionCallback = onDroppedConnection;
+    droppedConnectionCallbacks.push_back(
+        [onDroppedConnection](uint32_t nodeId, bool station) {
+          if (nodeId != 0) onDroppedConnection(nodeId);
+        });
   }
 
   /** Callback that gets called every time the layout of the mesh changes
@@ -236,7 +254,10 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
    */
   void onChangedConnections(changedConnectionsCallback_t onChangedConnections) {
     Log(logger::GENERAL, "onChangedConnections():\n");
-    changedConnectionsCallback = onChangedConnections;
+    changedConnectionCallbacks.push_back(
+        [onChangedConnections](uint32_t nodeId) {
+          if (nodeId != 0) onChangedConnections();
+        });
   }
 
   /** Callback that gets called every time node time gets adjusted
@@ -299,9 +320,11 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
     return this->asNodeTree().toString(pretty);
   }
 
-  inline std::shared_ptr<Task> addTask(unsigned long aInterval, long aIterations,
-                                std::function<void()> aCallback) {
-    return plugin::PackageHandler<T>::addTask((*this->mScheduler), aInterval, aIterations, aCallback);
+  inline std::shared_ptr<Task> addTask(unsigned long aInterval,
+                                       long aIterations,
+                                       std::function<void()> aCallback) {
+    return plugin::PackageHandler<T>::addTask((*this->mScheduler), aInterval,
+                                              aIterations, aCallback);
   }
 
   inline std::shared_ptr<Task> addTask(std::function<void()> aCallback) {
@@ -357,9 +380,9 @@ class Mesh : public ntp::MeshTime, public plugin::PackageHandler<T> {
   }
 
   // Callback functions
-  newConnectionCallback_t newConnectionCallback;
-  droppedConnectionCallback_t droppedConnectionCallback;
-  changedConnectionsCallback_t changedConnectionsCallback;
+  callback::List<uint32_t> newConnectionCallbacks;
+  callback::List<uint32_t, bool> droppedConnectionCallbacks;
+  callback::List<uint32_t> changedConnectionCallbacks;
   nodeTimeAdjustedCallback_t nodeTimeAdjustedCallback;
   nodeDelayCallback_t nodeDelayReceivedCallback;
 #ifdef ESP32

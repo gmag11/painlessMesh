@@ -5,8 +5,6 @@
 
 #include <list>
 
-#define SCAN_INTERVAL 10 * TASK_SECOND  // AP scan period in ms
-
 typedef struct {
   uint8_t bssid[6];
   TSTRING ssid;

@@ -177,7 +177,7 @@ class PackageHandler : public layout::Layout<T> {
   }
 
  protected:
-  router::MeshCallbackList<T> callbackList;
+  callback::MeshPackageCallbackList<T> callbackList;
   std::list<std::shared_ptr<Task> > taskList = {};
 };
 

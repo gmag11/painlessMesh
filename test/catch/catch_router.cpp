@@ -12,58 +12,6 @@ using namespace painlessmesh;
 
 logger::LogClass Log;
 
-SCENARIO("CallbackMap should hold multiple callbacks by ID") {
-  GIVEN("A callback map with added callbacks") {
-    auto cbl = router::CallbackList<int>();
-
-    auto i = 0;
-    auto j = 0;
-
-    cbl.onPackage(1, [&i](int z) {
-      ++i;
-      return false;
-    });
-    cbl.onPackage(1, [&j](int z) {
-      ++j;
-      return false;
-    });
-
-    WHEN("We call execute") {
-      auto cnt = cbl.execute(1, 0);
-      REQUIRE(cnt == 2);
-      THEN("The callbacks are called") {
-        REQUIRE(i == 1);
-        REQUIRE(j == 1);
-      }
-    }
-
-    WHEN("We call execute on another event") {
-      auto cnt = cbl.execute(2, 0);
-      REQUIRE(cnt == 0);
-      THEN("The callbacks are not called") {
-        REQUIRE(i == 0);
-        REQUIRE(j == 0);
-      }
-    }
-
-    cbl.onPackage(1, [&i](int z) {
-      ++i;
-      return true;
-    });
-    cbl.onPackage(1, [&j](int z) {
-      ++j;
-      return false;
-    });
-    WHEN("We call execute it will stop on a return of true") {
-      auto cnt = cbl.execute(1, 3);
-      REQUIRE(cnt == 3);
-      THEN("The callbacks are called") {
-        REQUIRE(i == 2);
-        REQUIRE(j == 1);
-      }
-    }
-  }
-}
 /*
 class MockConnection : public protocol::NodeTree {
  public:

@@ -49,6 +49,7 @@ class Layout {
   protocol::NodeTree asNodeTree() {
     auto nt = protocol::NodeTree(nodeId, root);
     for (auto&& s : subs) {
+      if (s->nodeId == 0) continue;
       nt.subs.push_back(protocol::NodeTree(*s));
     }
     return nt;
