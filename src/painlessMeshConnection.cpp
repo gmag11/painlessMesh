@@ -48,12 +48,12 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
 
 void MeshConnection::initTCPCallbacks() {
   using namespace logger;
-  // Need to pass separate copy of this->mesh, because self->close() can
-  // invalidate the pointer, causing a segmentation fault when trying to access
-  // self->mesh afterwards
   client->onDisconnect(
-      [self = this->shared_from_this(), m = this->mesh](void *arg,
-                                                        AsyncClient *client) {
+      [self = this->shared_from_this()](void *arg, AsyncClient *client) {
+        // Making a copy of self->mesh pointer, because self->close() can
+        // invalidate the original pointer, causing a segmentation fault
+        // when trying to access self->mesh afterwards
+        auto m = self->mesh;
         if (m->semaphoreTake()) {
           Log(CONNECTION, "onDisconnect(): dropping %u now= %u\n", self->nodeId,
               m->getNodeTime());
