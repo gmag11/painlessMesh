@@ -25,20 +25,19 @@ class MeshTest : public PMesh {
   MeshTest(Scheduler *scheduler, size_t id, boost::asio::io_service &io)
       : io_service(io) {
     this->nodeId = id;
-    this->init(scheduler, this->nodeId, this->nodeId);
+    this->init(scheduler, this->nodeId);
     timeOffset = runif(0, 1e09);
     pServer = std::make_shared<AsyncServer>(io_service, this->nodeId);
     painlessmesh::tcp::initServer<MeshConnection, PMesh>(*pServer, (*this));
   }
 
   void connect(MeshTest &mesh) {
-    pClient = std::make_shared<AsyncClient>(io_service);
-    tcp::connect<MeshConnection, PMesh>(
+    auto pClient = new AsyncClient(io_service);
+    painlessmesh::tcp::connect<MeshConnection, PMesh>(
         (*pClient), boost::asio::ip::address::from_string("127.0.0.1"),
         mesh.nodeId, (*this));
   }
 
-  std::shared_ptr<AsyncClient> pClient;
   std::shared_ptr<AsyncServer> pServer;
   boost::asio::io_service &io_service;
 };
@@ -82,15 +81,14 @@ SCENARIO("We can setup and connect two meshes over localport") {
   boost::asio::io_service io_service;
 
   PMesh mesh1;
-  mesh1.init(&scheduler, 6841, 6841);
+  mesh1.init(&scheduler, 6841);
   std::shared_ptr<AsyncServer> pServer;
   pServer = std::make_shared<AsyncServer>(io_service, 6841);
   painlessmesh::tcp::initServer<MeshConnection, PMesh>(*pServer, mesh1);
 
   PMesh mesh2;
-  mesh2.init(&scheduler, 6842, 6842);
-  std::shared_ptr<AsyncClient> pClient;
-  pClient = std::make_shared<AsyncClient>(io_service);
+  mesh2.init(&scheduler, 6842);
+  auto pClient = new AsyncClient(io_service);
   painlessmesh::tcp::connect<MeshConnection, PMesh>(
       (*pClient), boost::asio::ip::address::from_string("127.0.0.1"), 6841,
       mesh2);
@@ -317,6 +315,70 @@ SCENARIO("Disconnects are detected and forwarded") {
   auto ptr = (*n.nodes[5]->subs.begin());
 
   (*n.nodes[5]->subs.begin())->close();
+  for (auto i = 0; i < 1000; ++i) {
+    n.update();
+    delay(10);
+  }
+
+  REQUIRE(n.nodes[5]->subs.size() == no - 1);
+  REQUIRE(ptr.use_count() == 1);
+  ptr = NULL;
+
+  REQUIRE(x == 3);
+
+  for (auto &&node : n.nodes) {
+    REQUIRE(layout::size(node->asNodeTree()) < dim);
+  }
+
+  n.stop();
+  REQUIRE(y > 0);
+}
+
+SCENARIO("Disconnects don't lead to crashes") {
+  using namespace logger;
+  Log.setLogLevel(ERROR);
+
+  Scheduler scheduler;
+  boost::asio::io_service io_service;
+  auto dim = runif(10, 15);
+  Nodes n(&scheduler, dim, io_service);
+
+  // Dummy task. This can catch mistaken use of the scheduler
+  Task dummyT;
+  int y = 0;
+  dummyT.set(TASK_MILLISECOND, TASK_FOREVER, [&y]() { ++y; });
+  scheduler.addTask(dummyT);
+  dummyT.enable();
+
+  for (auto i = 0; i < 1000; ++i) {
+    n.update();
+    delay(10);
+  }
+
+  for (auto &&node : n.nodes) {
+    REQUIRE(layout::size(node->asNodeTree()) == dim);
+  }
+
+  int x = 0;
+  n.nodes[5]->onChangedConnections([&x]() { ++x; });
+
+  n.nodes[5]->onDroppedConnection([&x](auto nodeId) { ++x; });
+
+  n.nodes[dim - 1]->onChangedConnections([&x]() { ++x; });
+
+  auto no = n.nodes[5]->subs.size();
+  REQUIRE(no > 0);
+
+  auto ptr = (*n.nodes[5]->subs.begin());
+
+  (*n.nodes[5]->subs.begin())->close();
+  for (auto i = 0; i < 10; ++i) {
+    io_service.poll();
+  }
+  n.update();
+  for (auto i = 0; i < 10; ++i) {
+    io_service.poll();
+  }
   for (auto i = 0; i < 1000; ++i) {
     n.update();
     delay(10);

@@ -11,6 +11,7 @@
 
 #include "Arduino.h"
 
+#include "painlessmesh/callback.hpp"
 #include "painlessmesh/logger.hpp"
 #include "painlessmesh/router.hpp"
 
@@ -214,8 +215,8 @@ void handleTimeDelay(T& mesh, painlessmesh::protocol::TimeDelay timeDelay,
 }
 
 template <class T, typename U>
-router::MeshCallbackList<U> addPackageCallback(
-    router::MeshCallbackList<U>&& callbackList, T& mesh) {
+callback::MeshPackageCallbackList<U> addPackageCallback(
+    callback::MeshPackageCallbackList<U>&& callbackList, T& mesh) {
   // TimeSync
   callbackList.onPackage(
       protocol::TIME_SYNC,

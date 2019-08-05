@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <map>
 
+#include "painlessmesh/callback.hpp"
 #include "painlessmesh/layout.hpp"
 #include "painlessmesh/logger.hpp"
 #include "painlessmesh/protocol.hpp"
@@ -16,45 +17,6 @@ namespace painlessmesh {
  * Helper functions to route messages
  */
 namespace router {
-
-/**
- * Manage callbacks for receiving packages
- *
- * TODO: Implement a CallbackQueue, which has a list store and an execute
- * function. The map can then be changed to std::map<int, CallbackQueue> and
- * this queue can be used for mesh events etc
- */
-template <typename... Args>
-class CallbackList {
- public:
-  /**
-   * Add a callback for specific package id
-   */
-  void onPackage(int id, std::function<bool(Args...)> func) {
-    callbackMap[id].push_back(func);
-  }
-
-  /**
-   * Execute all the callbacks associated with a certain package
-   */
-  int execute(int id, Args... args) {
-    auto i = 0;
-    for (auto&& f : callbackMap[id]) {
-      ++i;
-      auto last = f(args...);
-      if (last) return i;
-    }
-    return i;
-  }
-
- protected:
-  std::map<int, std::list<std::function<bool(Args...)>>> callbackMap;
-};
-
-template <typename T>
-using MeshCallbackList =
-    CallbackList<protocol::Variant, std::shared_ptr<T>, uint32_t>;
-
 template <class T>
 std::shared_ptr<T> findRoute(layout::Layout<T> tree,
                              std::function<bool(std::shared_ptr<T>)> func) {
@@ -137,7 +99,7 @@ size_t broadcast(protocol::Variant variant, layout::Layout<T> layout,
 
 template <class T>
 void routePackage(layout::Layout<T> layout, std::shared_ptr<T> connection,
-                  TSTRING pkg, MeshCallbackList<T> cbl, uint32_t receivedAt) {
+                  TSTRING pkg, callback::MeshPackageCallbackList<T> cbl, uint32_t receivedAt) {
   using namespace logger;
   static size_t baseCapacity = 512;
   Log(COMMUNICATION, "routePackage(): Recvd from %u: %s\n", connection->nodeId,
@@ -197,14 +159,11 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
       return;
     }
 
-    // TODO: Move this to its own function
     mesh.addTask([&mesh, remoteNodeId = newTree.nodeId]() {
       Log(logger::CONNECTION, "newConnectionTask():\n");
       Log(logger::CONNECTION, "newConnectionTask(): adding %u now= %u\n",
           remoteNodeId, mesh.getNodeTime());
-      if (mesh.newConnectionCallback)
-        mesh.newConnectionCallback(
-            remoteNodeId);  // Connection dropped. Signal user
+      mesh.newConnectionCallbacks.execute(remoteNodeId);
     });
 
     // Initially interval is every 10 seconds,
@@ -227,8 +186,9 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
   }
 
   if (conn->updateSubs(newTree)) {
-    if (mesh.changedConnectionsCallback) mesh.changedConnectionsCallback();
-    layout::syncLayout(mesh, conn->nodeId);
+    mesh.addTask([&mesh, nodeId = newTree.nodeId]() {
+      mesh.changedConnectionCallbacks.execute(nodeId);
+    });
   } else {
     conn->nodeSyncTask.delay();
     mesh.stability += std::min(1000 - mesh.stability, (size_t)25);
@@ -236,8 +196,8 @@ void handleNodeSync(T& mesh, protocol::NodeTree newTree,
 }
 
 template <class T, typename U>
-router::MeshCallbackList<U> addPackageCallback(
-    router::MeshCallbackList<U>&& callbackList, T& mesh) {
+callback::MeshPackageCallbackList<U> addPackageCallback(
+    callback::MeshPackageCallbackList<U>&& callbackList, T& mesh) {
   // REQUEST type,
   callbackList.onPackage(
       protocol::NODE_SYNC_REQUEST,

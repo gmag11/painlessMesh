@@ -39,13 +39,10 @@ class namedMesh : public painlessMesh {
             }
           };
           painlessMesh::onReceive(cb);
-          changedConnectionsCallback = [this]() {
-            if (nameBroadCastTask.isEnabled()) {
+          changedConnectionCallbacks.push_back([this](uint32_t id) {
+            if (nameBroadCastTask.isEnabled())
               nameBroadCastTask.forceNextIteration();
-            }
-            if (userChangedConnectionsCallback)
-              userChangedConnectionsCallback();
-          };
+          });
         }
 
         String getName() {
@@ -110,18 +107,12 @@ class namedMesh : public painlessMesh {
         void onReceive(namedReceivedCallback_t  onReceive) {
             userNamedReceivedCallback = onReceive;
         }
-        virtual void onChangedConnections(changedConnectionsCallback_t onChangedConnections) {
-            userChangedConnectionsCallback = onChangedConnections;
-        }
-
     protected:
         String nodeName;
         std::map<uint32_t, String> nameMap;
 
         receivedCallback_t              userReceivedCallback;
         namedReceivedCallback_t         userNamedReceivedCallback;
-
-        changedConnectionsCallback_t    userChangedConnectionsCallback;
 
         bool nameBroadCastInit = false;
         Task nameBroadCastTask;
