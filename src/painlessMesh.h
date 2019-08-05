@@ -9,7 +9,6 @@
 #include <list>
 #include <memory>
 #include "painlessmesh/configuration.hpp"
-using namespace std;
 #ifdef ESP32
 #include <AsyncTCP.h>
 #include <WiFi.h>

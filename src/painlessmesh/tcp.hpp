@@ -10,6 +10,18 @@
 
 namespace painlessmesh {
 namespace tcp {
+inline uint32_t encodeNodeId(const uint8_t *hwaddr) {
+  using namespace painlessmesh::logger;
+  Log(GENERAL, "encodeNodeId():\n");
+  uint32_t value = 0;
+
+  value |= hwaddr[2] << 24;  // Big endian (aka "network order"):
+  value |= hwaddr[3] << 16;
+  value |= hwaddr[4] << 8;
+  value |= hwaddr[5];
+  return value;
+}
+
 template <class T, class M>
 void initServer(AsyncServer &server, M &mesh) {
   using namespace logger;
@@ -36,9 +48,7 @@ void connect(AsyncClient &client, IPAddress ip, uint16_t port, M &mesh) {
   client.onError([&mesh](void *, AsyncClient *client, int8_t err) {
     if (mesh.semaphoreTake()) {
       Log(CONNECTION, "tcp_err(): error trying to connect %d\n", err);
-      if (client->connected()) client->close();
-      // TODO: can we make this platform indepenedent?
-      WiFi.disconnect();
+      mesh.droppedConnectionCallbacks.execute(0, true);
       mesh.semaphoreGive();
     }
   });

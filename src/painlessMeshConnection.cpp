@@ -43,17 +43,17 @@ ICACHE_FLASH_ATTR MeshConnection::~MeshConnection() {
     client->close(true);
   }
   client->abort();
-  if (!station) delete client;
+  delete client;
 }
 
 void MeshConnection::initTCPCallbacks() {
   using namespace logger;
-  // Need to pass separate copy of this->mesh, because self->close() can
-  // invalidate the pointer, causing a segmentation fault when trying to access
-  // self->mesh afterwards
   client->onDisconnect(
-      [self = this->shared_from_this(), m = this->mesh](void *arg,
-                                                        AsyncClient *client) {
+      [self = this->shared_from_this()](void *arg, AsyncClient *client) {
+        // Making a copy of self->mesh pointer, because self->close() can
+        // invalidate the original pointer, causing a segmentation fault
+        // when trying to access self->mesh afterwards
+        auto m = self->mesh;
         if (m->semaphoreTake()) {
           Log(CONNECTION, "onDisconnect(): dropping %u now= %u\n", self->nodeId,
               m->getNodeTime());
@@ -189,21 +189,8 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
       [mesh = this->mesh, nodeId = this->nodeId, station = this->station]() {
         Log(CONNECTION, "closingTask(): dropping %u now= %u\n", nodeId,
             mesh->getNodeTime());
-        if (mesh->changedConnectionsCallback)
-          mesh->changedConnectionsCallback();  // Connection dropped. Signal
-        // user
-        if (mesh->droppedConnectionCallback)
-          mesh->droppedConnectionCallback(
-              nodeId);  // Connection dropped. Signal user
-
-        // TODO: This should be handled by the mesh.onDisconnect callback/event
-        if (station && WiFi.status() == WL_CONNECTED) {
-          Log(CONNECTION, "close(): call WiFi.disconnect().\n");
-          WiFi.disconnect();
-        }
-
-        mesh->eraseClosedConnections();
-        if (nodeId != 0) layout::syncLayout<MeshConnection>((*mesh), nodeId);
+        mesh->changedConnectionCallbacks.execute(nodeId);
+        mesh->droppedConnectionCallbacks.execute(nodeId, station);
       });
 
   if (client->connected()) {
@@ -213,7 +200,6 @@ void ICACHE_FLASH_ATTR MeshConnection::close() {
 
   receiveBuffer.clear();
   sentBuffer.clear();
-
   NodeTree::clear();
   Log(CONNECTION, "MeshConnection::close() done. Was station: %d.\n",
       this->station);
@@ -274,8 +260,8 @@ bool ICACHE_FLASH_ATTR MeshConnection::writeNext() {
       sentBufferTask.forceNextIteration();
       return true;
     } else if (written == 0) {
-      Log(DEBUG, "writeNext(): tcp_write Failed node=%u. Resending later\n",
-          nodeId);
+      Log(COMMUNICATION,
+          "writeNext(): tcp_write Failed node=%u. Resending later\n", nodeId);
       return false;
     } else {
       Log(ERROR,

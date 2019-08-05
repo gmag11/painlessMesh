@@ -11,11 +11,12 @@
 #include <painlessMesh.h>
 
 #include "painlessmesh/ota.hpp"
+#include "plugin/performance.hpp"
 
 // some gpio pin that is connected to an LED...
 // on my rig, this is 5, change to the right number of your LED.
 #define   LED             2       // GPIO number of connected LED, ON ESP-12 IS GPIO2
-#define SEND_FREQ 2
+#define SEND_FREQ 2 
 
 #define   BLINK_PERIOD    3000 // milliseconds until cycle repeat
 #define   BLINK_DURATION  100  // milliseconds LED is on for
@@ -62,6 +63,8 @@ void setup() {
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
   mesh.onNodeDelayReceived(&delayReceivedCallback);
+
+  painlessmesh::plugin::performance::begin(mesh);
 
   userScheduler.addTask( taskSendMessage );
   taskSendMessage.enable();

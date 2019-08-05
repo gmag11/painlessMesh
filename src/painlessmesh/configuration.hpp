@@ -21,6 +21,7 @@
 #define PAINLESSMESH_ENABLE_OTA
 
 #define NODE_TIMEOUT 5 * TASK_SECOND
+#define SCAN_INTERVAL 30 * TASK_SECOND  // AP scan period in ms
 
 #ifdef ESP32
 #include <WiFi.h>
@@ -43,7 +44,9 @@ class Mesh;
 };  // namespace painlessmesh
 
 /** A convenience typedef to access the mesh class*/
+#ifdef PAINLESSMESH_ENABLE_ARDUINO_WIFI
 using painlessMesh = painlessmesh::wifi::Mesh;
+#endif
 
 #ifdef ESP32
 #define MAX_CONN 10
